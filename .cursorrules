@@ -1,0 +1,6 @@
+# Development Guidelines for Manga Editor
+
+- **Import Integrity**: Never overwrite top-level imports (React, components, stores) when using `replace_file_content`. Always ensure basic environment setup remains intact.
+- **Renderer Stability**: Any change that results in a blank screen (renderer crash) is a critical failure. Verify component imports and types before finalizing.
+- **Zustand State**: When updating state with spread operators (e.g., `...props`), avoid duplicating keys that were manually defined just above to prevent lint errors and unexpected behavior.
+- **Absolute Paths**: Always use absolute paths for file operations as per system instructions.
