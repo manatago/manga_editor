@@ -33,10 +33,39 @@ export interface Panel {
     fadeStrength?: number
 }
 
+export type BubbleType = 'rounded' | 'jagged' | 'rect'
+
+export interface Bubble {
+    id: string
+    type: BubbleType
+    x: number
+    y: number
+    width: number
+    height: number
+    text: string
+    fontSize: number
+    fontFamily: string
+    fontColor: string
+    isVertical: boolean
+    backgroundColor: string
+    borderColor: string
+    borderWidth: number
+    opacity: number
+    textOffsetX: number
+    textOffsetY: number
+    deformation: number
+    tailX?: number
+    tailY?: number
+    tailControlX?: number
+    tailControlY?: number
+    tailWidth?: number
+}
+
 interface Page {
     id: string
     name: string
     panels: Panel[]
+    bubbles: Bubble[]
     backgroundColor?: string
     backgroundOpacity?: number
 }
@@ -53,14 +82,19 @@ interface MangaState {
     templates: PageTemplate[]
     currentPageId: string | null
     selectedPanelId: string | null
+    selectedBubbleId: string | null
     setCurrentProject: (path: string) => void
     setSelectedPanel: (id: string | null) => void
+    setSelectedBubble: (id: string | null) => void
     addPage: (panels?: Omit<Panel, 'id'>[]) => void
     selectPage: (id: string) => void
     updatePage: (id: string, updates: Partial<Page>) => void
-    addPanel: (props: { x: number; y: number } & Partial<Omit<Panel, 'id' | 'x' | 'y'>>) => void
+    addPanel: (props: Partial<Omit<Panel, 'id'>>) => void
     updatePanel: (id: string, updates: Partial<Panel>) => void
     removePanel: (id: string) => void
+    addBubble: (props: Partial<Omit<Bubble, 'id'>>) => void
+    updateBubble: (id: string, updates: Partial<Bubble>) => void
+    removeBubble: (id: string) => void
     reorderPanel: (id: string, action: 'front' | 'back' | 'up' | 'down') => void
     setProjectData: (data: { pages: Page[] }) => void
     // Template actions
@@ -74,14 +108,17 @@ export const useMangaStore = create<MangaState>((set, get) => ({
     templates: [],
     currentPageId: null,
     selectedPanelId: null,
+    selectedBubbleId: null,
     setCurrentProject: (path) => set({ currentProjectPath: path }),
-    setSelectedPanel: (id) => set({ selectedPanelId: id }),
+    setSelectedPanel: (id) => set({ selectedPanelId: id, selectedBubbleId: null }),
+    setSelectedBubble: (id) => set({ selectedBubbleId: id, selectedPanelId: null }),
     addPage: (panels) =>
         set((state) => {
             const newPage: Page = {
                 id: Math.random().toString(36).substr(2, 9),
                 name: `Page ${state.pages.length + 1}`,
                 panels: panels ? panels.map(p => ({ ...p, id: Math.random().toString(36).substr(2, 9) })) : [],
+                bubbles: [],
                 backgroundColor: '#ffffff',
                 backgroundOpacity: 1
             }
@@ -102,6 +139,8 @@ export const useMangaStore = create<MangaState>((set, get) => ({
             const newPanel: Panel = {
                 id: Math.random().toString(36).substr(2, 9),
                 type: 'rect',
+                x: 100,
+                y: 100,
                 width: 200,
                 height: 150,
                 strokeWidth: 4,
@@ -127,7 +166,8 @@ export const useMangaStore = create<MangaState>((set, get) => ({
                 pages: state.pages.map((p) =>
                     p.id === state.currentPageId ? { ...p, panels: [...p.panels, newPanel] } : p
                 ),
-                selectedPanelId: newPanel.id
+                selectedPanelId: newPanel.id,
+                selectedBubbleId: null
             }
         }),
     updatePanel: (id, updates) =>
@@ -151,6 +191,66 @@ export const useMangaStore = create<MangaState>((set, get) => ({
                         : p
                 ),
                 selectedPanelId: state.selectedPanelId === id ? null : state.selectedPanelId
+            }
+        }),
+    addBubble: (props) =>
+        set((state) => {
+            if (!state.currentPageId) return state
+            const newBubble: Bubble = {
+                id: Math.random().toString(36).substr(2, 9),
+                type: 'rounded',
+                x: 200,
+                y: 200,
+                width: 150,
+                height: 100,
+                text: 'テキストを入力',
+                fontSize: 18,
+                fontFamily: 'sans-serif',
+                fontColor: '#000000',
+                isVertical: true,
+                backgroundColor: '#ffffff',
+                borderColor: '#000000',
+                borderWidth: 2,
+                opacity: 1,
+                textOffsetX: 0,
+                textOffsetY: 0,
+                deformation: 1,
+                tailX: 0,
+                tailY: 0,
+                tailControlX: 0,
+                tailControlY: 0,
+                tailWidth: 20,
+                ...props
+            }
+            return {
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId ? { ...p, bubbles: [...p.bubbles, newBubble] } : p
+                ),
+                selectedBubbleId: newBubble.id,
+                selectedPanelId: null
+            }
+        }),
+    updateBubble: (id, updates) =>
+        set((state) => {
+            if (!state.currentPageId) return state
+            return {
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId
+                        ? { ...p, bubbles: p.bubbles.map((b) => (b.id === id ? { ...b, ...updates } : b)) }
+                        : p
+                )
+            }
+        }),
+    removeBubble: (id) =>
+        set((state) => {
+            if (!state.currentPageId) return state
+            return {
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId
+                        ? { ...p, bubbles: p.bubbles.filter((b) => b.id !== id) }
+                        : p
+                ),
+                selectedBubbleId: state.selectedBubbleId === id ? null : state.selectedBubbleId
             }
         }),
     reorderPanel: (id, action) =>
@@ -183,11 +283,60 @@ export const useMangaStore = create<MangaState>((set, get) => ({
                 )
             }
         }),
-    setProjectData: (data) => set({
-        pages: data.pages || [],
-        currentPageId: data.pages?.[0]?.id || null,
-        selectedPanelId: null
-    }),
+    setProjectData: (data) => {
+        console.log('Store: setProjectData called with:', data)
+        const sanitizedPages = (data.pages || []).map(page => ({
+            ...page,
+            backgroundColor: page.backgroundColor || '#ffffff',
+            backgroundOpacity: page.backgroundOpacity ?? 1,
+            bubbles: page.bubbles || [],
+            panels: (page.panels || []).map(panel => {
+                // Determine width/height if missing but points exist (legacy data)
+                let width = panel.width
+                let height = panel.height
+                if ((width === undefined || width === null) && (panel as any).points) {
+                    const pts = (panel as any).points
+                    width = pts[2] - pts[0]
+                    height = pts[5] - pts[1]
+                }
+
+                return {
+                    ...panel,
+                    type: panel.type || 'rect',
+                    width: width || 200,
+                    height: height || 150,
+                    x: panel.x || 0,
+                    y: panel.y || 0,
+                    strokeWidth: panel.strokeWidth || 4,
+                    slant: panel.slant || 0,
+                    offsetB: panel.offsetB || 0,
+                    offsetC: panel.offsetC || 0,
+                    offsetD: panel.offsetD || 0,
+                    imageX: panel.imageX || 0,
+                    imageY: panel.imageY || 0,
+                    imageScale: panel.imageScale ?? 1,
+                    imageRotation: panel.imageRotation ?? 0,
+                    fadeDirection: panel.fadeDirection || 'none',
+                    hasFocusLines: panel.hasFocusLines || false,
+                    focusCenterX: panel.focusCenterX ?? 0.5,
+                    focusCenterY: panel.focusCenterY ?? 0.5,
+                    focusDensity: panel.focusDensity ?? 100,
+                    focusWidth: panel.focusWidth ?? 1,
+                    focusRadius: panel.focusRadius ?? 50,
+                    fadeStrength: panel.fadeStrength ?? 0.4
+                }
+            })
+        }))
+
+        set({
+            pages: sanitizedPages,
+            currentPageId: sanitizedPages[0]?.id || null,
+            selectedPanelId: null,
+            selectedBubbleId: null,
+            currentProjectPath: get().currentProjectPath // Keep existing path if not reset
+        })
+        console.log('Store: setProjectData done. sanitized count:', sanitizedPages.length)
+    },
     loadTemplates: async () => {
         if (!window.electron) return
         const templates = await window.electron.getTemplates()

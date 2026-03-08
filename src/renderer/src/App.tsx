@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Canvas from './components/Canvas'
 import { useMangaStore, PanelType } from './store/useMangaStore'
-import { Plus, FolderOpen, PanelTop, Square, AlignLeft, Table, Columns, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronUp, ChevronDown, Trash2, Layout, BookTemplate, Save } from 'lucide-react'
+import { Plus, FolderOpen, PanelTop, Square, AlignLeft, Table, Columns, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronUp, ChevronDown, Trash2, Layout, BookTemplate, Save, MessageSquare, Type, Palette, Maximize, Ghost, Zap, Circle, Move } from 'lucide-react'
 import { FadeDirection } from './store/useMangaStore'
 
 const DirectionButton: React.FC<{
@@ -28,17 +28,24 @@ function App(): React.JSX.Element {
         currentPageId,
         selectedPanelId,
         setSelectedPanel,
+        selectedBubbleId,
+        setSelectedBubble,
         addPage,
         selectPage,
         updatePage,
         addPanel,
         updatePanel,
         removePanel,
+        addBubble,
+        updateBubble,
+        removeBubble,
         reorderPanel,
         templates,
         loadTemplates,
         saveAsTemplate
     } = useMangaStore()
+
+    console.log('App: Rendering. currentProjectPath:', currentProjectPath, 'pages count:', pages.length, 'currentPageId:', currentPageId)
 
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
     const [isSavingTemplate, setIsSavingTemplate] = useState(false)
@@ -46,18 +53,22 @@ function App(): React.JSX.Element {
 
     // Load templates on mount
     useEffect(() => {
+        console.log('App: Initial load templates')
         loadTemplates()
     }, [])
 
     const currentPage = pages.find(p => p.id === currentPageId)
     const selectedPanel = currentPage?.panels.find(p => p.id === selectedPanelId)
+    const selectedBubble = currentPage?.bubbles.find(b => b.id === selectedBubbleId)
 
     // Auto-save
     useEffect(() => {
         if (currentProjectPath && pages.length > 0) {
+            console.log('App: Auto-save triggered')
             const timeout = setTimeout(async () => {
                 try {
                     await window.electron.saveProject(currentProjectPath, { pages })
+                    console.log('App: Auto-save successful')
                 } catch (error) {
                     console.error('Auto-save failed:', error)
                 }
@@ -67,30 +78,45 @@ function App(): React.JSX.Element {
     }, [pages, currentProjectPath])
 
     const handleCreateNew = async () => {
-        if (!window.electron) return
+        console.log('App: handleCreateNew clicked')
+        if (!window.electron) {
+            console.error('App: window.electron is undefined')
+            return
+        }
         try {
             const folderPath = await window.electron.selectFolder()
+            console.log('App: folder selected:', folderPath)
             if (!folderPath) return
             const projectName = `manga_${new Date().getTime()}`
             const projectPath = await window.electron.createProject(folderPath, projectName)
+            console.log('App: project created at:', projectPath)
             setCurrentProject(projectPath)
-            setProjectData({ pages: [] })
+            // Load the newly created project data
+            const projectData = await window.electron.loadProject(projectPath)
+            console.log('App: loaded new project data:', projectData)
+            setProjectData(projectData)
         } catch (error) {
-            console.error(error)
+            console.error('App: handleCreateNew error:', error)
             alert('プロジェクトの作成に失敗しました')
         }
     }
 
     const handleOpenProject = async () => {
-        if (!window.electron) return
+        console.log('App: handleOpenProject clicked')
+        if (!window.electron) {
+            console.error('App: window.electron is undefined')
+            return
+        }
         try {
             const folderPath = await window.electron.selectFolder()
+            console.log('App: folder selected:', folderPath)
             if (!folderPath) return
             const projectData = await window.electron.loadProject(folderPath)
+            console.log('App: project data loaded from main:', projectData)
             setCurrentProject(folderPath)
             setProjectData(projectData)
         } catch (error) {
-            console.error(error)
+            console.error('App: handleOpenProject error:', error)
             alert('プロジェクトの読み込みに失敗しました')
         }
     }
@@ -210,16 +236,22 @@ function App(): React.JSX.Element {
                                 </button>
                             </div>
 
-                            {pages.map((page, idx) => (
-                                <button
-                                    key={page.id}
-                                    onClick={() => selectPage(page.id)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
-                                >
-                                    <span className="opacity-30 text-[10px] font-mono">{String(idx + 1).padStart(2, '0')}</span>
-                                    <span className="truncate">{page.name}</span>
-                                </button>
-                            ))}
+                            <>
+                                {console.log('App: Rendering pages list segment. count:', pages.length)}
+                                {pages.map((page, idx) => {
+                                    console.log('App: Rendering page item:', page.id, page.name)
+                                    return (
+                                        <button
+                                            key={page.id}
+                                            onClick={() => selectPage(page.id)}
+                                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
+                                        >
+                                            <span className="opacity-30 text-[10px] font-mono">{String(idx + 1).padStart(2, '0')}</span>
+                                            <span className="truncate">{page.name}</span>
+                                        </button>
+                                    )
+                                })}
+                            </>
                         </div>
                     )}
                 </div>
@@ -230,24 +262,40 @@ function App(): React.JSX.Element {
                 <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         {currentPageId && (
-                            <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
-                                <button onClick={() => handleAddPanelWithType('rect')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                    <Square size={14} />
-                                    <span className="text-xs font-medium">矩形</span>
-                                </button>
-                                <button onClick={() => handleAddPanelWithType('slanted')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                    <AlignLeft size={14} className="skew-x-12" />
-                                    <span className="text-xs font-medium">斜め</span>
-                                </button>
-                                <button onClick={() => handleAddPanelWithType('trapezoid-h')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                    <Table size={14} />
-                                    <span className="text-xs font-medium">台形(横)</span>
-                                </button>
-                                <button onClick={() => handleAddPanelWithType('trapezoid-v')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                    <Columns size={14} />
-                                    <span className="text-xs font-medium">台形(縦)</span>
-                                </button>
-                            </div>
+                            <>
+                                <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
+                                    <button onClick={() => handleAddPanelWithType('rect')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <Square size={14} />
+                                        <span className="text-xs font-medium">矩形</span>
+                                    </button>
+                                    <button onClick={() => handleAddPanelWithType('slanted')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <AlignLeft size={14} className="skew-x-12" />
+                                        <span className="text-xs font-medium">斜め</span>
+                                    </button>
+                                    <button onClick={() => handleAddPanelWithType('trapezoid-h')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <Table size={14} />
+                                        <span className="text-xs font-medium">台形(横)</span>
+                                    </button>
+                                    <button onClick={() => handleAddPanelWithType('trapezoid-v')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <Columns size={14} />
+                                        <span className="text-xs font-medium">台形(縦)</span>
+                                    </button>
+                                </div>
+                                <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800 ml-4">
+                                    <button onClick={() => addBubble({ type: 'rounded' })} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <MessageSquare size={14} />
+                                        <span className="text-xs font-medium">普通</span>
+                                    </button>
+                                    <button onClick={() => addBubble({ type: 'jagged' })} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <Zap size={14} />
+                                        <span className="text-xs font-medium">ギザギザ</span>
+                                    </button>
+                                    <button onClick={() => addBubble({ type: 'rect' })} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
+                                        <Square size={14} />
+                                        <span className="text-xs font-medium">矩形</span>
+                                    </button>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
@@ -263,306 +311,414 @@ function App(): React.JSX.Element {
             </div>
 
             {/* Right Sidebar: Properties */}
-            <div className={`w-72 bg-zinc-900 border-l border-zinc-800 shrink-0 transition-transform ${currentPageId ? 'translate-x-0' : 'translate-x-full'}`}>
-                {!selectedPanelId && currentPageId && (
-                    <div className="p-6 space-y-8 overflow-y-auto h-full">
-                        <div>
-                            <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Page Canvas Settings</h2>
-                            <div className="space-y-6">
+            <div className={`w-72 bg-zinc-900 border-l border-zinc-800 shrink-0 flex flex-col transition-transform ${currentPageId ? 'translate-x-0' : 'translate-x-full'}`}>
+                {currentPageId && (
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+                        {selectedPanel ? (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div>
-                                    <label className="text-xs text-zinc-400 block mb-3">背景色 (Background Color)</label>
-                                    <div className="grid grid-cols-7 gap-1.5">
-                                        {['#ffffff', '#f4f4f5', '#d4d4d8', '#a1a1aa', '#52525b', '#27272a', '#000000', '#fee2e2', '#fca5a5', '#ef4444', '#b91c1c', '#fef9c3', '#fde047', '#eab308', '#dcfce7', '#86efac', '#22c55e', '#dbeafe', '#93c5fd', '#3b82f6', '#1d4ed8'].map((color) => {
-                                            const page = pages.find(p => p.id === currentPageId)
-                                            return (
-                                                <button
-                                                    key={color}
-                                                    onClick={() => updatePage(currentPageId, { backgroundColor: color })}
-                                                    className={`w-full aspect-square rounded-sm border transition-all ${page?.backgroundColor === color ? 'border-white scale-110 z-10' : 'border-zinc-800 hover:border-zinc-600'}`}
-                                                    style={{ backgroundColor: color }}
-                                                />
-                                            )
-                                        })}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Panel Settings</h2>
+                                        <button onClick={() => removePanel(selectedPanel.id)} className="p-1.5 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {(['rect', 'slanted', 'trapezoid-h', 'trapezoid-v'] as const).map((type) => (
+                                            <button
+                                                key={type}
+                                                onClick={() => updatePanel(selectedPanel.id, { type })}
+                                                className={`py-2 px-3 rounded-lg border text-[10px] font-bold transition-all ${selectedPanel.type === type ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                                            >
+                                                {type.replace('-', ' ').toUpperCase()}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <label className="text-xs text-zinc-400">背景の透明度 (Opacity)</label>
-                                        <span className="text-xs text-blue-500 font-mono">{Math.round((pages.find(p => p.id === currentPageId)?.backgroundOpacity ?? 1) * 100)}%</span>
+
+                                {selectedPanel.type !== 'rect' && (
+                                    <div className="space-y-4 pt-4 border-t border-zinc-800">
+                                        <h3 className="text-[10px] font-bold text-zinc-600 uppercase">Shape Adjustments</h3>
+                                        <div className="space-y-4">
+                                            {selectedPanel.type === 'slanted' && (
+                                                <div>
+                                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">Slant Angle</label><span className="text-[10px] text-blue-500 font-mono">{selectedPanel.slant}px</span></div>
+                                                    <input type="range" min="-200" max="200" value={selectedPanel.slant} onChange={(e) => updatePanel(selectedPanel.id, { slant: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="100"
-                                        value={(pages.find(p => p.id === currentPageId)?.backgroundOpacity ?? 1) * 100}
-                                        onChange={(e) => updatePage(currentPageId, { backgroundOpacity: parseInt(e.target.value) / 100 })}
-                                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                )}
+
+                                {selectedPanel.imagePath && (
+                                    <div className="space-y-4 pt-4 border-t border-zinc-800">
+                                        <h3 className="text-[10px] font-bold text-zinc-600 uppercase">Image Settings</h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">Scale</label><span className="text-[10px] text-blue-500 font-mono">{Math.round((selectedPanel.imageScale ?? 1) * 100)}%</span></div>
+                                                <input type="range" min="10" max="500" value={(selectedPanel.imageScale ?? 1) * 100} onChange={(e) => updatePanel(selectedPanel.id, { imageScale: parseInt(e.target.value) / 100 })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">Rotation</label><span className="text-[10px] text-blue-500 font-mono">{selectedPanel.imageRotation ?? 0}°</span></div>
+                                                <input type="range" min="0" max="360" value={selectedPanel.imageRotation ?? 0} onChange={(e) => updatePanel(selectedPanel.id, { imageRotation: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-6 pt-4 border-t border-zinc-800">
+                                    <div>
+                                        <h3 className="text-[10px] font-bold text-zinc-600 uppercase mb-3">Fade Out Direction</h3>
+                                        <div className="grid grid-cols-5 gap-1.5">
+                                            <DirectionButton dir="none" icon={<Layers size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
+                                            <DirectionButton dir="top" icon={<ArrowUp size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
+                                            <DirectionButton dir="bottom" icon={<ArrowDown size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
+                                            <DirectionButton dir="left" icon={<ArrowLeft size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
+                                            <DirectionButton dir="right" icon={<ArrowRight size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
+                                        </div>
+                                    </div>
+
+                                    {selectedPanel.fadeDirection && selectedPanel.fadeDirection !== 'none' && (
+                                        <div className="animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="flex justify-between mb-2">
+                                                <label className="text-[10px] text-zinc-500 uppercase">Fade Strength</label>
+                                                <span className="text-[10px] text-blue-500 font-mono">{Math.round((selectedPanel.fadeStrength ?? 0.4) * 100)}%</span>
+                                            </div>
+                                            <input type="range" min="10" max="100" value={(selectedPanel.fadeStrength ?? 0.4) * 100} onChange={(e) => updatePanel(selectedPanel.id, { fadeStrength: parseInt(e.target.value) / 100 })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2">
+                                        <button
+                                            onClick={() => updatePanel(selectedPanel.id, { hasFocusLines: !selectedPanel.hasFocusLines })}
+                                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${selectedPanel.hasFocusLines ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                                        >
+                                            <span>集中線エフェクト</span>
+                                            <div className={`w-2 h-2 rounded-full ${selectedPanel.hasFocusLines ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'}`} />
+                                        </button>
+
+                                        {selectedPanel.hasFocusLines && (
+                                            <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <button
+                                                    onClick={() => updatePanel(selectedPanel.id, { isAdjustingFocus: !selectedPanel.hasFocusLines || !selectedPanel.isAdjustingFocus })}
+                                                    className={`w-full py-1.5 rounded text-[10px] font-bold transition-all ${selectedPanel.isAdjustingFocus ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-700 text-zinc-400 hover:text-white'}`}
+                                                >
+                                                    {selectedPanel.isAdjustingFocus ? '中心位置を決定' : '中心位置を調整'}
+                                                </button>
+                                                <div>
+                                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">密度 (Density)</label><span className="text-[8px] text-blue-500 font-mono">{selectedPanel.focusDensity}</span></div>
+                                                    <input type="range" min="20" max="800" value={selectedPanel.focusDensity ?? 100} onChange={(e) => updatePanel(selectedPanel.id, { focusDensity: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">太さ (Width)</label><span className="text-[8px] text-blue-500 font-mono">{selectedPanel.focusWidth}px</span></div>
+                                                    <input type="range" min="0.5" max="5" step="0.5" value={selectedPanel.focusWidth ?? 1} onChange={(e) => updatePanel(selectedPanel.id, { focusWidth: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">中心半径 (Radius)</label><span className="text-[8px] text-blue-500 font-mono">{selectedPanel.focusRadius}px</span></div>
+                                                    <input type="range" min="0" max="300" value={selectedPanel.focusRadius ?? 50} onChange={(e) => updatePanel(selectedPanel.id, { focusRadius: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : selectedBubble ? (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Bubble Settings</h2>
+                                <div>
+                                    <label className="text-xs text-zinc-400 block mb-2">種類</label>
+                                    <div className="grid grid-cols-3 gap-1">
+                                        {(['rounded', 'jagged', 'rect'] as const).map((type) => (
+                                            <button
+                                                key={type}
+                                                onClick={() => updateBubble(selectedBubble.id, { type })}
+                                                className={`py-2 flex flex-col items-center gap-1 rounded border transition-all ${selectedBubble.type === type ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                                            >
+                                                {type === 'rounded' ? <Ghost size={14} /> : type === 'jagged' ? <Maximize size={14} /> : <Square size={14} />}
+                                                <span className="text-[8px] uppercase tracking-tighter">{type}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs text-zinc-400">テキスト</label>
+                                        <button
+                                            onClick={() => updateBubble(selectedBubble.id, { isVertical: !selectedBubble.isVertical })}
+                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${selectedBubble.isVertical ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}
+                                        >
+                                            {selectedBubble.isVertical ? '縦書き' : '横書き'}
+                                        </button>
+                                    </div>
+                                    <textarea
+                                        value={selectedBubble.text}
+                                        onChange={(e) => updateBubble(selectedBubble.id, { text: e.target.value })}
+                                        className="w-full h-24 bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500/50 resize-none"
+                                        placeholder="セリフを入力..."
                                     />
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {selectedPanel && (
-                    <div className="p-6 space-y-8 overflow-y-auto h-full">
-                        <div>
-                            <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Appearance</h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <label className="text-xs text-zinc-400">枠線の太さ</label>
-                                        <span className="text-xs text-blue-500 font-mono">{selectedPanel.strokeWidth}px</span>
-                                    </div>
-                                    <input type="range" min="0" max="20" value={selectedPanel.strokeWidth} onChange={(e) => updatePanel(selectedPanel.id, { strokeWidth: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                </div>
-                            </div>
-                        </div>
 
-                        {selectedPanel.imagePath && (
-                            <div>
-                                <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Background Image</h2>
-                                <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-xs text-zinc-400">拡大率 (Scale)</label>
-                                            <span className="text-xs text-blue-500 font-mono">{Math.round((selectedPanel.imageScale || 1) * 100)}%</span>
+                                        <label className="text-xs text-zinc-400 block mb-2">サイズ</label>
+                                        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded px-2">
+                                            <Type size={14} className="text-zinc-600" />
+                                            <input
+                                                type="number"
+                                                value={selectedBubble.fontSize}
+                                                onChange={(e) => updateBubble(selectedBubble.id, { fontSize: parseInt(e.target.value) })}
+                                                className="w-full bg-transparent p-2 text-xs text-white focus:outline-none"
+                                            />
                                         </div>
-                                        <input type="range" min="10" max="500" value={(selectedPanel.imageScale || 1) * 100} onChange={(e) => updatePanel(selectedPanel.id, { imageScale: parseInt(e.target.value) / 100 })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-zinc-400 block mb-2">文字色</label>
+                                        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded px-2 h-[34px]">
+                                            <Palette size={14} className="text-zinc-600" />
+                                            <input
+                                                type="color"
+                                                value={selectedBubble.fontColor}
+                                                onChange={(e) => updateBubble(selectedBubble.id, { fontColor: e.target.value })}
+                                                className="w-full h-5 bg-transparent border-none p-0 cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs text-zinc-400 block mb-2">フォント</label>
+                                        <select
+                                            value={selectedBubble.fontFamily}
+                                            onChange={(e) => updateBubble(selectedBubble.id, { fontFamily: e.target.value })}
+                                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                                        >
+                                            <option value="sans-serif">ゴシック体</option>
+                                            <option value="serif">明朝体</option>
+                                            <option value="'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif">ヒラギノ角ゴ / メイリオ</option>
+                                            <option value="'Hiragino Mincho ProN', 'MS PMincho', serif">ヒラギノ明朝 / MS明朝</option>
+                                            <option value="'Comic Sans MS', cursive">手描き風 (Comic Sans)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-zinc-400 block mb-2">枠線の太さ</label>
+                                        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded px-2 h-[34px]">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="20"
+                                                step="0.5"
+                                                value={selectedBubble.borderWidth ?? 2}
+                                                onChange={(e) => updateBubble(selectedBubble.id, { borderWidth: parseFloat(e.target.value) })}
+                                                className="w-full bg-transparent p-2 text-xs text-white focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-4 border-t border-zinc-800">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs text-zinc-400 block mb-2">背景色</label>
+                                            <input
+                                                type="color"
+                                                value={selectedBubble.backgroundColor}
+                                                onChange={(e) => updateBubble(selectedBubble.id, { backgroundColor: e.target.value })}
+                                                className="w-full h-6 bg-transparent border-none p-0 cursor-pointer"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-zinc-400 block mb-2">枠線色</label>
+                                            <input
+                                                type="color"
+                                                value={selectedBubble.borderColor}
+                                                onChange={(e) => updateBubble(selectedBubble.id, { borderColor: e.target.value })}
+                                                className="w-full h-6 bg-transparent border-none p-0 cursor-pointer"
+                                            />
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="flex justify-between mb-2">
-                                            <label className="text-xs text-zinc-400">回転 (Rotation)</label>
-                                            <span className="text-xs text-blue-500 font-mono">{selectedPanel.imageRotation || 0}°</span>
+                                            <label className="text-xs text-zinc-400">不透明度</label>
+                                            <span className="text-xs text-blue-500 font-mono">{Math.round(selectedBubble.opacity * 100)}%</span>
                                         </div>
-                                        <input type="range" min="-180" max="180" value={selectedPanel.imageRotation || 0} onChange={(e) => updatePanel(selectedPanel.id, { imageRotation: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                        <input
+                                            type="range" min="0" max="1" step="0.05"
+                                            value={selectedBubble.opacity}
+                                            onChange={(e) => updateBubble(selectedBubble.id, { opacity: parseFloat(e.target.value) })}
+                                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                        />
                                     </div>
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-xs text-zinc-400">位置調整 (Offset X)</label>
-                                            <span className="text-xs text-blue-500 font-mono">{selectedPanel.imageX || 0}px</span>
+
+                                    <div className="pt-2 space-y-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Move size={12} className="text-zinc-500" />
+                                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Text Offset</label>
                                         </div>
-                                        <input type="range" min="-500" max="500" value={selectedPanel.imageX || 0} onChange={(e) => updatePanel(selectedPanel.id, { imageX: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-xs text-zinc-400">位置調整 (Offset Y)</label>
-                                            <span className="text-xs text-blue-500 font-mono">{selectedPanel.imageY || 0}px</span>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <div>
+                                                <div className="flex justify-between mb-1">
+                                                    <span className="text-[10px] text-zinc-500">X Offset</span>
+                                                    <span className="text-[10px] text-blue-500 font-mono">{selectedBubble.textOffsetX}px</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="-100" max="100" step="1"
+                                                    value={selectedBubble.textOffsetX}
+                                                    onChange={(e) => updateBubble(selectedBubble.id, { textOffsetX: parseInt(e.target.value) })}
+                                                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between mb-1">
+                                                    <span className="text-[10px] text-zinc-500">Y Offset</span>
+                                                    <span className="text-[10px] text-blue-500 font-mono">{selectedBubble.textOffsetY}px</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="-100" max="100" step="1"
+                                                    value={selectedBubble.textOffsetY}
+                                                    onChange={(e) => updateBubble(selectedBubble.id, { textOffsetY: parseInt(e.target.value) })}
+                                                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between mb-1">
+                                                    <span className="text-[10px] text-zinc-500">Deformation</span>
+                                                    <span className="text-[10px] text-blue-500 font-mono">{Math.round((selectedBubble.deformation ?? 1) * 100)}%</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="0" max="3" step="0.1"
+                                                    value={selectedBubble.deformation ?? 1}
+                                                    onChange={(e) => updateBubble(selectedBubble.id, { deformation: parseFloat(e.target.value) })}
+                                                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                />
+                                            </div>
+                                            <div className="pt-2 mt-2 border-t border-zinc-800">
+                                                <div className="flex justify-between mb-2">
+                                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Tail Settings</span>
+                                                    <button
+                                                        onClick={() => updateBubble(selectedBubble.id, { tailX: 0, tailY: 0, tailControlX: 0, tailControlY: 0 })}
+                                                        className="text-[9px] text-zinc-500 hover:text-white transition-colors"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className="text-[10px] text-zinc-500">Tip Pos (X/Y)</span>
+                                                            <span className="text-[10px] text-blue-500 font-mono">{selectedBubble.tailX || 0}, {selectedBubble.tailY || 0}</span>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                type="range" min="-300" max="300" step="1"
+                                                                value={selectedBubble.tailX || 0}
+                                                                onChange={(e) => updateBubble(selectedBubble.id, { tailX: parseInt(e.target.value) })}
+                                                                className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                            />
+                                                            <input
+                                                                type="range" min="-300" max="300" step="1"
+                                                                value={selectedBubble.tailY || 0}
+                                                                onChange={(e) => updateBubble(selectedBubble.id, { tailY: parseInt(e.target.value) })}
+                                                                className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className="text-[10px] text-zinc-500">Curvature (X/Y)</span>
+                                                            <span className="text-[10px] text-emerald-500 font-mono">{selectedBubble.tailControlX || 0}, {selectedBubble.tailControlY || 0}</span>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                type="range" min="-300" max="300" step="1"
+                                                                value={selectedBubble.tailControlX || 0}
+                                                                onChange={(e) => updateBubble(selectedBubble.id, { tailControlX: parseInt(e.target.value) })}
+                                                                className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                                            />
+                                                            <input
+                                                                type="range" min="-300" max="300" step="1"
+                                                                value={selectedBubble.tailControlY || 0}
+                                                                onChange={(e) => updateBubble(selectedBubble.id, { tailControlY: parseInt(e.target.value) })}
+                                                                className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className="text-[10px] text-zinc-500">Base Width</span>
+                                                            <span className="text-[10px] text-zinc-400 font-mono">{selectedBubble.tailWidth || 20}px</span>
+                                                        </div>
+                                                        <input
+                                                            type="range" min="2" max="100" step="1"
+                                                            value={selectedBubble.tailWidth || 20}
+                                                            onChange={(e) => updateBubble(selectedBubble.id, { tailWidth: parseInt(e.target.value) })}
+                                                            className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-zinc-500"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <input type="range" min="-500" max="500" value={selectedPanel.imageY || 0} onChange={(e) => updatePanel(selectedPanel.id, { imageY: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                                     </div>
+                                </div>
+
+                                <button
+                                    onClick={() => removeBubble(selectedBubble.id)}
+                                    className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/30 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Trash2 size={14} />
+                                    吹き出しを削除
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-8 animate-in fade-in duration-300">
+                                <div>
+                                    <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Page Settings</h2>
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="text-xs text-zinc-400 block mb-3">背景色</label>
+                                            <div className="grid grid-cols-7 gap-1.5">
+                                                {['#ffffff', '#f4f4f5', '#d4d4d8', '#a1a1aa', '#52525b', '#27272a', '#000000', '#fee2e2', '#fca5a5', '#ef4444', '#b91c1c', '#fef9c3', '#fde047', '#eab308', '#dcfce7', '#86efac', '#22c55e', '#dbeafe', '#93c5fd', '#3b82f6', '#1d4ed8'].map((color) => (
+                                                    <button
+                                                        key={color}
+                                                        onClick={() => currentPageId && updatePage(currentPageId, { backgroundColor: color })}
+                                                        className={`w-full aspect-square rounded-sm border transition-all ${currentPage?.backgroundColor === color ? 'border-white scale-110 z-10' : 'border-zinc-800 hover:border-zinc-600'}`}
+                                                        style={{ backgroundColor: color }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between mb-2">
+                                                <label className="text-xs text-zinc-400">背景不透明度</label>
+                                                <span className="text-xs text-blue-500 font-mono">{Math.round((currentPage?.backgroundOpacity ?? 1) * 100)}%</span>
+                                            </div>
+                                            <input
+                                                type="range" min="0" max="100"
+                                                value={(currentPage?.backgroundOpacity ?? 1) * 100}
+                                                onChange={(e) => currentPageId && updatePage(currentPageId, { backgroundOpacity: parseInt(e.target.value) / 100 })}
+                                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-zinc-800">
+                                    <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Speech Bubbles</h2>
                                     <button
-                                        onClick={() => updatePanel(selectedPanel.id, { imagePath: undefined })}
-                                        className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-bold rounded flex items-center justify-center gap-2 transition-colors uppercase tracking-wider"
+                                        onClick={() => addBubble({ x: 100, y: 100 })}
+                                        className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold transition-all border border-zinc-700 flex items-center justify-center gap-2 group"
                                     >
-                                        画像を解除
+                                        <MessageSquare size={16} className="group-hover:text-blue-500 transition-colors" />
+                                        吹き出しを追加
                                     </button>
                                 </div>
                             </div>
                         )}
-
-                        <div>
-                            <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Panel Effects</h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs text-zinc-400 block mb-2">フェードアウト (Fade Out)</label>
-                                    <div className="flex flex-col items-center mb-4">
-                                        <div className="grid grid-cols-3 gap-1 w-32">
-                                            <div />
-                                            <DirectionButton dir="top" icon={<ArrowUp size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
-                                            <div />
-
-                                            <DirectionButton dir="left" icon={<ArrowLeft size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
-                                            <DirectionButton dir="none" icon={<span className="text-[10px] font-bold">OFF</span>} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
-                                            <DirectionButton dir="right" icon={<ArrowRight size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
-
-                                            <div />
-                                            <DirectionButton dir="bottom" icon={<ArrowDown size={14} />} current={selectedPanel.fadeDirection} onSelect={(dir) => updatePanel(selectedPanel.id, { fadeDirection: dir })} />
-                                            <div />
-                                        </div>
-                                    </div>
-                                    {selectedPanel.fadeDirection !== 'none' && (
-                                        <div className="mb-2">
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">フェードの強さ (Strength)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{Math.round((selectedPanel.fadeStrength ?? 0.4) * 100)}%</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0.1"
-                                                max="1"
-                                                step="0.05"
-                                                value={selectedPanel.fadeStrength ?? 0.4}
-                                                onChange={(e) => updatePanel(selectedPanel.id, { fadeStrength: parseFloat(e.target.value) })}
-                                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex items-center justify-between py-2 border-t border-zinc-800/50">
-                                    <label className="text-xs text-zinc-400">集中線 (Focus Lines)</label>
-                                    <button
-                                        onClick={() => updatePanel(selectedPanel.id, { hasFocusLines: !selectedPanel.hasFocusLines })}
-                                        className={`w-10 h-5 rounded-full transition-all relative ${selectedPanel.hasFocusLines ? 'bg-blue-600' : 'bg-zinc-800'}`}
-                                    >
-                                        <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${selectedPanel.hasFocusLines ? 'left-6' : 'left-1'}`} />
-                                    </button>
-                                </div>
-                                {selectedPanel.hasFocusLines && (
-                                    <div className="space-y-4 pt-2 border-t border-zinc-800/30">
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">線の密度 (Density)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{selectedPanel.focusDensity}</span>
-                                            </div>
-                                            <input type="range" min="10" max="500" value={selectedPanel.focusDensity} onChange={(e) => updatePanel(selectedPanel.id, { focusDensity: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">線の太さ (Thickness)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{selectedPanel.focusWidth || 1}</span>
-                                            </div>
-                                            <input type="range" min="0.1" max="10" step="0.1" value={selectedPanel.focusWidth || 1} onChange={(e) => updatePanel(selectedPanel.id, { focusWidth: parseFloat(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">集中円の大きさ (Radius)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{selectedPanel.focusRadius || 50}px</span>
-                                            </div>
-                                            <input type="range" min="0" max="300" value={selectedPanel.focusRadius || 50} onChange={(e) => updatePanel(selectedPanel.id, { focusRadius: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">中心位置 X (Focus X)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{Math.round((selectedPanel.focusCenterX ?? 0.5) * 100)}%</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="-50"
-                                                max="150"
-                                                value={Math.round((selectedPanel.focusCenterX ?? 0.5) * 100)}
-                                                onChange={(e) => updatePanel(selectedPanel.id, { focusCenterX: parseInt(e.target.value) / 100 })}
-                                                onMouseEnter={() => updatePanel(selectedPanel.id, { isAdjustingFocus: true })}
-                                                onMouseLeave={() => updatePanel(selectedPanel.id, { isAdjustingFocus: false })}
-                                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                            />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">中心位置 Y (Focus Y)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{Math.round((selectedPanel.focusCenterY ?? 0.5) * 100)}%</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="-50"
-                                                max="150"
-                                                value={Math.round((selectedPanel.focusCenterY ?? 0.5) * 100)}
-                                                onChange={(e) => updatePanel(selectedPanel.id, { focusCenterY: parseInt(e.target.value) / 100 })}
-                                                onMouseEnter={() => updatePanel(selectedPanel.id, { isAdjustingFocus: true })}
-                                                onMouseLeave={() => updatePanel(selectedPanel.id, { isAdjustingFocus: false })}
-                                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Geometry ({selectedPanel.type})</h2>
-                            <div className="space-y-4">
-                                {(selectedPanel.type === 'slanted' || selectedPanel.type === 'trapezoid-h' || selectedPanel.type === 'trapezoid-v') && (
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-xs text-zinc-400">変形度 (Parameter A)</label>
-                                            <span className="text-xs text-blue-500 font-mono">{Math.round(selectedPanel.slant)}px</span>
-                                        </div>
-                                        <input type="range" min="-150" max="150" value={selectedPanel.slant} onChange={(e) => updatePanel(selectedPanel.id, { slant: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                    </div>
-                                )}
-                                {(selectedPanel.type === 'trapezoid-h' || selectedPanel.type === 'trapezoid-v') && (
-                                    <>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">変形度 (Parameter B)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{Math.round(selectedPanel.offsetB)}px</span>
-                                            </div>
-                                            <input type="range" min="-150" max="150" value={selectedPanel.offsetB} onChange={(e) => updatePanel(selectedPanel.id, { offsetB: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">変形度 (Parameter C)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{Math.round(selectedPanel.offsetC)}px</span>
-                                            </div>
-                                            <input type="range" min="-150" max="150" value={selectedPanel.offsetC} onChange={(e) => updatePanel(selectedPanel.id, { offsetC: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between mb-2">
-                                                <label className="text-xs text-zinc-400">変形度 (Parameter D)</label>
-                                                <span className="text-xs text-blue-500 font-mono">{Math.round(selectedPanel.offsetD)}px</span>
-                                            </div>
-                                            <input type="range" min="-150" max="150" value={selectedPanel.offsetD} onChange={(e) => updatePanel(selectedPanel.id, { offsetD: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Layering</h2>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    onClick={() => reorderPanel(selectedPanel.id, 'front')}
-                                    className="flex items-center justify-center gap-2 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-medium transition-colors"
-                                >
-                                    <ChevronUp size={14} className="text-blue-500" />
-                                    最前面
-                                </button>
-                                <button
-                                    onClick={() => reorderPanel(selectedPanel.id, 'back')}
-                                    className="flex items-center justify-center gap-2 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-medium transition-colors"
-                                >
-                                    <ChevronDown size={14} className="text-zinc-500" />
-                                    最後面
-                                </button>
-                                <button
-                                    onClick={() => reorderPanel(selectedPanel.id, 'up')}
-                                    className="flex items-center justify-center gap-2 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-medium transition-colors"
-                                >
-                                    <ArrowUp size={14} />
-                                    一つ前へ
-                                </button>
-                                <button
-                                    onClick={() => reorderPanel(selectedPanel.id, 'down')}
-                                    className="flex items-center justify-center gap-2 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-medium transition-colors"
-                                >
-                                    <ArrowDown size={14} />
-                                    一つ後ろへ
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="pt-6 border-t border-zinc-800 space-y-3">
-                            <button
-                                onClick={() => {
-                                    if (confirm('このコマを削除しますか？')) {
-                                        removePanel(selectedPanel.id)
-                                    }
-                                }}
-                                className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/30 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                                コマを削除
-                            </button>
-                            <button
-                                onClick={() => setSelectedPanel(null)}
-                                className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-[10px] text-zinc-400 font-medium transition-colors uppercase tracking-wider"
-                            >
-                                Deselect
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>
+
             {/* Template Selection Modal */}
             {isTemplateModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">

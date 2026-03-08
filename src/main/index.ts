@@ -71,13 +71,17 @@ app.whenReady().then(() => {
         const fs = await import('fs')
         const pathModule = await import('path')
         const configPath = pathModule.join(path, 'manga.json')
+        console.log('Main: Loading project from:', configPath)
 
         try {
             if (!fs.existsSync(configPath)) {
+                console.error('Main: manga.json not found at:', configPath)
                 throw new Error('プロジェクトファイル (manga.json) が見つかりませんでした。')
             }
             const data = fs.readFileSync(configPath, 'utf8')
-            return JSON.parse(data)
+            const parsedData = JSON.parse(data)
+            console.log('Main: Project data loaded successfully. Pages count:', parsedData.pages?.length)
+            return parsedData
         } catch (error) {
             console.error('Main: failed to load project:', error)
             throw error
