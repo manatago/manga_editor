@@ -8,7 +8,8 @@ if (process.contextIsolated) {
             loadProject: (path: string) => ipcRenderer.invoke('load-project', path),
             saveProject: (path: string, data: any) => ipcRenderer.invoke('save-project', { path, data }),
             getTemplates: () => ipcRenderer.invoke('get-templates'),
-            saveTemplate: (template: any) => ipcRenderer.invoke('save-template', template)
+            saveTemplate: (template: any) => ipcRenderer.invoke('save-template', template),
+            exportPNG: (path: string, name: string, data: string) => ipcRenderer.invoke('export-png', { path, name, data })
         })
     } catch (error) {
         console.error(error)

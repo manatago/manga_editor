@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Canvas from './components/Canvas'
 import { useMangaStore, PanelType } from './store/useMangaStore'
-import { Plus, FolderOpen, PanelTop, Square, AlignLeft, Table, Columns, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronUp, ChevronDown, Trash2, Layout, BookTemplate, Save, MessageSquare, Type, Palette, Maximize, Ghost, Zap, Circle, Move } from 'lucide-react'
+import { Plus, FolderOpen, PanelTop, Square, AlignLeft, Table, Columns, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ChevronUp, ChevronDown, Trash2, Layout, BookTemplate, Save, MessageSquare, Type, Palette, Maximize, Ghost, Zap, Circle, Move, MoveUp, MoveDown, ArrowUpToLine, ArrowDownToLine, Image as ImageIcon, Download } from 'lucide-react'
 import { FadeDirection } from './store/useMangaStore'
 
 const DirectionButton: React.FC<{
@@ -40,9 +40,13 @@ function App(): React.JSX.Element {
         updateBubble,
         removeBubble,
         reorderPanel,
+        movePage,
         templates,
         loadTemplates,
-        saveAsTemplate
+        saveAsTemplate,
+        undo,
+        redo,
+        saveProject
     } = useMangaStore()
 
     console.log('App: Rendering. currentProjectPath:', currentProjectPath, 'pages count:', pages.length, 'currentPageId:', currentPageId)
@@ -50,6 +54,71 @@ function App(): React.JSX.Element {
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
     const [isSavingTemplate, setIsSavingTemplate] = useState(false)
     const [templateName, setTemplateName] = useState('')
+    const stageRef = useRef<any>(null)
+
+    const handleExportPNG = async () => {
+        if (!stageRef.current || !currentPageId || !currentProjectPath) return
+
+        const { setExporting } = useMangaStore.getState()
+        setExporting(true)
+
+        // Give React a moment to hide the transformers
+        setTimeout(async () => {
+            try {
+                const dataUrl = stageRef.current.toDataURL({
+                    pixelRatio: 2 // High quality export
+                })
+                const pageName = pages.find(p => p.id === currentPageId)?.name || 'page'
+                await window.electron.exportPNG(currentProjectPath, pageName, dataUrl)
+                console.log('App: PNG exported successfully')
+            } catch (error) {
+                console.error('App: export failed', error)
+                alert('エクスポートに失敗しました')
+            } finally {
+                setExporting(false)
+            }
+        }, 100)
+    }
+
+    // Handle global keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input field
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                if (selectedPanelId) {
+                    removePanel(selectedPanelId);
+                } else if (selectedBubbleId) {
+                    removeBubble(selectedBubbleId);
+                }
+            }
+
+            // Undo / Redo
+            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'z') {
+                e.preventDefault();
+                undo();
+            } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z') {
+                e.preventDefault();
+                redo();
+            } else if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+                e.preventDefault();
+                redo();
+            }
+
+            // Save
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                saveProject();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedPanelId, selectedBubbleId, removePanel, removeBubble, undo, redo, saveProject]);
 
     // Load templates on mount
     useEffect(() => {
@@ -87,7 +156,7 @@ function App(): React.JSX.Element {
             const folderPath = await window.electron.selectFolder()
             console.log('App: folder selected:', folderPath)
             if (!folderPath) return
-            const projectName = `manga_${new Date().getTime()}`
+            const projectName = `manga_${new Date().getTime()} `
             const projectPath = await window.electron.createProject(folderPath, projectName)
             console.log('App: project created at:', projectPath)
             setCurrentProject(projectPath)
@@ -162,96 +231,130 @@ function App(): React.JSX.Element {
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-between px-3 mb-2">
-                                <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pages</h2>
-                                {currentPageId && !isSavingTemplate && (
-                                    <button
-                                        onClick={() => {
-                                            console.log('App: Save layout clicked')
-                                            setIsSavingTemplate(true)
-                                            setTemplateName(`Template ${templates.length + 1}`)
-                                        }}
-                                        className="text-[10px] text-blue-500 hover:text-blue-400 font-bold uppercase transition-colors flex items-center gap-1 p-1 -m-1"
-                                        title="現在のレイアウトをテンプレートとして保存"
-                                    >
-                                        <Save size={10} />
-                                        Save Layout
-                                    </button>
-                                )}
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => saveProject()}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 border border-blue-600/20 transition-colors text-blue-400 hover:text-blue-300 font-bold group"
+                                >
+                                    <Save size={18} />
+                                    <span className="text-sm">保存 (Cmd+S)</span>
+                                </button>
+                                <button
+                                    onClick={handleExportPNG}
+                                    disabled={!currentPageId}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 transition-colors text-emerald-400 hover:text-emerald-300 font-bold group disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Download size={18} />
+                                    <span className="text-sm">PNG出力 (Export)</span>
+                                </button>
                             </div>
 
-                            {isSavingTemplate && (
-                                <div className="px-2 mb-4 p-2 bg-blue-600/10 border border-blue-600/20 rounded-lg space-y-2">
-                                    <input
-                                        autoFocus
-                                        value={templateName}
-                                        onChange={(e) => setTemplateName(e.target.value)}
-                                        className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
-                                        placeholder="テンプレート名"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && templateName) {
-                                                saveAsTemplate(templateName)
-                                                setIsSavingTemplate(false)
-                                            }
-                                            if (e.key === 'Escape') setIsSavingTemplate(false)
-                                        }}
-                                    />
-                                    <div className="flex gap-1">
+                            <div className="space-y-1">
+                                <div className="flex items-center justify-between px-3 mb-2">
+                                    <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pages</h2>
+                                    {currentPageId && !isSavingTemplate && (
                                         <button
                                             onClick={() => {
-                                                if (templateName) {
+                                                console.log('App: Save layout clicked')
+                                                setIsSavingTemplate(true)
+                                                setTemplateName(`Template ${templates.length + 1}`)
+                                            }}
+                                            className="text-[10px] text-blue-500 hover:text-blue-400 font-bold uppercase transition-colors flex items-center gap-1 p-1 -m-1"
+                                            title="現在のレイアウトをテンプレートとして保存"
+                                        >
+                                            <Save size={10} />
+                                            Save Layout
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isSavingTemplate && (
+                                    <div className="px-2 mb-4 p-2 bg-blue-600/10 border border-blue-600/20 rounded-lg space-y-2">
+                                        <input
+                                            autoFocus
+                                            value={templateName}
+                                            onChange={(e) => setTemplateName(e.target.value)}
+                                            className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+                                            placeholder="テンプレート名"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && templateName) {
                                                     saveAsTemplate(templateName)
                                                     setIsSavingTemplate(false)
                                                 }
+                                                if (e.key === 'Escape') setIsSavingTemplate(false)
                                             }}
-                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-[10px] font-bold py-1 rounded"
-                                        >
-                                            保存
-                                        </button>
-                                        <button
-                                            onClick={() => setIsSavingTemplate(false)}
-                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold py-1 rounded"
-                                        >
-                                            取消
-                                        </button>
+                                        />
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => {
+                                                    if (templateName) {
+                                                        saveAsTemplate(templateName)
+                                                        setIsSavingTemplate(false)
+                                                    }
+                                                }}
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-[10px] font-bold py-1 rounded"
+                                            >
+                                                保存
+                                            </button>
+                                            <button
+                                                onClick={() => setIsSavingTemplate(false)}
+                                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold py-1 rounded"
+                                            >
+                                                取消
+                                            </button>
+                                        </div>
                                     </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2 mb-4 px-1">
+                                    <button
+                                        onClick={() => addPage()}
+                                        className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all text-xs font-bold shadow-lg shadow-blue-900/20"
+                                    >
+                                        <Plus size={16} />
+                                        <span>白紙</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setIsTemplateModalOpen(true)}
+                                        className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all text-xs font-bold border border-zinc-700"
+                                    >
+                                        <Layout size={16} />
+                                        <span>Template</span>
+                                    </button>
                                 </div>
-                            )}
 
-                            <div className="grid grid-cols-2 gap-2 mb-4 px-1">
-                                <button
-                                    onClick={() => addPage()}
-                                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all text-xs font-bold shadow-lg shadow-blue-900/20"
-                                >
-                                    <Plus size={16} />
-                                    <span>白紙</span>
-                                </button>
-                                <button
-                                    onClick={() => setIsTemplateModalOpen(true)}
-                                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all text-xs font-bold border border-zinc-700"
-                                >
-                                    <Layout size={16} />
-                                    <span>Template</span>
-                                </button>
+                                <div className="space-y-1">
+                                    {pages.map((page, idx) => (
+                                        <div key={page.id} className="group relative">
+                                            <button
+                                                onClick={() => selectPage(page.id)}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 border border-transparent'}`}
+                                            >
+                                                <span className="truncate flex-1 text-left font-mono font-medium">{page.name}</span>
+                                            </button>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); movePage(page.id, 'up'); }}
+                                                    disabled={idx === 0}
+                                                    className="p-1 text-zinc-500 hover:text-white disabled:opacity-0 transition-colors"
+                                                    title="上に移動"
+                                                >
+                                                    <ChevronUp size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); movePage(page.id, 'down'); }}
+                                                    disabled={idx === pages.length - 1}
+                                                    className="p-1 text-zinc-500 hover:text-white disabled:opacity-0 transition-colors"
+                                                    title="下に移動"
+                                                >
+                                                    <ChevronDown size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-
-                            <>
-                                {console.log('App: Rendering pages list segment. count:', pages.length)}
-                                {pages.map((page, idx) => {
-                                    console.log('App: Rendering page item:', page.id, page.name)
-                                    return (
-                                        <button
-                                            key={page.id}
-                                            onClick={() => selectPage(page.id)}
-                                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
-                                        >
-                                            <span className="opacity-30 text-[10px] font-mono">{String(idx + 1).padStart(2, '0')}</span>
-                                            <span className="truncate">{page.name}</span>
-                                        </button>
-                                    )
-                                })}
-                            </>
                         </div>
                     )}
                 </div>
@@ -301,7 +404,7 @@ function App(): React.JSX.Element {
                 </div>
 
                 <div className="flex-1 overflow-auto bg-zinc-950 relative">
-                    {currentPageId ? <Canvas /> : (
+                    {currentPageId ? <Canvas stageRef={stageRef} /> : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-800">
                             <PanelTop size={64} className="mb-4 opacity-10" />
                             <p className="text-sm font-medium opacity-40">ページを選択して編集を開始してください</p>
@@ -311,7 +414,7 @@ function App(): React.JSX.Element {
             </div>
 
             {/* Right Sidebar: Properties */}
-            <div className={`w-72 bg-zinc-900 border-l border-zinc-800 shrink-0 flex flex-col transition-transform ${currentPageId ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={`w-72 bg-zinc-900 border-l border-zinc-800 shrink-0 flex flex-col transition-transform ${currentPageId ? 'translate-x-0' : 'translate-x-full'} `}>
                 {currentPageId && (
                     <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
                         {selectedPanel ? (
@@ -328,7 +431,7 @@ function App(): React.JSX.Element {
                                             <button
                                                 key={type}
                                                 onClick={() => updatePanel(selectedPanel.id, { type })}
-                                                className={`py-2 px-3 rounded-lg border text-[10px] font-bold transition-all ${selectedPanel.type === type ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                                                className={`py-2 px-3 rounded-lg border text-[10px] font-bold transition-all ${selectedPanel.type === type ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
                                             >
                                                 {type.replace('-', ' ').toUpperCase()}
                                             </button>
@@ -391,17 +494,17 @@ function App(): React.JSX.Element {
                                     <div className="pt-2">
                                         <button
                                             onClick={() => updatePanel(selectedPanel.id, { hasFocusLines: !selectedPanel.hasFocusLines })}
-                                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${selectedPanel.hasFocusLines ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${selectedPanel.hasFocusLines ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
                                         >
                                             <span>集中線エフェクト</span>
-                                            <div className={`w-2 h-2 rounded-full ${selectedPanel.hasFocusLines ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'}`} />
+                                            <div className={`w-2 h-2 rounded-full ${selectedPanel.hasFocusLines ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'} `} />
                                         </button>
 
                                         {selectedPanel.hasFocusLines && (
                                             <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
                                                 <button
                                                     onClick={() => updatePanel(selectedPanel.id, { isAdjustingFocus: !selectedPanel.hasFocusLines || !selectedPanel.isAdjustingFocus })}
-                                                    className={`w-full py-1.5 rounded text-[10px] font-bold transition-all ${selectedPanel.isAdjustingFocus ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-700 text-zinc-400 hover:text-white'}`}
+                                                    className={`w-full py-1.5 rounded text-[10px] font-bold transition-all ${selectedPanel.isAdjustingFocus ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-700 text-zinc-400 hover:text-white'} `}
                                                 >
                                                     {selectedPanel.isAdjustingFocus ? '中心位置を決定' : '中心位置を調整'}
                                                 </button>
@@ -428,13 +531,13 @@ function App(): React.JSX.Element {
                                 <div>
                                     <label className="text-xs text-zinc-400 block mb-2">種類</label>
                                     <div className="grid grid-cols-3 gap-1">
-                                        {(['rounded', 'jagged', 'rect'] as const).map((type) => (
+                                        {(['rounded', 'jagged', 'rect', 'flash'] as const).map((type) => (
                                             <button
                                                 key={type}
                                                 onClick={() => updateBubble(selectedBubble.id, { type })}
-                                                className={`py-2 flex flex-col items-center gap-1 rounded border transition-all ${selectedBubble.type === type ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                                                className={`py-2 flex flex-col items-center gap-1 rounded border transition-all ${selectedBubble.type === type ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
                                             >
-                                                {type === 'rounded' ? <Ghost size={14} /> : type === 'jagged' ? <Maximize size={14} /> : <Square size={14} />}
+                                                {type === 'rounded' ? <Ghost size={14} /> : type === 'jagged' ? <Maximize size={14} /> : type === 'flash' ? <Zap size={14} /> : <Square size={14} />}
                                                 <span className="text-[8px] uppercase tracking-tighter">{type}</span>
                                             </button>
                                         ))}
@@ -446,7 +549,7 @@ function App(): React.JSX.Element {
                                         <label className="text-xs text-zinc-400">テキスト</label>
                                         <button
                                             onClick={() => updateBubble(selectedBubble.id, { isVertical: !selectedBubble.isVertical })}
-                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${selectedBubble.isVertical ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}
+                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${selectedBubble.isVertical ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'} `}
                                         >
                                             {selectedBubble.isVertical ? '縦書き' : '横書き'}
                                         </button>
@@ -488,6 +591,15 @@ function App(): React.JSX.Element {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
+                                        <label className="text-xs text-zinc-400 block mb-2">太さ</label>
+                                        <button
+                                            onClick={() => updateBubble(selectedBubble.id, { fontWeight: selectedBubble.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                                            className={`w-full py-2 rounded text-xs font-bold transition-colors ${selectedBubble.fontWeight === 'bold' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'} `}
+                                        >
+                                            {selectedBubble.fontWeight === 'bold' ? '太字 (Bold)' : '標準 (Normal)'}
+                                        </button>
+                                    </div>
+                                    <div>
                                         <label className="text-xs text-zinc-400 block mb-2">フォント</label>
                                         <select
                                             value={selectedBubble.fontFamily}
@@ -498,7 +610,11 @@ function App(): React.JSX.Element {
                                             <option value="serif">明朝体</option>
                                             <option value="'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif">ヒラギノ角ゴ / メイリオ</option>
                                             <option value="'Hiragino Mincho ProN', 'MS PMincho', serif">ヒラギノ明朝 / MS明朝</option>
-                                            <option value="'Comic Sans MS', cursive">手描き風 (Comic Sans)</option>
+                                            <option value="'Klee One', cursive">手描き (クレー One)</option>
+                                            <option value="'Yusei Magic', sans-serif">手描き (油星マジック)</option>
+                                            <option value="'Hachi Maru Pop', cursive">手描き (はちまるポップ)</option>
+                                            <option value="'Kiwi Maru', serif">手描き (キウイ丸)</option>
+                                            <option value="'Comic Sans MS', cursive">Handwriting (Comic Sans)</option>
                                         </select>
                                     </div>
                                     <div>
@@ -593,6 +709,51 @@ function App(): React.JSX.Element {
                                                     className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                                                 />
                                             </div>
+                                            {(selectedBubble.type === 'jagged' || selectedBubble.type === 'flash') && (
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className="text-[10px] text-zinc-500">Spikes</span>
+                                                            <span className="text-[10px] text-blue-500 font-mono">{selectedBubble.spikeCount ?? 36}</span>
+                                                        </div>
+                                                        <input
+                                                            type="range" min="8" max="100" step="1"
+                                                            value={selectedBubble.spikeCount ?? 36}
+                                                            onChange={(e) => updateBubble(selectedBubble.id, { spikeCount: parseInt(e.target.value) })}
+                                                            className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                        />
+                                                    </div>
+                                                    {selectedBubble.type === 'flash' && (
+                                                        <>
+                                                            <div>
+                                                                <div className="flex justify-between mb-1">
+                                                                    <span className="text-[10px] text-zinc-500">Thickness</span>
+                                                                    <span className="text-[10px] text-blue-500 font-mono">{selectedBubble.borderWidth ?? 0.5}px</span>
+                                                                </div>
+                                                                <input
+                                                                    type="range" min="0.1" max="10" step="0.1"
+                                                                    value={selectedBubble.borderWidth ?? 0.5}
+                                                                    onChange={(e) => updateBubble(selectedBubble.id, { borderWidth: parseFloat(e.target.value) })}
+                                                                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex justify-between mb-1">
+                                                                    <span className="text-[10px] text-zinc-500">Length</span>
+                                                                    <span className="text-[10px] text-blue-500 font-mono">{Math.round((selectedBubble.flashLength ?? 1) * 100)}%</span>
+                                                                </div>
+                                                                <input
+                                                                    type="range" min="0.1" max="5" step="0.1"
+                                                                    value={selectedBubble.flashLength ?? 1}
+                                                                    onChange={(e) => updateBubble(selectedBubble.id, { flashLength: parseFloat(e.target.value) })}
+                                                                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
+
+                                                </div>
+                                            )}
                                             <div className="pt-2 mt-2 border-t border-zinc-800">
                                                 <div className="flex justify-between mb-2">
                                                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Tail Settings</span>
@@ -604,6 +765,25 @@ function App(): React.JSX.Element {
                                                     </button>
                                                 </div>
                                                 <div className="space-y-3">
+                                                    {selectedBubble.type === 'rounded' && (
+                                                        <div className="pb-2 border-b border-zinc-900">
+                                                            <label className="text-[10px] text-zinc-500 block mb-2 uppercase tracking-tight">しっぽの形状</label>
+                                                            <div className="flex gap-1">
+                                                                <button
+                                                                    onClick={() => updateBubble(selectedBubble.id, { tailType: 'point' })}
+                                                                    className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${selectedBubble.tailType !== 'thought' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'} `}
+                                                                >
+                                                                    通常
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => updateBubble(selectedBubble.id, { tailType: 'thought' })}
+                                                                    className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${selectedBubble.tailType === 'thought' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'} `}
+                                                                >
+                                                                    考え事
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div className="flex justify-between mb-1">
                                                             <span className="text-[10px] text-zinc-500">Tip Pos (X/Y)</span>
@@ -682,7 +862,7 @@ function App(): React.JSX.Element {
                                                     <button
                                                         key={color}
                                                         onClick={() => currentPageId && updatePage(currentPageId, { backgroundColor: color })}
-                                                        className={`w-full aspect-square rounded-sm border transition-all ${currentPage?.backgroundColor === color ? 'border-white scale-110 z-10' : 'border-zinc-800 hover:border-zinc-600'}`}
+                                                        className={`w-full aspect-square rounded-sm border transition-all ${currentPage?.backgroundColor === color ? 'border-white scale-110 z-10' : 'border-zinc-800 hover:border-zinc-600'} `}
                                                         style={{ backgroundColor: color }}
                                                     />
                                                 ))}

@@ -7,6 +7,7 @@ declare global {
             saveProject: (path: string, data: any) => Promise<boolean>
             getTemplates: () => Promise<any[]>
             saveTemplate: (template: { name: string; panels: any[] }) => Promise<any[]>
+            exportPNG: (path: string, name: string, data: string) => Promise<string>
         }
     }
 }

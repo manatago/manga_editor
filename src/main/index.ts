@@ -145,6 +145,26 @@ app.whenReady().then(() => {
         }
     })
 
+    ipcMain.handle('export-png', async (_, { path, name, data }) => {
+        const fs = await import('fs')
+        const pathModule = await import('path')
+        const exportDir = pathModule.join(path, 'exports')
+
+        try {
+            if (!fs.existsSync(exportDir)) {
+                fs.mkdirSync(exportDir, { recursive: true })
+            }
+            const filePath = pathModule.join(exportDir, `${name}.png`)
+            const base64Data = data.replace(/^data:image\/png;base64,/, '')
+            fs.writeFileSync(filePath, base64Data, 'base64')
+            console.log('Main: PNG exported to', filePath)
+            return filePath
+        } catch (error) {
+            console.error('Main: failed to export png:', error)
+            throw error
+        }
+    })
+
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
