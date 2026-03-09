@@ -9,6 +9,7 @@ declare global {
             saveTemplate: (template: { name: string; panels: any[] }) => Promise<any[]>
             exportPNG: (path: string, name: string, data: string) => Promise<string>
             pathToUrl: (path: string) => string
+            log: (level: string, ...args: any[]) => void
         }
     }
 }

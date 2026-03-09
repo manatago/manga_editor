@@ -51,6 +51,39 @@ function App(): React.JSX.Element {
 
     console.log('App: Rendering. currentProjectPath:', currentProjectPath, 'pages count:', pages.length, 'currentPageId:', currentPageId)
 
+    // Bridge for terminal logging
+    useEffect(() => {
+        if (window.electron && window.electron.log) {
+            const originalError = console.error
+            console.error = (...args: any[]) => {
+                window.electron.log('error', ...args)
+                originalError.apply(console, args)
+            }
+            const originalWarn = console.warn
+            console.warn = (...args: any[]) => {
+                window.electron.log('warn', ...args)
+                originalWarn.apply(console, args)
+            }
+
+            const handleError = (event: ErrorEvent) => {
+                window.electron.log('error', 'Uncaught Error:', event.error?.message, event.error?.stack)
+            }
+            const handleRejection = (event: PromiseRejectionEvent) => {
+                window.electron.log('error', 'Unhandled Rejection:', event.reason?.message, event.reason?.stack)
+            }
+
+            window.addEventListener('error', handleError)
+            window.addEventListener('unhandledrejection', handleRejection)
+
+            return () => {
+                window.removeEventListener('error', handleError)
+                window.removeEventListener('unhandledrejection', handleRejection)
+                console.error = originalError
+                console.warn = originalWarn
+            }
+        }
+    }, [])
+
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
     const [isSavingTemplate, setIsSavingTemplate] = useState(false)
     const [templateName, setTemplateName] = useState('')
@@ -503,7 +536,7 @@ function App(): React.JSX.Element {
                                         {selectedPanel.hasFocusLines && (
                                             <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
                                                 <button
-                                                    onClick={() => updatePanel(selectedPanel.id, { isAdjustingFocus: !selectedPanel.hasFocusLines || !selectedPanel.isAdjustingFocus })}
+                                                    onClick={() => updatePanel(selectedPanel.id, { isAdjustingFocus: !selectedPanel.isAdjustingFocus })}
                                                     className={`w-full py-1.5 rounded text-[10px] font-bold transition-all ${selectedPanel.isAdjustingFocus ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-zinc-700 text-zinc-400 hover:text-white'} `}
                                                 >
                                                     {selectedPanel.isAdjustingFocus ? '中心位置を決定' : '中心位置を調整'}

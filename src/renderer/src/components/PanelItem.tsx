@@ -6,8 +6,11 @@ import { getPanelPoints } from './utils/drawPaths'
 
 const FadeOverlay: React.FC<{ panel: Panel; points: number[]; backgroundColor: string }> = ({ panel, points, backgroundColor }) => {
     if (!panel.fadeDirection || panel.fadeDirection === 'none') return null
+    if (!points || points.length < 6) return null
 
-    const { width, height, fadeDirection } = panel
+    const width = panel.width || 1
+    const height = panel.height || 1
+    const fadeDirection = panel.fadeDirection
     let start = { x: 0, y: 0 }
     let end = { x: 0, y: 0 }
 
@@ -24,6 +27,8 @@ const FadeOverlay: React.FC<{ panel: Panel; points: number[]; backgroundColor: s
             start = { x: width, y: height / 2 }; end = { x: width * (1 - strength), y: height / 2 }; break
     }
 
+    if (isNaN(start.x) || isNaN(start.y) || isNaN(end.x) || isNaN(end.y)) return null
+
     return (
         <Line
             points={points}
@@ -38,12 +43,18 @@ const FadeOverlay: React.FC<{ panel: Panel; points: number[]; backgroundColor: s
 
 const FocusLines: React.FC<{ panel: Panel; points: number[] }> = ({ panel, points }) => {
     if (!panel.hasFocusLines) return null
+    if (!points || points.length < 6) return null
 
-    const cx = panel.width * (panel.focusCenterX ?? 0.5)
-    const cy = panel.height * (panel.focusCenterY ?? 0.5)
-    const lineCount = panel.focusDensity ?? 100
+    const width = panel.width || 1
+    const height = panel.height || 1
+    const cx = width * (panel.focusCenterX ?? 0.5)
+    const cy = height * (panel.focusCenterY ?? 0.5)
+
+    if (isNaN(cx) || isNaN(cy)) return null
+
+    const lineCount = Math.min(Math.max(10, panel.focusDensity ?? 100), 1000)
     const shapes: React.ReactNode[] = []
-    const radius = Math.max(panel.width, panel.height) * 2.5
+    const radius = Math.max(width, height) * 2.5
     const fWidth = panel.focusWidth ?? 1
     const fRadius = panel.focusRadius ?? 50
 
@@ -63,6 +74,8 @@ const FocusLines: React.FC<{ panel: Panel; points: number[] }> = ({ panel, point
         const y2 = by + Math.sin(perpAngle) * baseWidth
         const x3 = bx - Math.cos(perpAngle) * baseWidth
         const y3 = by - Math.sin(perpAngle) * baseWidth
+
+        if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || isNaN(x3) || isNaN(y3)) continue
 
         shapes.push(
             <Line
@@ -94,12 +107,110 @@ const FocusLines: React.FC<{ panel: Panel; points: number[] }> = ({ panel, point
     )
 }
 
+const PanelStrokes: React.FC<{ panel: Panel; points: number[]; page: any }> = ({ panel, points, page }) => {
+    if (!panel.fadeDirection || panel.fadeDirection === 'none') {
+        return <Line points={points} closed={true} stroke="black" strokeWidth={panel.strokeWidth} />
+    }
+
+    const bg = page?.backgroundColor || '#ffffff'
+    const sw = panel.strokeWidth
+
+    const Segment = ({ p, fadeType }: { p: number[], fadeType?: 'start' | 'end' }) => {
+        if (!fadeType) return <Line points={p} stroke="black" strokeWidth={sw} />
+        let gStart = { x: p[0], y: p[1] }
+        let gEnd = { x: p[2], y: p[3] }
+        const stops = fadeType === 'end' ? [0, 'black', 1, bg] : [0, bg, 1, 'black']
+        return (
+            <Line
+                points={p}
+                stroke="black"
+                strokeWidth={sw}
+                strokeLinearGradientStartPoint={gStart}
+                strokeLinearGradientEndPoint={gEnd}
+                strokeLinearGradientColorStops={stops}
+            />
+        )
+    }
+
+    return (
+        <Group>
+            {panel.fadeDirection !== 'top' && (
+                <Segment
+                    p={[points[0], points[1], points[2], points[3]]}
+                    fadeType={panel.fadeDirection === 'left' ? 'start' : (panel.fadeDirection === 'right' ? 'end' : undefined)}
+                />
+            )}
+            {panel.fadeDirection !== 'right' && (
+                <Segment
+                    p={[points[2], points[3], points[4], points[5]]}
+                    fadeType={panel.fadeDirection === 'top' ? 'start' : (panel.fadeDirection === 'bottom' ? 'end' : undefined)}
+                />
+            )}
+            {panel.fadeDirection !== 'bottom' && (
+                <Segment
+                    p={[points[4], points[5], points[6], points[7]]}
+                    fadeType={panel.fadeDirection === 'right' ? 'start' : (panel.fadeDirection === 'left' ? 'end' : undefined)}
+                />
+            )}
+            {panel.fadeDirection !== 'left' && (
+                <Segment
+                    p={[points[6], points[7], points[0], points[1]]}
+                    fadeType={panel.fadeDirection === 'bottom' ? 'start' : (panel.fadeDirection === 'top' ? 'end' : undefined)}
+                />
+            )}
+        </Group>
+    )
+}
+
+const FocusAdjustmentHandle: React.FC<{
+    panel: Panel;
+    onUpdate: (id: string, updates: Partial<Panel>, undoable?: boolean) => void;
+}> = ({ panel, onUpdate }) => {
+    const cx = (panel.width || 0) * (panel.focusCenterX ?? 0.5)
+    const cy = (panel.height || 0) * (panel.focusCenterY ?? 0.5)
+    if (isNaN(cx) || isNaN(cy)) return null
+
+    return (
+        <Group
+            x={cx}
+            y={cy}
+            draggable
+            onDragStart={(e) => { e.cancelBubble = true }}
+            onDragMove={(e) => {
+                e.cancelBubble = true
+                const newX = e.target.x() / (panel.width || 1)
+                const newY = e.target.y() / (panel.height || 1)
+                if (isNaN(newX) || isNaN(newY)) return
+                onUpdate(panel.id, {
+                    focusCenterX: Math.max(0, Math.min(1, newX)),
+                    focusCenterY: Math.max(0, Math.min(1, newY))
+                }, false)
+            }}
+            onDragEnd={(e) => {
+                e.cancelBubble = true
+                const newX = e.target.x() / (panel.width || 1)
+                const newY = e.target.y() / (panel.height || 1)
+                if (isNaN(newX) || isNaN(newY)) return
+                onUpdate(panel.id, {
+                    focusCenterX: Math.max(0, Math.min(1, newX)),
+                    focusCenterY: Math.max(0, Math.min(1, newY))
+                }, true)
+            }}
+        >
+            <Line points={[-15, 0, 15, 0]} stroke="#3b82f6" strokeWidth={2} />
+            <Line points={[0, -15, 0, 15]} stroke="#3b82f6" strokeWidth={2} />
+            <Circle radius={10} fill="transparent" />
+            <Circle radius={4} fill="#3b82f6" stroke="white" strokeWidth={1} />
+        </Group>
+    )
+}
+
 export const PanelItem: React.FC<{
     panel: Panel;
     page: any;
     isSelected: boolean;
     onSelect: (id: string | null) => void;
-    onUpdate: (id: string, updates: Partial<Panel>) => void;
+    onUpdate: (id: string, updates: Partial<Panel>, undoable?: boolean) => void;
     id?: string;
     renderPass?: 'content' | 'effects' | 'strokes' | 'interaction';
 }> = ({ panel, page, isSelected, onSelect, onUpdate, id, renderPass }) => {
@@ -224,83 +335,10 @@ export const PanelItem: React.FC<{
                 />
             )}
 
-            {shouldRenderStrokes && (() => {
-                if ((!panel.fadeDirection || panel.fadeDirection === 'none')) {
-                    return (
-                        <Line
-                            points={points}
-                            closed={true}
-                            stroke="black"
-                            strokeWidth={panel.strokeWidth}
-                        />
-                    )
-                }
-
-                const bg = page?.backgroundColor || '#ffffff'
-                const sw = panel.strokeWidth
-
-                const Segment = ({ p, fadeType }: { p: number[], fadeType?: 'start' | 'end' }) => {
-                    if (!fadeType) return <Line points={p} stroke="black" strokeWidth={sw} />
-                    let gStart = { x: p[0], y: p[1] }
-                    let gEnd = { x: p[2], y: p[3] }
-                    const stops = fadeType === 'end' ? [0, 'black', 1, bg] : [0, bg, 1, 'black']
-                    return (
-                        <Line
-                            points={p}
-                            stroke="black"
-                            strokeWidth={sw}
-                            strokeLinearGradientStartPoint={gStart}
-                            strokeLinearGradientEndPoint={gEnd}
-                            strokeLinearGradientColorStops={stops}
-                        />
-                    )
-                }
-
-                return (
-                    <Group>
-                        {panel.fadeDirection !== 'top' && (
-                            <Segment
-                                p={[points[0], points[1], points[2], points[3]]}
-                                fadeType={panel.fadeDirection === 'left' ? 'start' : (panel.fadeDirection === 'right' ? 'end' : undefined)}
-                            />
-                        )}
-                        {panel.fadeDirection !== 'right' && (
-                            <Segment
-                                p={[points[2], points[3], points[4], points[5]]}
-                                fadeType={panel.fadeDirection === 'top' ? 'start' : (panel.fadeDirection === 'bottom' ? 'end' : undefined)}
-                            />
-                        )}
-                        {panel.fadeDirection !== 'bottom' && (
-                            <Segment
-                                p={[points[4], points[5], points[6], points[7]]}
-                                fadeType={panel.fadeDirection === 'right' ? 'start' : (panel.fadeDirection === 'left' ? 'end' : undefined)}
-                            />
-                        )}
-                        {panel.fadeDirection !== 'left' && (
-                            <Segment
-                                p={[points[6], points[7], points[0], points[1]]}
-                                fadeType={panel.fadeDirection === 'bottom' ? 'start' : (panel.fadeDirection === 'top' ? 'end' : undefined)}
-                            />
-                        )}
-                    </Group>
-                )
-            })()}
-
-            {shouldRenderEffects && (
-                <>
-                    <FocusLines panel={panel} points={points} />
-                    <FadeOverlay panel={panel} points={points} backgroundColor={page?.backgroundColor || '#ffffff'} />
-                </>
-            )}
-
-            {isInteractive && panel.isAdjustingFocus && (
-                <Group x={panel.width * (panel.focusCenterX ?? 0.5)} y={panel.height * (panel.focusCenterY ?? 0.5)}>
-                    <Line points={[-15, 0, 15, 0]} stroke="#3b82f6" strokeWidth={2} />
-                    <Line points={[0, -15, 0, 15]} stroke="#3b82f6" strokeWidth={2} />
-                    <Circle radius={4} fill="#3b82f6" stroke="white" strokeWidth={1} />
-                </Group>
-            )}
-
+            {shouldRenderStrokes && <PanelStrokes panel={panel} points={points} page={page} />}
+            {shouldRenderEffects && <FocusLines panel={panel} points={points} />}
+            {shouldRenderEffects && <FadeOverlay panel={panel} points={points} backgroundColor={page?.backgroundColor || '#ffffff'} />}
+            {isInteractive && panel.isAdjustingFocus && <FocusAdjustmentHandle panel={panel} onUpdate={onUpdate} />}
             {isInteractive && isSelected && panel.type === 'slanted' && (
                 <Circle
                     x={panel.slant}
@@ -310,11 +348,16 @@ export const PanelItem: React.FC<{
                     stroke="white"
                     strokeWidth={2}
                     draggable
+                    onDragStart={(e) => { e.cancelBubble = true }}
                     onDragMove={(e) => {
+                        e.cancelBubble = true
                         const newSlant = Math.round(e.target.x())
-                        onUpdate(panel.id, { slant: newSlant })
+                        onUpdate(panel.id, { slant: newSlant }, false)
                     }}
                     onDragEnd={(e) => {
+                        e.cancelBubble = true
+                        const newSlant = Math.round(e.target.x())
+                        onUpdate(panel.id, { slant: newSlant }, true)
                         e.target.x(panel.slant)
                         e.target.y(0)
                     }}

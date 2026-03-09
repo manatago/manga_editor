@@ -190,10 +190,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                         {/* 8. Interaction Layer (Hidden during export) */}
                         {!isExporting && (
                             <Group>
-                                {panels.map((panel) => (
-                                    <PanelItem key={`interaction-${panel.id}`} id={`interaction-${panel.id}`} panel={panel} page={currentPage} isSelected={selectedPanelId === panel.id} onSelect={setSelectedPanel} onUpdate={updatePanel} renderPass="interaction" />
-                                ))}
-                                <Transformer
+                                <Group>{panels.map((p) => <PanelItem key={`interaction-${p.id}`} id={`interaction-${p.id}`} panel={p} page={currentPage} isSelected={selectedPanelId === p.id} onSelect={setSelectedPanel} onUpdate={updatePanel} renderPass="interaction" />)}<Transformer
                                     ref={transformerRef}
                                     rotateEnabled={false}
                                     keepRatio={false}
@@ -203,12 +200,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         }
                                         return newBox
                                     }}
-                                />
-
-                                {bubbles.map((bubble) => (
-                                    <BubbleItem key={`interaction-${bubble.id}`} id={`interaction-${bubble.id}`} bubble={bubble} isSelected={selectedBubbleId === bubble.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" />
-                                ))}
-                                <Transformer
+                                /></Group>
+                                <Group>{bubbles.map((b) => <BubbleItem key={`interaction-${b.id}`} id={`interaction-${b.id}`} bubble={b} isSelected={selectedBubbleId === b.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" />)}<Transformer
                                     ref={bubbleTransformerRef}
                                     rotateEnabled={false}
                                     keepRatio={false}
@@ -220,7 +213,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         return newBox
                                     }}
                                     visible={!!selectedBubbleId}
-                                />
+                                /></Group>
                             </Group>
                         )}
                     </Layer>

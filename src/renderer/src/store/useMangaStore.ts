@@ -100,10 +100,10 @@ interface MangaState {
     selectPage: (id: string) => void
     updatePage: (id: string, updates: Partial<Page>) => void
     addPanel: (props: Partial<Omit<Panel, 'id'>>) => void
-    updatePanel: (id: string, updates: Partial<Panel>) => void
+    updatePanel: (id: string, updates: Partial<Panel>, undoable?: boolean) => void
     removePanel: (id: string) => void
     addBubble: (props: Partial<Omit<Bubble, 'id'>>) => void
-    updateBubble: (id: string, updates: Partial<Bubble>) => void
+    updateBubble: (id: string, updates: Partial<Bubble>, undoable?: boolean) => void
     removeBubble: (id: string) => void
     reorderPanel: (id: string, action: 'front' | 'back' | 'up' | 'down') => void
     movePage: (id: string, direction: 'up' | 'down') => void
@@ -180,6 +180,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 }
                 const newPages = [...state.pages, newPage]
                 return {
+                    ...state,
                     ...history,
                     pages: newPages,
                     currentPageId: newPage.id,
@@ -191,6 +192,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
             set((state) => {
                 const history = saveHistory(state);
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) => (p.id === id ? { ...p, ...updates } : p))
                 }
@@ -226,6 +228,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 }
                 const history = saveHistory(state);
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId ? { ...p, panels: [...p.panels, newPanel] } : p
@@ -234,11 +237,12 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     selectedBubbleId: null
                 }
             }),
-        updatePanel: (id, updates) =>
+        updatePanel: (id, updates, undoable = true) =>
             set((state) => {
                 if (!state.currentPageId) return state
-                const history = saveHistory(state);
+                const history = undoable ? saveHistory(state) : {}
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId
@@ -252,6 +256,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 if (!state.currentPageId) return state
                 const history = saveHistory(state);
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId
@@ -296,6 +301,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 }
                 const history = saveHistory(state);
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId ? { ...p, bubbles: [...p.bubbles, newBubble] } : p
@@ -304,11 +310,12 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     selectedPanelId: null
                 }
             }),
-        updateBubble: (id, updates) =>
+        updateBubble: (id, updates, undoable = true) =>
             set((state) => {
                 if (!state.currentPageId) return state
-                const history = saveHistory(state);
+                const history = undoable ? saveHistory(state) : {}
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId
@@ -322,6 +329,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 if (!state.currentPageId) return state
                 const history = saveHistory(state);
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId
@@ -357,6 +365,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
 
                 const history = saveHistory(state);
                 return {
+                    ...state,
                     ...history,
                     pages: state.pages.map((p) =>
                         p.id === state.currentPageId ? { ...p, panels } : p
@@ -384,6 +393,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 }))
 
                 return {
+                    ...state,
                     ...history,
                     pages: normalizedPages
                 }

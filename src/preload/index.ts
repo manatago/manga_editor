@@ -10,7 +10,8 @@ if (process.contextIsolated) {
             getTemplates: () => ipcRenderer.invoke('get-templates'),
             saveTemplate: (template: any) => ipcRenderer.invoke('save-template', template),
             exportPNG: (path: string, name: string, data: string) => ipcRenderer.invoke('export-png', { path, name, data }),
-            pathToUrl: (path: string) => `local-file://${encodeURIComponent(path)}`
+            pathToUrl: (path: string) => `local-file://${encodeURIComponent(path)}`,
+            log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args)
         })
     } catch (error) {
         console.error(error)

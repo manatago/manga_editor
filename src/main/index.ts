@@ -3,6 +3,12 @@ import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
+// Add this for renderer logs to terminal
+ipcMain.on('renderer-log', (_e, level, ...args) => {
+    const color = level === 'error' ? '\x1b[31m' : (level === 'warn' ? '\x1b[33m' : '\x1b[32m')
+    console.log(`${color}[Renderer ${level.toUpperCase()}]\x1b[0m`, ...args)
+})
+
 // Register custom protocol as privileged
 protocol.registerSchemesAsPrivileged([
     { scheme: 'local-file', privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: false, stream: true } }

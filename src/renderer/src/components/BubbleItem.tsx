@@ -73,7 +73,7 @@ export const BubbleItem: React.FC<{
     bubble: any;
     isSelected: boolean;
     onSelect: (id: string | null) => void;
-    onUpdate: (id: string, props: any) => void;
+    onUpdate: (id: string, updates: any, undoable?: boolean) => void;
     id?: string;
     renderPass?: 'strokes' | 'fills' | 'text' | 'interaction' | 'mask';
     overrideOpacity?: number;
@@ -200,53 +200,37 @@ export const BubbleItem: React.FC<{
             ref={shapeRef}
         >
             {/* Thought Bubble Tail Circles (Drawn behind for natural merging) */}
-            {bubble.type === 'rounded' && bubble.tailType === 'thought' && (
-                <>
-                    {(() => {
-                        const tx = bubble.tailX || 0;
-                        const ty = bubble.tailY || 0;
-                        const tcx = bubble.tailControlX || (tx / 2);
-                        const tcy = bubble.tailControlY || (ty / 2);
-                        const dist = Math.sqrt(tx * tx + ty * ty);
-                        if (dist < 20) return null;
-
-                        // Fewer circles for a cleaner look (3 to 4 max)
-                        const numCircles = Math.max(3, Math.min(4, Math.floor(dist / 60)));
-                        const circles: any[] = [];
-
-                        // Base size from tailWidth
-                        const maxRadius = (bubble.tailWidth || 20) / 2;
-
-                        // Start t at ~0.4 to ensure the first circle overlaps the bubble edge
-                        for (let i = 0; i < numCircles; i++) {
-                            const t = 0.4 + (0.55 * (i / (numCircles - 1)));
-
-                            // Quadratic Bezier Formula: B(t) = (1-t)^2*P0 + 2(1-t)*t*Pc + t^2*P1
-                            // P0 = (0, 0), Pc = (tcx, tcy), P1 = (tx, ty)
-                            const curX = (2 * (1 - t) * t * tcx) + (t * t * tx);
-                            const curY = (2 * (1 - t) * t * tcy) + (t * t * ty);
-
-                            // Radius shrinks towards the tip
-                            const currentRadius = maxRadius * (1 - (t * 0.6));
-
-                            circles.push(
-                                <Shape
-                                    key={i}
-                                    {...commonProps}
-                                    strokeWidth={shouldRenderStrokes ? (passStrokeWidth + (actualStrokeWidth <= 0.5 ? 0.2 : 0)) : 0}
-                                    sceneFunc={(ctx, shape) => {
-                                        drawJitteryCircle(ctx, bubble.width / 2 + curX, bubble.height / 2 + curY, currentRadius, bubble.deformation ?? 1)
-                                        if (shouldRenderFills && shouldRenderStrokes) ctx.fillStrokeShape(shape)
-                                        else if (shouldRenderFills) ctx.fillShape(shape)
-                                        else if (shouldRenderStrokes) ctx.strokeShape(shape)
-                                    }}
-                                />
-                            );
-                        }
-                        return circles;
-                    })()}
-                </>
-            )}
+            {bubble.type === 'rounded' && bubble.tailType === 'thought' && (() => {
+                const tx = bubble.tailX || 0;
+                const ty = bubble.tailY || 0;
+                const tcx = bubble.tailControlX || (tx / 2);
+                const tcy = bubble.tailControlY || (ty / 2);
+                const dist = Math.sqrt(tx * tx + ty * ty);
+                if (dist < 20) return null;
+                const numCircles = Math.max(3, Math.min(4, Math.floor(dist / 60)));
+                const circles: any[] = [];
+                const maxRadius = (bubble.tailWidth || 20) / 2;
+                for (let i = 0; i < numCircles; i++) {
+                    const t = 0.4 + (0.55 * (i / (numCircles - 1)));
+                    const curX = (2 * (1 - t) * t * tcx) + (t * t * tx);
+                    const curY = (2 * (1 - t) * t * tcy) + (t * t * ty);
+                    const currentRadius = maxRadius * (1 - (t * 0.6));
+                    circles.push(
+                        <Shape
+                            key={i}
+                            {...commonProps}
+                            strokeWidth={shouldRenderStrokes ? (passStrokeWidth + (actualStrokeWidth <= 0.5 ? 0.2 : 0)) : 0}
+                            sceneFunc={(ctx, shape) => {
+                                drawJitteryCircle(ctx, bubble.width / 2 + curX, bubble.height / 2 + curY, currentRadius, bubble.deformation ?? 1)
+                                if (shouldRenderFills && shouldRenderStrokes) ctx.fillStrokeShape(shape)
+                                else if (shouldRenderFills) ctx.fillShape(shape)
+                                else if (shouldRenderStrokes) ctx.strokeShape(shape)
+                            }}
+                        />
+                    );
+                }
+                return <Group>{circles}</Group>;
+            })()}
 
             {renderShape()}
 
@@ -289,8 +273,7 @@ export const BubbleItem: React.FC<{
             )}
 
             {isInteractive && isSelected && (
-                <>
-                    {/* Tail Tip Handle */}
+                <Group>
                     <Circle
                         x={bubble.width / 2 + (bubble.tailX || 0)}
                         y={bubble.height / 2 + (bubble.tailY || 0)}
@@ -299,20 +282,14 @@ export const BubbleItem: React.FC<{
                         stroke="white"
                         strokeWidth={2}
                         draggable
-                        onDragStart={(e) => {
-                            e.cancelBubble = true
-                        }}
+                        onDragStart={(e) => { e.cancelBubble = true }}
                         onDragMove={(e) => {
                             e.cancelBubble = true
                             const dx = e.target.x() - bubble.width / 2
                             const dy = e.target.y() - bubble.height / 2
                             onUpdate(bubble.id, { tailX: dx, tailY: dy })
                         }}
-                        onDragEnd={(e) => {
-                            e.cancelBubble = true
-                        }}
                     />
-                    {/* Tail Control Handle (for curvature) */}
                     {(bubble.tailX !== 0 || bubble.tailY !== 0) && (
                         <Circle
                             x={bubble.width / 2 + (bubble.tailControlX || ((bubble.tailX || 0) / 2))}
@@ -322,21 +299,16 @@ export const BubbleItem: React.FC<{
                             stroke="white"
                             strokeWidth={2}
                             draggable
-                            onDragStart={(e) => {
-                                e.cancelBubble = true
-                            }}
+                            onDragStart={(e) => { e.cancelBubble = true }}
                             onDragMove={(e) => {
                                 e.cancelBubble = true
                                 const dx = e.target.x() - bubble.width / 2
                                 const dy = e.target.y() - bubble.height / 2
                                 onUpdate(bubble.id, { tailControlX: dx, tailControlY: dy })
                             }}
-                            onDragEnd={(e) => {
-                                e.cancelBubble = true
-                            }}
                         />
                     )}
-                </>
+                </Group>
             )}
         </Group>
     )
