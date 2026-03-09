@@ -13,7 +13,8 @@
   },
   "build": {
     "appId": "com.electron.manga",
-    "productName": "MangaEditor",
+    "productName": "漫画野郎",
+    "icon": "resources/icon.png",
     "directories": {
       "output": "dist"
     },

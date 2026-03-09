@@ -215,7 +215,7 @@ function App(): React.JSX.Element {
                     <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
                         <span className="text-white font-bold text-xs">M</span>
                     </div>
-                    <h1 className="font-bold text-white tracking-tight">MangaFarm</h1>
+                    <h1 className="font-bold text-white tracking-tight">漫画野郎</h1>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-3 space-y-6">

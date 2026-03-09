@@ -104,7 +104,8 @@ export const PanelItem: React.FC<{
     renderPass?: 'content' | 'effects' | 'strokes' | 'interaction';
 }> = ({ panel, page, isSelected, onSelect, onUpdate, id, renderPass }) => {
     const points = getPanelPoints(panel)
-    const [image] = useImage(panel.imagePath || '')
+    const imagePath = panel.imagePath && window.electron ? window.electron.pathToUrl(panel.imagePath) : (panel.imagePath || '')
+    const [image] = useImage(imagePath)
 
     const isInteractive = renderPass === 'interaction' || !renderPass;
     const shouldRenderContent = renderPass === 'content' || !renderPass;

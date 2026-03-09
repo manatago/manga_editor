@@ -8,6 +8,7 @@ declare global {
             getTemplates: () => Promise<any[]>
             saveTemplate: (template: { name: string; panels: any[] }) => Promise<any[]>
             exportPNG: (path: string, name: string, data: string) => Promise<string>
+            pathToUrl: (path: string) => string
         }
     }
 }

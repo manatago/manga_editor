@@ -1,6 +1,12 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+
+// Register custom protocol as privileged
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'local-file', privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: false, stream: true } }
+])
 
 function createWindow(): void {
     const mainWindow = new BrowserWindow({
@@ -32,6 +38,13 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.electron')
+
+    // Handle local-file protocol
+    protocol.handle('local-file', (request) => {
+        const url = request.url.replace('local-file://', '')
+        const decodedPath = decodeURIComponent(url)
+        return net.fetch(pathToFileURL(decodedPath).toString())
+    })
 
     app.on('browser-window-created', (_, window) => {
         optimizer.watchWindowShortcuts(window)
