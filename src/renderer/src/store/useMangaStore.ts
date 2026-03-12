@@ -31,9 +31,11 @@ export interface Panel {
     isAdjustingFocus?: boolean
     focusRadius?: number
     fadeStrength?: number
+    isGrayscale?: boolean
+    imageFlipX?: boolean
 }
 
-export type BubbleType = 'rounded' | 'jagged' | 'rect' | 'flash'
+export type BubbleType = 'rounded' | 'jagged' | 'rect' | 'flash' | 'shout' | 'square-jagged' | 'megaphone' | 'rect-double'
 
 export interface Bubble {
     id: string
@@ -45,10 +47,12 @@ export interface Bubble {
     text: string
     fontSize: number
     fontFamily: string
+    lineHeight: number
     fontColor: string
     fontWeight: string
     isVertical: boolean
     backgroundColor: string
+    backgroundOpacity: number
     borderColor: string
     borderWidth: number
     opacity: number
@@ -62,7 +66,25 @@ export interface Bubble {
     tailWidth?: number
     spikeCount?: number
     flashLength?: number
+    narrowRatio?: number
     tailType?: 'point' | 'thought'
+    isClipped: boolean
+    panelId?: string
+    rotation: number
+}
+ 
+export interface Material {
+    id: string
+    imagePath: string
+    x: number
+    y: number
+    width: number
+    height: number
+    rotation: number
+    opacity: number
+    isClipped: boolean
+    panelId?: string
+    isGrayscale?: boolean
 }
 
 interface Page {
@@ -70,6 +92,7 @@ interface Page {
     name: string
     panels: Panel[]
     bubbles: Bubble[]
+    materials: Material[]
     backgroundColor?: string
     backgroundOpacity?: number
 }
@@ -80,6 +103,11 @@ export interface PageTemplate {
     panels: Omit<Panel, 'id'>[]
 }
 
+export interface MangaProjectData {
+    pages: Page[]
+    lastPageId: string | null
+}
+
 interface MangaState {
     currentProjectPath: string | null
     pages: Page[]
@@ -87,6 +115,8 @@ interface MangaState {
     currentPageId: string | null
     selectedPanelId: string | null
     selectedBubbleId: string | null
+    selectedMaterialId: string | null
+    clipboardBubble: Omit<Bubble, 'id'> | null
 
     // History for Undo/Redo
     past: { pages: Page[], currentPageId: string | null }[]
@@ -96,8 +126,10 @@ interface MangaState {
     setCurrentProject: (path: string) => void
     setSelectedPanel: (id: string | null) => void
     setSelectedBubble: (id: string | null) => void
+    setSelectedMaterial: (id: string | null) => void
     addPage: (panels?: Omit<Panel, 'id'>[]) => void
     selectPage: (id: string) => void
+    removePage: (id: string) => void
     updatePage: (id: string, updates: Partial<Page>) => void
     addPanel: (props: Partial<Omit<Panel, 'id'>>) => void
     updatePanel: (id: string, updates: Partial<Panel>, undoable?: boolean) => void
@@ -105,15 +137,23 @@ interface MangaState {
     addBubble: (props: Partial<Omit<Bubble, 'id'>>) => void
     updateBubble: (id: string, updates: Partial<Bubble>, undoable?: boolean) => void
     removeBubble: (id: string) => void
+    copyBubble: (id: string) => void
+    pasteBubble: () => void
+    addMaterial: (props: Partial<Omit<Material, 'id'>>) => void
+    updateMaterial: (id: string, updates: Partial<Material>, undoable?: boolean) => void
+    removeMaterial: (id: string) => void
     reorderPanel: (id: string, action: 'front' | 'back' | 'up' | 'down') => void
     movePage: (id: string, direction: 'up' | 'down') => void
-    setProjectData: (data: { pages: Page[] }) => void
+    setProjectData: (data: { pages: Page[], lastPageId?: string | null }) => void
+    getProjectData: () => MangaProjectData
     // Template actions
     loadTemplates: () => Promise<void>;
     saveAsTemplate: (name: string) => Promise<void>;
+    removeTemplate: (id: string) => Promise<void>;
     saveProject: () => Promise<void>;
     isExporting: boolean;
     setExporting: (val: boolean) => void;
+    cleanupAssets: () => Promise<void>;
 }
 
 export const useMangaStore = create<MangaState>((set, get) => {
@@ -132,6 +172,8 @@ export const useMangaStore = create<MangaState>((set, get) => {
         currentPageId: null,
         selectedPanelId: null,
         selectedBubbleId: null,
+        selectedMaterialId: null,
+        clipboardBubble: null,
         past: [],
         future: [],
         isExporting: false,
@@ -160,34 +202,78 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 pages: next.pages,
                 currentPageId: next.currentPageId,
                 selectedPanelId: null,
-                selectedBubbleId: null
+                selectedBubbleId: null,
+                selectedMaterialId: null
             }
         }),
         setCurrentProject: (path) => set({ currentProjectPath: path }),
-        setSelectedPanel: (id) => set({ selectedPanelId: id, selectedBubbleId: null }),
-        setSelectedBubble: (id) => set({ selectedBubbleId: id, selectedPanelId: null }),
-        addPage: (panels) =>
-            set((state) => {
-                const history = saveHistory(state);
-                const lastIdx = state.pages.length;
-                const newPage: Page = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    name: String(lastIdx + 1).padStart(3, '0'),
-                    panels: panels ? panels.map(p => ({ ...p, id: Math.random().toString(36).substr(2, 9) })) : [],
-                    bubbles: [],
-                    backgroundColor: '#ffffff',
-                    backgroundOpacity: 1
-                }
+        setSelectedPanel: (id) => set({ selectedPanelId: id, selectedBubbleId: null, selectedMaterialId: null }),
+        setSelectedBubble: (id) => set({ selectedBubbleId: id, selectedPanelId: null, selectedMaterialId: null }),
+        setSelectedMaterial: (id) => set({ selectedMaterialId: id, selectedPanelId: null, selectedBubbleId: null }),
+        addPage: (panels = []) => set((state) => {
+            const history = saveHistory(state);
+            const newPage: Page = {
+                id: `page_${new Date().getTime()}`,
+                name: String(state.pages.length + 1).padStart(3, '0'),
+                panels: panels.map(p => ({
+                    id: `panel_${Math.random().toString(36).substr(2, 9)}`,
+                    ...p
+                })) as Panel[],
+                bubbles: [],
+                materials: [],
+                backgroundColor: '#ffffff',
+                backgroundOpacity: 1
+            }
                 const newPages = [...state.pages, newPage]
                 return {
                     ...state,
                     ...history,
                     pages: newPages,
                     currentPageId: newPage.id,
-                    selectedPanelId: null
+                    selectedPanelId: null,
+                    selectedBubbleId: null,
+                    selectedMaterialId: null
                 }
             }),
-        selectPage: (id) => set({ currentPageId: id, selectedPanelId: null }),
+        selectPage: (id) => {
+            set({ currentPageId: id, selectedPanelId: null, selectedBubbleId: null, selectedMaterialId: null })
+            // Auto-save on page selection to persist lastPageId
+            const state = get()
+            if (state.currentProjectPath) {
+                state.saveProject()
+            }
+        },
+        removePage: (id) =>
+            set((state) => {
+                const index = state.pages.findIndex((p) => p.id === id)
+                if (index === -1) return state
+
+                const history = saveHistory(state)
+                const newPages = state.pages.filter((p) => p.id !== id)
+
+                // Renormalize names (renumbering)
+                const normalizedPages = newPages.map((p, i) => ({
+                    ...p,
+                    name: String(i + 1).padStart(3, '0')
+                }))
+
+                let newCurrentPageId = state.currentPageId
+                if (state.currentPageId === id) {
+                    // Try to select the page at the same index, or the new last page
+                    const nextIdx = Math.min(index, normalizedPages.length - 1)
+                    newCurrentPageId = normalizedPages[nextIdx]?.id || null
+                }
+
+                return {
+                    ...state,
+                    ...history,
+                    pages: normalizedPages,
+                    currentPageId: newCurrentPageId,
+                    selectedPanelId: null,
+                    selectedBubbleId: null,
+                    selectedMaterialId: null
+                }
+            }),
         updatePage: (id, updates) =>
             set((state) => {
                 const history = saveHistory(state);
@@ -216,6 +302,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     imageY: 0,
                     imageScale: 1,
                     imageRotation: 0,
+                    imageFlipX: false,
                     fadeDirection: 'none',
                     hasFocusLines: false,
                     focusCenterX: 0.5,
@@ -234,7 +321,8 @@ export const useMangaStore = create<MangaState>((set, get) => {
                         p.id === state.currentPageId ? { ...p, panels: [...p.panels, newPanel] } : p
                     ),
                     selectedPanelId: newPanel.id,
-                    selectedBubbleId: null
+                    selectedBubbleId: null,
+                    selectedMaterialId: null
                 }
             }),
         updatePanel: (id, updates, undoable = true) =>
@@ -279,16 +367,20 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     text: 'テキストを入力',
                     fontSize: 18,
                     fontFamily: 'sans-serif',
+                    lineHeight: 1.4,
                     fontColor: '#000000',
                     fontWeight: 'bold',
                     isVertical: true,
                     backgroundColor: '#ffffff',
+                    backgroundOpacity: 1,
                     borderColor: '#000000',
                     borderWidth: 0.5,
                     opacity: 1,
                     textOffsetX: 0,
                     textOffsetY: 0,
                     deformation: 1,
+                    isClipped: false,
+                    panelId: undefined,
                     tailX: 0,
                     tailY: 0,
                     tailControlX: 0,
@@ -297,6 +389,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     spikeCount: 36,
                     flashLength: 1,
                     tailType: 'point',
+                    rotation: 0,
                     ...props
                 }
                 const history = saveHistory(state);
@@ -307,7 +400,8 @@ export const useMangaStore = create<MangaState>((set, get) => {
                         p.id === state.currentPageId ? { ...p, bubbles: [...p.bubbles, newBubble] } : p
                     ),
                     selectedBubbleId: newBubble.id,
-                    selectedPanelId: null
+                    selectedPanelId: null,
+                    selectedMaterialId: null
                 }
             }),
         updateBubble: (id, updates, undoable = true) =>
@@ -339,7 +433,88 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     selectedBubbleId: state.selectedBubbleId === id ? null : state.selectedBubbleId
                 }
             }),
-        reorderPanel: (id, action) =>
+        copyBubble: (id) => set((state) => {
+            const page = state.pages.find(p => p.id === state.currentPageId)
+            if (!page) return state
+            const bubble = page.bubbles.find(b => b.id === id)
+            if (!bubble) return state
+            const { id: _id, ...bubbleData } = bubble
+            return { ...state, clipboardBubble: bubbleData }
+        }),
+        pasteBubble: () => set((state) => {
+            if (!state.currentPageId || !state.clipboardBubble) return state
+            const history = saveHistory(state)
+            const newBubble: Bubble = {
+                ...state.clipboardBubble,
+                id: `bubble_${new Date().getTime()}`,
+                x: state.clipboardBubble.x + 20,
+                y: state.clipboardBubble.y + 20
+            }
+            return {
+                ...state,
+                ...history,
+                pages: state.pages.map(p =>
+                    p.id === state.currentPageId
+                        ? { ...p, bubbles: [...p.bubbles, newBubble] }
+                        : p
+                ),
+                selectedBubbleId: newBubble.id
+            }
+        }),
+        addMaterial: (props) => set((state) => {
+            if (!state.currentPageId) return state
+            const history = saveHistory(state);
+            const newMaterial: Material = {
+                id: `material_${new Date().getTime()}`,
+                imagePath: '',
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                rotation: 0,
+                opacity: 1,
+                isClipped: false,
+                ...props
+            }
+            return {
+                ...state,
+                ...history,
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId ? { ...p, materials: [...p.materials, newMaterial] } : p
+                ),
+                selectedMaterialId: newMaterial.id,
+                selectedPanelId: null,
+                selectedBubbleId: null
+            }
+        }),
+        updateMaterial: (id, updates, undoable = true) => set((state) => {
+            const page = state.pages.find((p) => p.id === state.currentPageId)
+            if (!page) return state
+            const history = undoable ? saveHistory(state) : {}
+            return {
+                ...state,
+                ...history,
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId ? {
+                        ...p,
+                        materials: p.materials.map((m) => m.id === id ? { ...m, ...updates } : m)
+                    } : p
+                )
+            }
+        }),
+        removeMaterial: (id) => set((state) => {
+            if (!state.currentPageId) return state
+            const history = saveHistory(state);
+            return {
+                ...state,
+                ...history,
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId ? { ...p, materials: p.materials.filter((m) => m.id !== id) } : p
+                ),
+                selectedMaterialId: state.selectedMaterialId === id ? null : state.selectedMaterialId
+            }
+        }),
+        reorderPanel: (id: string, action: 'front' | 'back' | 'up' | 'down') =>
             set((state) => {
                 if (!state.currentPageId) return state
                 const page = state.pages.find((p) => p.id === state.currentPageId)
@@ -406,10 +581,14 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 backgroundOpacity: page.backgroundOpacity ?? 1,
                 bubbles: (page.bubbles || []).map(bubble => ({
                     ...bubble,
+                    backgroundOpacity: bubble.backgroundOpacity ?? 1,
+                    lineHeight: bubble.lineHeight ?? 1.4,
                     fontWeight: bubble.fontWeight || 'bold',
                     spikeCount: bubble.spikeCount || 36,
+                    narrowRatio: bubble.narrowRatio ?? 0.3,
                     flashLength: bubble.flashLength || 1,
-                    tailType: bubble.tailType || 'point'
+                    tailType: bubble.tailType || 'point',
+                    rotation: bubble.rotation ?? 0
                 })),
                 panels: (page.panels || []).map(panel => {
                     // Determine width/height if missing but points exist (legacy data)
@@ -444,9 +623,17 @@ export const useMangaStore = create<MangaState>((set, get) => {
                         focusDensity: panel.focusDensity ?? 100,
                         focusWidth: panel.focusWidth ?? 1,
                         focusRadius: panel.focusRadius ?? 50,
-                        fadeStrength: panel.fadeStrength ?? 0.4
+                        fadeStrength: panel.fadeStrength ?? 0.4,
+                        isGrayscale: panel.isGrayscale ?? false,
+                        imageFlipX: panel.imageFlipX ?? false
                     }
-                })
+                }),
+                materials: (page.materials || []).map(mat => ({
+                    ...mat,
+                    opacity: mat.opacity ?? 1,
+                    isClipped: mat.isClipped ?? false,
+                    isGrayscale: mat.isGrayscale ?? false
+                }))
             }))
 
             // Normalize names of loaded pages
@@ -457,12 +644,19 @@ export const useMangaStore = create<MangaState>((set, get) => {
 
             set({
                 pages: normalizedPages,
-                currentPageId: normalizedPages[0]?.id || null,
+                currentPageId: data.lastPageId || normalizedPages[0]?.id || null,
                 selectedPanelId: null,
                 selectedBubbleId: null,
                 currentProjectPath: get().currentProjectPath // Keep existing path if not reset
             })
             console.log('Store: setProjectData done. normalized count:', normalizedPages.length)
+        },
+        getProjectData: () => {
+            const state = get()
+            return {
+                pages: state.pages,
+                lastPageId: state.currentPageId
+            }
         },
         loadTemplates: async () => {
             if (!window.electron) return
@@ -480,9 +674,20 @@ export const useMangaStore = create<MangaState>((set, get) => {
             }
 
             try {
+                // Filter out image-related properties for templates
                 const template = {
                     name,
-                    panels: page.panels.map(({ id, ...rest }) => ({ ...rest }))
+                    panels: page.panels.map(({
+                        id,
+                        imagePath,
+                        imageX,
+                        imageY,
+                        imageScale,
+                        imageRotation,
+                        imageFlipX,
+                        isGrayscale,
+                        ...rest
+                    }) => ({ ...rest }))
                 }
                 console.log('Store: sending template to main', template)
                 const templates = await window.electron.saveTemplate(template)
@@ -494,6 +699,18 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 alert('テンプレートの保存に失敗しました')
             }
         },
+        removeTemplate: async (id) => {
+            if (!window.electron) return
+            try {
+                if (confirm('このテンプレートを削除してもよろしいですか？')) {
+                    const templates = await window.electron.deleteTemplate(id)
+                    set({ templates })
+                }
+            } catch (error) {
+                console.error('Store: failed to delete template', error)
+                alert('テンプレートの削除に失敗しました')
+            }
+        },
         saveProject: async () => {
             const state = get()
             if (!state.currentProjectPath || !window.electron) {
@@ -502,13 +719,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
             }
 
             try {
-                // Save current state (pages) to project file
-                const projectData = {
-                    name: state.currentProjectPath.split('/').pop() || 'Untitled',
-                    pages: state.pages,
-                    updatedAt: new Date().toISOString()
-                }
-
+                const projectData = state.getProjectData()
                 await window.electron.saveProject(state.currentProjectPath, projectData)
                 console.log('Store: project saved successfully to', state.currentProjectPath)
             } catch (error) {
@@ -517,5 +728,46 @@ export const useMangaStore = create<MangaState>((set, get) => {
             }
         },
         setExporting: (val) => set({ isExporting: val }),
+        cleanupAssets: async () => {
+            const state = get()
+            if (!state.currentProjectPath || !window.electron) {
+                console.warn('Store: cannot cleanup assets - no project path or electron not found')
+                return
+            }
+
+            try {
+                // 1. Collect all referenced image paths
+                const referencedPaths = new Set<string>()
+                state.pages.forEach(page => {
+                    page.panels.forEach(panel => {
+                        if (panel.imagePath) referencedPaths.add(panel.imagePath)
+                    })
+                    page.materials.forEach(material => {
+                        if (material.imagePath) referencedPaths.add(material.imagePath)
+                    })
+                })
+
+                // 2. Get all physical assets
+                const physicalAssets = await window.electron.getAssets(state.currentProjectPath)
+
+                // 3. Find unreferenced files
+                const unusedAssets = physicalAssets.filter(path => !referencedPaths.has(path))
+
+                if (unusedAssets.length === 0) {
+                    alert('未使用のアセットは見つかりませんでした。')
+                    return
+                }
+
+                if (confirm(`${unusedAssets.length}個の未使用アセットを削除しますか？`)) {
+                    for (const path of unusedAssets) {
+                        await window.electron.deleteFile(path)
+                    }
+                    alert(`${unusedAssets.length}個のアセットを削除しました。`)
+                }
+            } catch (error) {
+                console.error('Store: failed to cleanup assets', error)
+                alert('アセットの整理に失敗しました。')
+            }
+        },
     }
 });

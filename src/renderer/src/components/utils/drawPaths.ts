@@ -1,4 +1,5 @@
 import { Panel, Bubble } from '../../store/useMangaStore'
+import { getPRand, getRectPosByD, getRectDByAngle } from './bubbleUtils'
 
 export const getPanelPoints = (panel: Panel) => {
     const { type, width, height, slant, offsetB, offsetC, offsetD } = panel
@@ -75,8 +76,7 @@ export const drawJaggedPath = (context: any, bubble: Bubble, w: number, h: numbe
     const step = (Math.PI * 2) / spikeCount
     const getPeak = (i: number) => {
         const angle = i * step
-        const seed = Math.sin(i * 123.456) * 10000
-        const randomH = (seed - Math.floor(seed))
+        const randomH = getPRand(i * 123.456)
         const rOuter = 0.5 + (0.05 + randomH * 0.2) * def
         return {
             x: w / 2 + Math.cos(angle) * w * rOuter,
@@ -96,7 +96,7 @@ export const drawJaggedPath = (context: any, bubble: Bubble, w: number, h: numbe
             if (!tailInjected) {
                 const tipX = w / 2 + tx; const tipY = h / 2 + ty
                 let ctrlX = w / 2 + tcx; let ctrlY = h / 2 + tcy
-                const rBase = 0.35 // Base radius for tail connection
+                const rBase = 0.35
                 const xL = w / 2 + Math.cos(sAng) * w * rBase; const yL = h / 2 + Math.sin(sAng) * h * rBase
                 const xR = w / 2 + Math.cos(eAng) * w * rBase; const yR = h / 2 + Math.sin(eAng) * h * rBase
                 const midX = (xL + xR) / 2; const midY = (yL + yR) / 2
@@ -118,13 +118,177 @@ export const drawJaggedPath = (context: any, bubble: Bubble, w: number, h: numbe
             firstMove = false
         }
 
-        // Control point for the inward-bowing parabola
         const midAngle = p1.angle + step / 2
-        const rInner = 0.35 - (0.1 * def) // Pull it inward
+        const rInner = 0.35 - (0.1 * def)
         const cpX = w / 2 + Math.cos(midAngle) * w * rInner
         const cpY = h / 2 + Math.sin(midAngle) * h * rInner
-
         context.quadraticCurveTo(cpX, cpY, p2.x, p2.y)
+    }
+    context.closePath()
+}
+
+export const drawShoutPath = (context: any, bubble: Bubble, w: number, h: number) => {
+    const def = bubble.deformation ?? 1
+    const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
+    const tcx = bubble.tailControlX || (tx / 2); const tcy = bubble.tailControlY || (ty / 2)
+    const hasTail = Math.sqrt(tx * tx + ty * ty) > 10
+
+    const cx = w / 2, cy = h / 2
+    const P = 2 * (w + h)
+    const dParams: { d: number, isPeak: boolean, peakLen: number }[] = []
+    const cornerDists = [0, w, w + h, 2 * w + h]
+
+    cornerDists.forEach((cd, i) => {
+        const numSpikes = 3
+        const spread = 8 * def
+        for (let k = 0; k < numSpikes; k++) {
+            const seed = i * 1000 + k
+            const t = (k / (numSpikes - 1) - 0.5)
+            const dBase = cd + t * spread
+            dParams.push({ d: dBase - 1, isPeak: false, peakLen: 0 })
+            dParams.push({ d: dBase, isPeak: true, peakLen: (8 + getPRand(seed) * 10) * def })
+            dParams.push({ d: dBase + 1, isPeak: false, peakLen: 0 })
+        }
+        const nextCd = cornerDists[(i + 1) % 4]
+        const midDist = (cd < nextCd) ? (cd + nextCd) / 2 : (cd + P + nextCd) / 2
+        const sSeed = i * 5000
+        const dBase = midDist + (getPRand(sSeed + 99) - 0.5) * 20
+        dParams.push({ d: dBase - 2, isPeak: false, peakLen: 0 })
+        dParams.push({ d: dBase, isPeak: true, peakLen: (3 + getPRand(sSeed) * 4) * def })
+        dParams.push({ d: dBase + 2, isPeak: false, peakLen: 0 })
+    })
+
+    const tailAngle = Math.atan2(ty, tx)
+    const tw = bubble.tailWidth || 20
+    const angWidth = tw / 150
+    const sAng = (tailAngle - angWidth + Math.PI * 2) % (Math.PI * 2)
+    const eAng = (tailAngle + angWidth + Math.PI * 2) % (Math.PI * 2)
+
+    if (hasTail) {
+        dParams.push({ d: getRectDByAngle(sAng, w, h), isPeak: false, peakLen: 0 })
+        dParams.push({ d: getRectDByAngle(eAng, w, h), isPeak: false, peakLen: 0 })
+        dParams.sort((a, b) => a.d - b.d)
+    }
+
+    const finalPoints = dParams.map(p => {
+        const b = getRectPosByD(p.d, w, h)
+        if (p.isPeak) {
+            const angle = Math.atan2(b.y - cy, b.x - cx)
+            return { x: b.x + Math.cos(angle) * p.peakLen, y: b.y + Math.sin(angle) * p.peakLen, isPeak: true }
+        }
+        return { x: b.x, y: b.y, isPeak: false }
+    })
+
+    let tailInjected = false
+    let startIdx = 0
+    for (let i = 0; i < finalPoints.length; i++) {
+        const ang = (Math.atan2(finalPoints[i].y - cy, finalPoints[i].x - cx) + Math.PI * 2) % (Math.PI * 2)
+        if (!(sAng < eAng ? (ang >= sAng && ang <= eAng) : (ang >= sAng || ang <= eAng))) { startIdx = i; break }
+    }
+
+    context.beginPath()
+    context.moveTo(finalPoints[startIdx].x, finalPoints[startIdx].y)
+
+    for (let i = 0; i < finalPoints.length; i++) {
+        const idx = (startIdx + i) % finalPoints.length
+        const nextIdx = (startIdx + i + 1) % finalPoints.length
+        const p1 = finalPoints[idx], p2 = finalPoints[nextIdx]
+        const ang2 = (Math.atan2(p2.y - cy, p2.x - cx) + Math.PI * 2) % (Math.PI * 2)
+        const isInGap = sAng < eAng ? (ang2 >= sAng && ang2 <= eAng) : (ang2 >= sAng || ang2 <= eAng)
+
+        if (hasTail && isInGap) {
+            if (!tailInjected) {
+                const tipX = cx + tx; const tipY = cy + ty
+                const ctrlX = cx + tcx; const ctrlY = cy + tcy
+                const pL = getRectPosByD(getRectDByAngle(sAng, w, h), w, h)
+                const pR = getRectPosByD(getRectDByAngle(eAng, w, h), w, h)
+                context.lineTo(pL.x, pL.y)
+                context.quadraticCurveTo(pL.x + (ctrlX - pL.x) * 0.4, pL.y + (ctrlY - pL.y) * 0.4, tipX, tipY)
+                context.quadraticCurveTo(pR.x + (ctrlX - pR.x) * 0.4, pR.y + (ctrlY - pR.y) * 0.4, pR.x, pR.y)
+                tailInjected = true
+            }
+            continue
+        }
+        if (p1.isPeak || p2.isPeak) context.lineTo(p2.x, p2.y)
+        else {
+            const midX = (p1.x + p2.x) / 2; const midY = (p1.y + p2.y) / 2
+            const dx = midX - cx, dy = midY - cy
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            const pull = (3 + getPRand(idx * 77) * 3) * def
+            context.quadraticCurveTo(midX - (dx/(dist||1))*pull, midY - (dy/(dist||1))*pull, p2.x, p2.y)
+        }
+    }
+    context.closePath()
+}
+
+export const drawSquareJaggedPath = (context: any, bubble: Bubble, w: number, h: number) => {
+    const spikeCount = bubble.spikeCount || 36
+    const def = bubble.deformation ?? 1
+    const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
+    const tcx = bubble.tailControlX || (tx / 2); const tcy = bubble.tailControlY || (ty / 2)
+    const hasTail = Math.sqrt(tx * tx + ty * ty) > 10
+
+    const corners = [{x:0,y:0}, {x:w,y:0}, {x:w,y:h}, {x:0,y:h}]
+    const cornerDists = [0, w, w + h, 2 * w + h]
+    const dPoints: {d:number, x:number, y:number}[] = []
+    const pointsPerSide = Math.floor(spikeCount / 4)
+
+    for (let i = 0; i < 4; i++) {
+        const c1 = corners[i], c2 = corners[(i + 1) % 4], baseD = cornerDists[i]
+        const cSeed = i * 200
+        dPoints.push({ d: baseD, x: c1.x + (getPRand(cSeed)-0.5)*30*def, y: c1.y + (getPRand(cSeed+1)-0.5)*30*def })
+        for (let j = 1; j < pointsPerSide; j++) {
+            const t = j / pointsPerSide
+            const tc = t < 0.5 ? 0.5 * Math.pow(2 * t, 0.8) : 1 - 0.5 * Math.pow(2 * (1 - t), 0.8)
+            const x = c1.x + (c2.x - c1.x) * tc, y = c1.y + (c2.y - c1.y) * tc
+            const jw = 0.3 + 0.7 * Math.pow(1 - (Math.min(t, 1 - t) * 2), 2)
+            const sSeed = i * 200 + j, jv = (getPRand(sSeed) * 20 + 5) * def * jw
+            let pJX = 0, pJY = 0
+            if (i === 0 || i === 2) pJY = (getPRand(sSeed + 1) - 0.5) * jv
+            else pJX = (getPRand(sSeed + 1) - 0.5) * jv
+            dPoints.push({ d: baseD + (c2.x === c1.x ? Math.abs(y - c1.y) : Math.abs(x - c1.x)), x: x + pJX, y: y + pJY })
+        }
+    }
+
+    const tailAngle = (Math.atan2(ty, tx) + Math.PI * 2) % (Math.PI * 2)
+    const tw = bubble.tailWidth || 20
+    const angWidth = tw / 150
+    const sAng = (tailAngle - angWidth + Math.PI * 2) % (Math.PI * 2)
+    const eAng = (tailAngle + angWidth + Math.PI * 2) % (Math.PI * 2)
+
+    if (hasTail) {
+        const dL = getRectDByAngle(sAng, w, h), dR = getRectDByAngle(eAng, w, h)
+        const pL = getRectPosByD(dL, w, h), pR = getRectPosByD(dR, w, h)
+        dPoints.push({ d: dL, x: pL.x, y: pL.y }); dPoints.push({ d: dR, x: pR.x, y: pR.y })
+    }
+    dPoints.sort((a, b) => a.d - b.d)
+    const finalPoints = dPoints.filter((p, i, arr) => i === 0 || Math.abs(p.d - arr[i-1].d) > 0.1)
+
+    let tailInjected = false, startIdx = 0
+    for (let i = 0; i < finalPoints.length; i++) {
+        const ang = (Math.atan2(finalPoints[i].y - h/2, finalPoints[i].x - w/2) + Math.PI * 2) % (Math.PI * 2)
+        if (!(sAng < eAng ? (ang >= sAng && ang <= eAng) : (ang >= sAng || ang <= eAng))) { startIdx = i; break }
+    }
+
+    context.beginPath()
+    context.moveTo(finalPoints[startIdx].x, finalPoints[startIdx].y)
+    for (let i = 0; i < finalPoints.length; i++) {
+        const p1 = finalPoints[(startIdx + i) % finalPoints.length], p2 = finalPoints[(startIdx + i + 1) % finalPoints.length]
+        const ang2 = (Math.atan2(p2.y - h/2, p2.x - w/2) + Math.PI * 2) % (Math.PI * 2)
+        if (hasTail && (sAng < eAng ? (ang2 >= sAng && ang2 <= eAng) : (ang2 >= sAng || ang2 <= eAng))) {
+            if (!tailInjected) {
+                const tipX = w/2 + tx, tipY = h/2 + ty, ctrlX = w/2 + tcx, ctrlY = h/2 + tcy
+                const pL = getRectPosByD(getRectDByAngle(sAng, w, h), w, h), pR = getRectPosByD(getRectDByAngle(eAng, w, h), w, h)
+                context.lineTo(pL.x, pL.y)
+                context.quadraticCurveTo(pL.x + (ctrlX - pL.x) * 0.4, pL.y + (ctrlY - pL.y) * 0.4, tipX, tipY)
+                context.quadraticCurveTo(pR.x + (ctrlX - pR.x) * 0.4, pR.y + (ctrlY - pR.y) * 0.4, pR.x, pR.y)
+                tailInjected = true
+            }
+            continue
+        }
+        const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2, dx = midX - w/2, dy = midY - h/2, dist = Math.sqrt(dx*dx + dy*dy)
+        const pull = (10 + getPRand((startIdx + i) * 500) * 15) * def
+        context.quadraticCurveTo(midX - (dx/(dist||1)) * pull, midY - (dy/(dist||1)) * pull, p2.x, p2.y)
     }
     context.closePath()
 }
@@ -179,47 +343,95 @@ export const drawRoundedPath = (context: any, bubble: Bubble, w: number, h: numb
     }
     context.closePath()
 }
+
 export const drawFlashPath = (context: any, bubble: Bubble, w: number, h: number) => {
     const lineCount = Math.max(100, (bubble.spikeCount || 36) * 10)
     const def = bubble.deformation ?? 1
-
     context.beginPath()
     for (let i = 0; i < lineCount; i++) {
         const angle = (i / lineCount) * Math.PI * 2
-
-        // Random lengths for the flash effect
-        const seed = Math.sin(i * 98.765) * 10000
-        const rand = (seed - Math.floor(seed))
-
-        // Flash lines start from an inner ellipse and go outwards
-        // We use flashLength to control the overall length
+        const rand = getPRand(i * 98.765)
         const lengthMod = bubble.flashLength ?? 1
         const rInner = 0.35 + (0.05 * rand * def)
         const gap = (0.1 + 0.15 * rand * def) * lengthMod
         const rOuter = rInner + gap
-
-        const x1 = w / 2 + Math.cos(angle) * w * rInner
-        const y1 = h / 2 + Math.sin(angle) * h * rInner
-        const x2 = w / 2 + Math.cos(angle) * w * rOuter
-        const y2 = h / 2 + Math.sin(angle) * h * rOuter
-
-        context.moveTo(x1, y1)
-        context.lineTo(x2, y2)
+        context.moveTo(w/2 + Math.cos(angle)*w*rInner, h/2 + Math.sin(angle)*h*rInner)
+        context.lineTo(w/2 + Math.cos(angle)*w*rOuter, h/2 + Math.sin(angle)*h*rOuter)
     }
 }
+
 export const drawJitteryCircle = (context: any, x: number, y: number, radius: number, def: number) => {
     const points = 36
     const jitterDef = Math.max(0.5, def)
     context.beginPath()
     for (let i = 0; i <= points; i++) {
         const angle = (i / points) * Math.PI * 2
-        // Organic fluctuation
         const jitter = (Math.sin(angle * 3) * 0.04 + Math.cos(angle * 5) * 0.02 + Math.sin(angle * 12) * 0.01) * jitterDef
         const r = radius * (1 + jitter)
-        const px = x + Math.cos(angle) * r
-        const py = y + Math.sin(angle) * r
+        const px = x + Math.cos(angle) * r, py = y + Math.sin(angle) * r
         if (i === 0) context.moveTo(px, py)
         else context.lineTo(px, py)
     }
     context.closePath()
+}
+
+export const drawMegaphonePath = (context: any, bubble: Bubble, w: number, h: number, shape?: any) => {
+    const ratio = bubble.narrowRatio ?? 0.3
+    const topHalfW = w / 2, bottomHalfW = w * ratio / 2, cx = w / 2
+    context.beginPath()
+    context.moveTo(cx - topHalfW, 0); context.lineTo(cx + topHalfW, 0); context.lineTo(cx + bottomHalfW, h); context.lineTo(cx - bottomHalfW, h)
+    context.closePath()
+    if (shape) {
+        const sw = shape.strokeWidth()
+        if (sw > 0) {
+            context.save()
+            context.setAttr('lineWidth', sw); context.setAttr('strokeStyle', shape.stroke())
+            context.beginPath(); context.moveTo(cx - topHalfW, 0); context.lineTo(cx - bottomHalfW, h); context.stroke()
+            context.beginPath(); context.moveTo(cx + topHalfW, 0); context.lineTo(cx + bottomHalfW, h); context.stroke()
+            context.restore()
+        }
+    } else {
+        context.beginPath(); context.moveTo(cx - topHalfW, 0); context.lineTo(cx - bottomHalfW, h); context.stroke()
+        context.beginPath(); context.moveTo(cx + topHalfW, 0); context.lineTo(cx + bottomHalfW, h); context.stroke()
+    }
+    context.beginPath()
+    context.moveTo(cx - topHalfW, 0); context.lineTo(cx + topHalfW, 0); context.lineTo(cx + bottomHalfW, h); context.lineTo(cx - bottomHalfW, h)
+    context.closePath()
+}
+
+export const drawDoubleRectPath = (context: any, bubble: Bubble, w: number, h: number, shape?: any) => {
+    const cornerRadius = 8
+    const sw = shape ? shape.strokeWidth() : 2
+    // Increase gap: at least 6 pixels or 3 times stroke width
+    const gap = Math.max(6, sw * 3)
+
+    const drawRect = (ctx: any, width: number, height: number, offset: number) => {
+        const r = Math.max(0, cornerRadius - offset)
+        ctx.beginPath()
+        ctx.moveTo(r + offset, offset)
+        ctx.lineTo(width - r - offset, offset)
+        ctx.quadraticCurveTo(width - offset, offset, width - offset, r + offset)
+        ctx.lineTo(width - offset, height - r - offset)
+        ctx.quadraticCurveTo(width - offset, height - offset, width - r - offset, height - offset)
+        ctx.lineTo(r + offset, height - offset)
+        ctx.quadraticCurveTo(offset, height - offset, offset, height - r - offset)
+        ctx.lineTo(offset, r + offset)
+        ctx.quadraticCurveTo(offset, offset, r + offset, offset)
+        ctx.closePath()
+    }
+
+    // 1. Fill and Stroke the outer rectangle
+    drawRect(context, w, h, 0)
+    if (shape) {
+        context.fillStrokeShape(shape)
+    } else {
+        context.fill()
+        context.stroke()
+    }
+
+    // 2. Stroke the inner rectangle manually
+    if (sw > 0) {
+        drawRect(context, w, h, gap)
+        context.stroke()
+    }
 }

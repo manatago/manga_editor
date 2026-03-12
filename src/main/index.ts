@@ -1,5 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
-import { join } from 'path'
+import { join, extname, basename } from 'path'
+import * as fs from 'fs'
+import * as pathModule from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
@@ -47,9 +49,29 @@ app.whenReady().then(() => {
 
     // Handle local-file protocol
     protocol.handle('local-file', (request) => {
-        const url = request.url.replace('local-file://', '')
-        const decodedPath = decodeURIComponent(url)
-        return net.fetch(pathToFileURL(decodedPath).toString())
+        try {
+            // Electron's protocol.handle gives a full URL.
+            // For custom standard protocols, local-file:///Users/... might have /Users as pathname or Users as host.
+            // To be robust, we combine host and pathname if host exists.
+            const url = new URL(request.url)
+            let rawPath = url.host ? (url.host + url.pathname) : url.pathname
+            
+            // On Mac/Linux, if rawPath doesn't start with /, it should probably have one.
+            if (!rawPath.startsWith('/') && !/^[a-zA-Z]:/.test(rawPath)) {
+                rawPath = '/' + rawPath
+            }
+
+            const decodedPath = decodeURIComponent(rawPath)
+            
+            if (!fs.existsSync(decodedPath)) {
+                console.error('Main: local-file protocol - File NOT FOUND at:', decodedPath)
+            }
+
+            return net.fetch(pathToFileURL(decodedPath).toString())
+        } catch (error) {
+            console.error('Main: local-file protocol fatal error:', error)
+            throw error
+        }
     })
 
     app.on('browser-window-created', (_, window) => {
@@ -57,6 +79,45 @@ app.whenReady().then(() => {
     })
 
     createWindow()
+
+    ipcMain.handle('copy-file-to-project', async (_, { projectPath, sourcePath }) => {
+        const assetsDir = pathModule.join(projectPath, 'assets')
+
+        try {
+            if (!fs.existsSync(assetsDir)) {
+                fs.mkdirSync(assetsDir, { recursive: true })
+            }
+
+            const ext = pathModule.extname(sourcePath)
+            // Sanitize filename: remove spaces, commas, and other tricky characters
+            const rawBaseName = pathModule.basename(sourcePath, ext)
+            const sanitizedBaseName = rawBaseName
+                .replace(/\s+/g, '_')           // Spaces to underscores
+                .replace(/[^a-z0-9_\-]/gi, '') // Remove everything else except alphanumeric, underscores, and hyphens
+                .substring(0, 100)              // Prevent extremely long filenames
+            
+            const newFileName = `${Date.now()}_${sanitizedBaseName}${ext}`
+            const destPath = pathModule.join(assetsDir, newFileName)
+
+            fs.copyFileSync(sourcePath, destPath)
+            return destPath
+        } catch (error) {
+            console.error('Main: failed to copy file to project:', error)
+            throw error
+        }
+    })
+
+    ipcMain.handle('select-file', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [
+                { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }
+            ],
+            title: '画像を選択してください'
+        })
+        if (canceled) return null
+        return filePaths[0]
+    })
 
     ipcMain.handle('select-folder', async () => {
         const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -68,17 +129,22 @@ app.whenReady().then(() => {
     })
 
     ipcMain.handle('create-project', async (_, { path, name }) => {
-        const fs = await import('fs')
-        const pathModule = await import('path')
-        const projectPath = pathModule.join(path, name)
+        const projectPath = pathModule.join(path.trim(), name.trim())
 
         try {
             if (!fs.existsSync(projectPath)) {
                 fs.mkdirSync(projectPath, { recursive: true })
             }
+            // Create subdirectories
+            const assetsDir = pathModule.join(projectPath, 'assets')
+            const exportsDir = pathModule.join(projectPath, 'exports')
+            if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true })
+            if (!fs.existsSync(exportsDir)) fs.mkdirSync(exportsDir, { recursive: true })
+
             const configPath = pathModule.join(projectPath, 'manga.json')
             const configData = JSON.stringify({ name, createdAt: new Date().toISOString(), pages: [] }, null, 2)
             fs.writeFileSync(configPath, configData)
+            console.log('Main: Created project at:', projectPath)
             return projectPath
         } catch (error) {
             console.error('Main: failed to create project:', error)
@@ -87,9 +153,8 @@ app.whenReady().then(() => {
     })
 
     ipcMain.handle('load-project', async (_, path) => {
-        const fs = await import('fs')
-        const pathModule = await import('path')
-        const configPath = pathModule.join(path, 'manga.json')
+        const trimmedPath = path.trim()
+        const configPath = pathModule.join(trimmedPath, 'manga.json')
         console.log('Main: Loading project from:', configPath)
 
         try {
@@ -99,7 +164,7 @@ app.whenReady().then(() => {
             }
             const data = fs.readFileSync(configPath, 'utf8')
             const parsedData = JSON.parse(data)
-            console.log('Main: Project data loaded successfully. Pages count:', parsedData.pages?.length)
+            console.log('Main: Project data loaded successfully from', trimmedPath)
             return parsedData
         } catch (error) {
             console.error('Main: failed to load project:', error)
@@ -108,15 +173,14 @@ app.whenReady().then(() => {
     })
 
     ipcMain.handle('save-project', async (_, { path, data }) => {
-        const fs = await import('fs')
-        const pathModule = await import('path')
-        const configPath = pathModule.join(path, 'manga.json')
+        const trimmedPath = path.trim()
+        const configPath = pathModule.join(trimmedPath, 'manga.json')
 
         try {
             fs.writeFileSync(configPath, JSON.stringify(data, null, 2))
             return true
         } catch (error) {
-            console.error('Main: failed to save project:', error)
+            console.error('Main: failed to save project at:', configPath, error)
             throw error
         }
     })
@@ -164,10 +228,28 @@ app.whenReady().then(() => {
         }
     })
 
-    ipcMain.handle('export-png', async (_, { path, name, data }) => {
+    ipcMain.handle('delete-template', async (_, templateId) => {
         const fs = await import('fs')
         const pathModule = await import('path')
-        const exportDir = pathModule.join(path, 'exports')
+        const userDataPath = app.getPath('userData')
+        const templatePath = pathModule.join(userDataPath, 'templates.json')
+
+        try {
+            if (!fs.existsSync(templatePath)) return []
+            const data = fs.readFileSync(templatePath, 'utf8')
+            let templates = JSON.parse(data)
+            templates = templates.filter((t: any) => t.id !== templateId)
+            fs.writeFileSync(templatePath, JSON.stringify(templates, null, 2))
+            return templates
+        } catch (error) {
+            console.error('Main: failed to delete template:', error)
+            throw error
+        }
+    })
+
+    ipcMain.handle('export-png', async (_, { path, name, data }) => {
+        const trimmedPath = path.trim()
+        const exportDir = pathModule.join(trimmedPath, 'exports')
 
         try {
             if (!fs.existsSync(exportDir)) {
@@ -180,6 +262,30 @@ app.whenReady().then(() => {
             return filePath
         } catch (error) {
             console.error('Main: failed to export png:', error)
+            throw error
+        }
+    })
+
+    ipcMain.handle('get-assets', async (_, projectPath) => {
+        const assetsDir = pathModule.join(projectPath, 'assets')
+        try {
+            if (!fs.existsSync(assetsDir)) return []
+            return fs.readdirSync(assetsDir).map(file => pathModule.join(assetsDir, file))
+        } catch (error) {
+            console.error('Main: failed to get assets:', error)
+            return []
+        }
+    })
+
+    ipcMain.handle('delete-file', async (_, filePath) => {
+        try {
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath)
+                return true
+            }
+            return false
+        } catch (error) {
+            console.error('Main: failed to delete file:', error)
             throw error
         }
     })

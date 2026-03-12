@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+import Konva from 'konva'
 import { Group, Line, Circle } from 'react-konva'
 import useImage from 'use-image'
 import { Panel } from '../store/useMangaStore'
@@ -217,6 +218,16 @@ export const PanelItem: React.FC<{
     const points = getPanelPoints(panel)
     const imagePath = panel.imagePath && window.electron ? window.electron.pathToUrl(panel.imagePath) : (panel.imagePath || '')
     const [image] = useImage(imagePath)
+    const lineRef = useRef<Konva.Line>(null)
+
+    useEffect(() => {
+        if (lineRef.current) {
+            lineRef.current.clearCache()
+            if (image && panel.isGrayscale) {
+                lineRef.current.cache()
+            }
+        }
+    }, [panel.isGrayscale, image, panel.imageFlipX, panel.imageScale, panel.imageRotation, panel.imageX, panel.imageY, panel.imagePath])
 
     const isInteractive = renderPass === 'interaction' || !renderPass;
     const shouldRenderContent = renderPass === 'content' || !renderPass;
@@ -242,7 +253,7 @@ export const PanelItem: React.FC<{
             onClick={(e) => isInteractive && onSelect(panel.id)}
             onTap={(e) => isInteractive && onSelect(panel.id)}
             onDragStart={(e) => {
-                const target = e.target as any
+                const target = e.currentTarget as any
                 const isShift = !!e.evt?.shiftKey
                 const isImageMode = isShift && !!panel.imagePath
                 target.setAttr('isImageMode', isImageMode)
@@ -250,45 +261,55 @@ export const PanelItem: React.FC<{
                 if (isImageMode) {
                     const stage = target.getStage()
                     const pointerPos = stage.getPointerPosition()
-                    target.setAttr('lastPointerX', pointerPos?.x)
-                    target.setAttr('lastPointerY', pointerPos?.y)
+                    target.setAttr('startPointerX', pointerPos?.x)
+                    target.setAttr('startPointerY', pointerPos?.y)
+                    target.setAttr('startImageX', panel.imageX ?? 0)
+                    target.setAttr('startImageY', panel.imageY ?? 0)
                     target.setAttr('dragStartX', target.x())
                     target.setAttr('dragStartY', target.y())
+
+                    // Clear cache for real-time feedback during drag
+                    const contentLine = stage.findOne(`#panel-${panel.id}-image`)
+                    if (contentLine) {
+                        contentLine.clearCache()
+                    }
                 }
             }}
             onDragMove={(e) => {
-                const target = e.target as any
+                const target = e.currentTarget as any
                 if (target.getAttr('isImageMode')) {
                     const stage = target.getStage()
                     const pointerPos = stage.getPointerPosition()
 
-                    if (pointerPos && target.getAttr('lastPointerX') !== undefined) {
-                        const dx = pointerPos.x - target.getAttr('lastPointerX')
-                        const dy = pointerPos.y - target.getAttr('lastPointerY')
+                    if (pointerPos && target.getAttr('startPointerX') !== undefined) {
+                        const totalDx = pointerPos.x - target.getAttr('startPointerX')
+                        const totalDy = pointerPos.y - target.getAttr('startPointerY')
 
-                        const currentScale = panel.imageScale || 1
-                        const line = target.findOne('Line')
-                        if (line) {
-                            const newX = line.fillPatternOffsetX() - dx / currentScale
-                            const newY = line.fillPatternOffsetY() - dy / currentScale
-                            line.fillPatternOffsetX(newX)
-                            line.fillPatternOffsetY(newY)
+                        const newImageX = target.getAttr('startImageX') + totalDx
+                        const newImageY = target.getAttr('startImageY') + totalDy
+
+                        const contentLine = stage.findOne(`#panel-${panel.id}-image`) as any
+                        if (contentLine) {
+                            contentLine.fillPatternX(newImageX)
+                            contentLine.fillPatternY(newImageY)
                         }
-
-                        target.setAttr('lastPointerX', pointerPos.x)
-                        target.setAttr('lastPointerY', pointerPos.y)
                     }
                 }
             }}
             onDragEnd={(e) => {
-                const target = e.target as any
+                const target = e.currentTarget as any
                 if (target.getAttr('isImageMode')) {
-                    const line = target.findOne('Line')
-                    if (line) {
+                    const stage = target.getStage()
+                    const contentLine = stage.findOne(`#panel-${panel.id}-image`) as any
+                    if (contentLine) {
                         onUpdate(panel.id, {
-                            imageX: Math.round(line.fillPatternOffsetX()),
-                            imageY: Math.round(line.fillPatternOffsetY())
+                            imageX: Math.round(contentLine.fillPatternX()),
+                            imageY: Math.round(contentLine.fillPatternY())
                         })
+                        // Restore grayscale cache after movement
+                        if (panel.isGrayscale) {
+                            contentLine.cache()
+                        }
                     }
                 } else {
                     onUpdate(panel.id, {
@@ -321,18 +342,35 @@ export const PanelItem: React.FC<{
             )}
 
             {shouldRenderContent && (
-                <Line
-                    points={points}
-                    closed={true}
-                    fill={panel.imagePath ? undefined : 'white'}
-                    fillPatternImage={image}
-                    fillPatternScaleX={panel.imageScale ?? 1}
-                    fillPatternScaleY={panel.imageScale ?? 1}
-                    fillPatternOffsetX={panel.imageX ?? 0}
-                    fillPatternOffsetY={panel.imageY ?? 0}
-                    fillPatternRotation={panel.imageRotation ?? 0}
-                    fillPatternRepeat="no-repeat"
-                />
+                <Group
+                    clipFunc={(ctx) => {
+                        if (!points || points.length < 6) return
+                        ctx.beginPath()
+                        ctx.moveTo(points[0], points[1])
+                        for (let i = 2; i < points.length; i += 2) {
+                            ctx.lineTo(points[i], points[i + 1])
+                        }
+                        ctx.closePath()
+                    }}
+                >
+                    <Line
+                        id={`panel-${panel.id}-image`}
+                        ref={lineRef}
+                        points={points}
+                        closed={true}
+                        fill={panel.imagePath ? undefined : 'white'}
+                        fillPatternImage={image}
+                        fillPatternX={panel.imageX ?? 0}
+                        fillPatternY={panel.imageY ?? 0}
+                        fillPatternOffsetX={image ? image.width / 2 : 0}
+                        fillPatternOffsetY={image ? image.height / 2 : 0}
+                        fillPatternScaleX={(panel.imageFlipX ? -1 : 1) * (panel.imageScale ?? 1)}
+                        fillPatternScaleY={panel.imageScale ?? 1}
+                        fillPatternRotation={panel.imageRotation ?? 0}
+                        fillPatternRepeat="no-repeat"
+                        filters={panel.isGrayscale ? [Konva.Filters.Grayscale] : []}
+                    />
+                </Group>
             )}
 
             {shouldRenderStrokes && <PanelStrokes panel={panel} points={points} page={page} />}

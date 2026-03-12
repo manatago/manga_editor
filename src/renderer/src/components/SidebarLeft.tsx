@@ -1,0 +1,163 @@
+import React from 'react'
+import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser } from 'lucide-react'
+import { useMangaStore } from '../store/useMangaStore'
+
+interface SidebarLeftProps {
+    onExportPNG: () => void;
+    onOpenTemplateModal: () => void;
+    handleCreateNew: () => void;
+    handleOpenProject: () => void;
+    currentProjectPath: string | null;
+    currentPageId: string | null;
+    pages: any[];
+    selectPage: (id: string) => void;
+    movePage: (id: string, direction: 'up' | 'down') => void;
+    removePage: (id: string) => void;
+    addPage: (panels?: any[]) => void;
+}
+
+const SidebarLeft: React.FC<SidebarLeftProps> = ({
+    onExportPNG,
+    onOpenTemplateModal,
+    handleCreateNew,
+    handleOpenProject,
+    currentProjectPath,
+    // currentPageId, // Removed from props
+    // pages, // Removed from props
+    // selectPage, // Removed from props
+    // movePage, // Removed from props
+    // removePage, // Removed from props
+    // addPage // Removed from props
+}) => {
+    const {
+        pages,
+        currentPageId,
+        selectPage,
+        addPage,
+        movePage,
+        removePage,
+        saveAsTemplate, // Not used in this component, but part of the store destructuring
+        cleanupAssets
+    } = useMangaStore()
+
+    return (
+        <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0">
+            <div className="p-4 border-b border-zinc-800 flex items-center gap-2">
+                <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
+                    <span className="text-white font-bold text-xs">M</span>
+                </div>
+                <h1 className="font-bold text-white tracking-tight">漫画野郎</h1>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-6">
+                {!currentProjectPath ? (
+                    <div className="space-y-2">
+                        <button onClick={handleCreateNew} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white group">
+                            <Plus size={18} className="group-hover:text-blue-500 transition-colors" />
+                            <span className="text-sm font-medium">新規プロジェクト</span>
+                        </button>
+                        <button onClick={handleOpenProject} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white group">
+                            <FolderOpen size={18} className="group-hover:text-blue-500 transition-colors" />
+                            <span className="text-sm font-medium">プロジェクトを開く</span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <button
+                                onClick={onExportPNG}
+                                disabled={!currentPageId}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 transition-colors text-emerald-400 hover:text-emerald-300 font-bold group disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Download size={18} />
+                                <span className="text-sm">PNG出力 (Export)</span>
+                            </button>
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between px-3 mb-2">
+                                <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pages</h2>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 mb-4 px-1">
+                                <button
+                                    onClick={() => addPage()}
+                                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all text-xs font-bold shadow-lg shadow-blue-900/20"
+                                >
+                                    <PlusIcon size={16} />
+                                    <span>白紙</span>
+                                </button>
+                                <button
+                                    onClick={onOpenTemplateModal}
+                                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all text-xs font-bold border border-zinc-700"
+                                >
+                                    <Layout size={16} />
+                                    <span>Template</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-1">
+                                {[...pages].reverse().map((page, revIdx) => {
+                                    const originalIdx = pages.length - 1 - revIdx;
+                                    return (
+                                        <div key={page.id} className="group relative">
+                                            <button
+                                                onClick={() => selectPage(page.id)}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 border border-transparent'}`}
+                                            >
+                                                <span className="truncate flex-1 text-left font-mono font-medium">{page.name}</span>
+                                            </button>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); movePage(page.id, 'down'); }}
+                                                    disabled={originalIdx === pages.length - 1}
+                                                    className="p-1 text-zinc-500 hover:text-white disabled:opacity-0 transition-colors"
+                                                    title="上に移動"
+                                                >
+                                                    <ChevronUp size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); movePage(page.id, 'up'); }}
+                                                    disabled={originalIdx === 0}
+                                                    className="p-1 text-zinc-500 hover:text-white disabled:opacity-0 transition-colors"
+                                                    title="下に移動"
+                                                >
+                                                    <ChevronDown size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm('このページを削除しますか？')) {
+                                                            removePage(page.id);
+                                                        }
+                                                    }}
+                                                    className="p-1 text-zinc-500 hover:text-red-500 transition-colors"
+                                                    title="ページを削除"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="pt-4 mt-4 border-t border-zinc-800">
+                                <button
+                                    onClick={cleanupAssets}
+                                    title="プロジェクト内の未使用画像を削除して整理します"
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-red-900/20 border border-zinc-700 hover:border-red-900/30 transition-all text-zinc-400 hover:text-red-400 group"
+                                >
+                                    <Eraser size={18} className="group-hover:animate-pulse" />
+                                    <span className="text-sm font-bold">Assets整理</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+export default SidebarLeft

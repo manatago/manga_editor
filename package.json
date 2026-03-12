@@ -9,7 +9,8 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "pack": "electron-vite build && electron-builder --dir",
-    "dist": "electron-vite build && electron-builder"
+    "dist": "electron-vite build && electron-builder",
+    "test": "vitest run"
   },
   "build": {
     "appId": "com.electron.manga",
@@ -50,6 +51,8 @@
   "description": "",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
@@ -57,13 +60,28 @@
     "electron": "^40.8.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
+    "jsdom": "^28.1.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "@fontsource/cherry-bomb-one": "^5.2.7",
+    "@fontsource/hachi-maru-pop": "^5.2.8",
+    "@fontsource/kiwi-maru": "^5.2.8",
+    "@fontsource/klee-one": "^5.2.8",
+    "@fontsource/mochiy-pop-p-one": "^5.2.8",
+    "@fontsource/rampart-one": "^5.2.8",
+    "@fontsource/rocknroll-one": "^5.2.8",
+    "@fontsource/slackside-one": "^5.2.8",
+    "@fontsource/stick": "^5.2.8",
+    "@fontsource/train-one": "^5.2.8",
+    "@fontsource/yomogi": "^5.2.7",
+    "@fontsource/yusei-magic": "^5.2.8",
+    "@fontsource/zen-kurenaido": "^5.2.8",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.1",
     "konva": "^10.2.0",

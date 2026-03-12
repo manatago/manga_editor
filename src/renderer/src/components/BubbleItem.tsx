@@ -1,73 +1,9 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { Group, Shape, Text, Circle } from 'react-konva'
 import { Bubble } from '../store/useMangaStore'
-import { drawRectPath, drawJaggedPath, drawRoundedPath, drawFlashPath, drawJitteryCircle } from './utils/drawPaths'
-
-const VerticalText: React.FC<{
-    text: string;
-    fontSize: number;
-    fontColor: string;
-    fontFamily?: string;
-    fontWeight?: string;
-    width: number;
-    height: number;
-    lineHeight?: number;
-}> = ({ text, fontSize, fontColor, fontFamily = 'sans-serif', fontWeight = 'bold', width, height, lineHeight = 1.2 }) => {
-    const lines = text.split('\n')
-    const charSpacing = fontSize * (lineHeight - 1)
-    const columnSpacing = fontSize * 0.5
-    const totalColumnsWidth = lines.length * fontSize + (lines.length - 1) * columnSpacing
-    const startX = width / 2 + totalColumnsWidth / 2 - fontSize / 2
-
-    // Characters that need special vertical handling
-    const rotates = 'ー〜〜～()（）[]［］{}｛｝「」『』<>〈〉《》【】…―'
-    const smallChars = 'っゃゅょぁぃぅぇぉッャュョァィゥェォ'
-    const punctuations = '。、'
-
-    return (
-        <Group>
-            {lines.map((line, lineIdx) => (
-                <Group key={lineIdx} x={startX - lineIdx * (fontSize + columnSpacing)}>
-                    {line.split('').map((char, charIdx) => {
-                        let rotation = 0
-                        let xOffset = 0
-                        let yOffset = 0
-                        let align: 'center' | 'left' | 'right' = 'center'
-
-                        if (rotates.includes(char)) {
-                            rotation = 90
-                            xOffset = fontSize
-                        } else if (smallChars.includes(char)) {
-                            // Small kana - shifted up and right
-                            xOffset = fontSize * 0.2
-                            yOffset = -fontSize * 0.1
-                        } else if (punctuations.includes(char)) {
-                            // Punctuation - shifted even further right and up
-                            xOffset = fontSize * 0.8
-                            yOffset = -fontSize * 0.5
-                        }
-
-                        return (
-                            <Text
-                                key={charIdx}
-                                text={char}
-                                x={xOffset}
-                                y={charIdx * (fontSize + charSpacing) + yOffset}
-                                fontSize={fontSize}
-                                fill={fontColor}
-                                fontFamily={fontFamily}
-                                align={align}
-                                width={fontSize}
-                                rotation={rotation}
-                                fontStyle={fontWeight}
-                            />
-                        )
-                    })}
-                </Group>
-            ))}
-        </Group>
-    )
-}
+import { getPanelPoints, drawRectPath, drawJaggedPath, drawRoundedPath, drawFlashPath, drawShoutPath, drawSquareJaggedPath, drawJitteryCircle, drawMegaphonePath, drawDoubleRectPath } from './utils/drawPaths'
+import { getPRand, hexToRGBA } from './utils/bubbleUtils'
+import { VerticalText, MegaphoneText } from './SpeechText'
 
 export const BubbleItem: React.FC<{
     bubble: any;
@@ -78,10 +14,25 @@ export const BubbleItem: React.FC<{
     renderPass?: 'strokes' | 'fills' | 'text' | 'interaction' | 'mask';
     overrideOpacity?: number;
     overrideShadow?: boolean;
-}> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow }) => {
+    clipPoints?: number[];
+}> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow, clipPoints }) => {
     const shapeRef = useRef<any>(null)
+    const [, forceUpdate] = useState(0)
+
+    // Wait for the selected font to load, then force re-render so Konva draws with the real font
+    const actualFontFamily = bubble._overrideFontFamily ?? bubble.fontFamily
+    useEffect(() => {
+        let cancelled = false
+        const weight = bubble.fontWeight || 'bold'
+        const size = bubble._overrideFontSize ?? bubble.fontSize ?? 18
+        document.fonts.load(`${weight} ${size}px ${actualFontFamily}`)
+            .then(() => { if (!cancelled) forceUpdate((prev: number) => prev + 1) })
+            .catch(() => {})
+        return () => { cancelled = true }
+    }, [actualFontFamily])
 
     const handleDragEnd = (e: any) => {
+        if (e.target !== e.currentTarget) return
         onUpdate(bubble.id, {
             x: e.target.x(),
             y: e.target.y()
@@ -93,12 +44,14 @@ export const BubbleItem: React.FC<{
         if (!node) return
         const scaleX = node.scaleX()
         const scaleY = node.scaleY()
+        const rotation = node.rotation()
         node.scaleX(1)
         node.scaleY(1)
 
         onUpdate(bubble.id, {
             x: node.x(),
             y: node.y(),
+            rotation: rotation,
             width: Math.max(20, (bubble.width || 100) * scaleX),
             height: Math.max(20, (bubble.height || 100) * scaleY),
             // Scale tail offsets to maintain relative position after scale reset
@@ -123,10 +76,11 @@ export const BubbleItem: React.FC<{
     const passOpacity = overrideOpacity !== undefined ? overrideOpacity : opacity;
     const passShadow = overrideShadow !== undefined ? overrideShadow : true;
 
+
     const commonProps = {
         width: bubble.width,
         height: bubble.height,
-        fill: shouldRenderFills ? (isMask ? 'black' : backgroundColor) : undefined,
+        fill: shouldRenderFills ? (isMask ? 'black' : hexToRGBA(backgroundColor, bubble.backgroundOpacity ?? 1)) : undefined,
         stroke: shouldRenderStrokes ? borderColor : undefined,
         strokeWidth: shouldRenderStrokes ? passStrokeWidth : 0,
         opacity: isMask ? 1 : passOpacity,
@@ -148,7 +102,10 @@ export const BubbleItem: React.FC<{
                     sceneFunc={(context, shape) => {
                         if (bubble.type === 'rect') drawRectPath(context, bubble, bubble.width, bubble.height)
                         else if (bubble.type === 'jagged') drawJaggedPath(context, bubble, bubble.width, bubble.height)
+                        else if (bubble.type === 'shout') drawShoutPath(context, bubble, bubble.width, bubble.height)
+                        else if (bubble.type === 'square-jagged') drawSquareJaggedPath(context, bubble, bubble.width, bubble.height)
                         else if (bubble.type === 'flash') drawRoundedPath(context, bubble, bubble.width, bubble.height) // Use ellipse for selection hit area
+                        else if (bubble.type === 'rect-double') drawDoubleRectPath(context, bubble, bubble.width, bubble.height, shape)
                         else drawRoundedPath(context, bubble, bubble.width, bubble.height)
                         context.fillShape(shape)
                     }}
@@ -174,6 +131,34 @@ export const BubbleItem: React.FC<{
                 return (
                     <Shape {...commonProps} sceneFunc={(c, s) => runDrawConfig(c, s, drawJaggedPath)} />
                 )
+            case 'shout':
+                return (
+                    <Shape {...commonProps} sceneFunc={(c, s) => runDrawConfig(c, s, drawShoutPath)} />
+                )
+            case 'megaphone':
+                return (
+                    <Shape 
+                        {...commonProps} 
+                        sceneFunc={(c, s) => {
+                            drawMegaphonePath(c, bubble, s.width(), s.height(), s)
+                            if (shouldRenderFills) c.fillShape(s)
+                            // Skip default stroke - drawMegaphonePath handles its own specific strokes
+                        }} 
+                    />
+                )
+            case 'square-jagged':
+                return (
+                    <Shape {...commonProps} sceneFunc={(c, s) => runDrawConfig(c, s, drawSquareJaggedPath)} />
+                )
+            case 'rect-double':
+                return (
+                    <Shape 
+                        {...commonProps} 
+                        sceneFunc={(c, s) => {
+                            drawDoubleRectPath(c, bubble, s.width(), s.height(), s)
+                        }} 
+                    />
+                )
             case 'flash':
                 return (
                     <Shape {...commonProps} fill={undefined} sceneFunc={(c, s) => runDrawConfig(c, s, drawFlashPath)} />
@@ -191,13 +176,22 @@ export const BubbleItem: React.FC<{
             id={id}
             x={bubble.x}
             y={bubble.y}
-            draggable={isInteractive}
+            rotation={bubble.rotation || 0}
+            draggable={isSelected && renderPass === 'interaction'}
             listening={isInteractive}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
             onClick={(e) => isInteractive && onSelect(bubble.id)}
             onTap={(e) => isInteractive && onSelect(bubble.id)}
             ref={shapeRef}
+            clipFunc={clipPoints ? (ctx) => {
+                ctx.beginPath()
+                ctx.moveTo(clipPoints[0], clipPoints[1])
+                for (let i = 2; i < clipPoints.length; i += 2) {
+                    ctx.lineTo(clipPoints[i], clipPoints[i + 1])
+                }
+                ctx.closePath()
+            } : undefined}
         >
             {/* Thought Bubble Tail Circles (Drawn behind for natural merging) */}
             {bubble.type === 'rounded' && bubble.tailType === 'thought' && (() => {
@@ -219,7 +213,7 @@ export const BubbleItem: React.FC<{
                         <Shape
                             key={i}
                             {...commonProps}
-                            strokeWidth={shouldRenderStrokes ? (passStrokeWidth + (actualStrokeWidth <= 0.5 ? 0.2 : 0)) : 0}
+                            strokeWidth={shouldRenderStrokes ? (passStrokeWidth + (actualStrokeWidth > 0 && actualStrokeWidth <= 0.5 ? 0.2 : 0)) : 0}
                             sceneFunc={(ctx, shape) => {
                                 drawJitteryCircle(ctx, bubble.width / 2 + curX, bubble.height / 2 + curY, currentRadius, bubble.deformation ?? 1)
                                 if (shouldRenderFills && shouldRenderStrokes) ctx.fillStrokeShape(shape)
@@ -246,7 +240,7 @@ export const BubbleItem: React.FC<{
                     clipHeight={bubble.height * 0.7}
                     listening={false}
                 >
-                    {bubble.isVertical ? (
+                    {bubble.type !== 'megaphone' && (bubble.isVertical ? (
                         <VerticalText
                             text={bubble.text}
                             fontSize={bubble._overrideFontSize ?? bubble.fontSize}
@@ -255,6 +249,7 @@ export const BubbleItem: React.FC<{
                             fontWeight={bubble.fontWeight || 'bold'}
                             width={bubble.width * 0.7}
                             height={bubble.height * 0.7}
+                            lineHeight={bubble.lineHeight ?? 1.4}
                         />
                     ) : (
                         <Text
@@ -267,6 +262,21 @@ export const BubbleItem: React.FC<{
                             align="center"
                             verticalAlign="middle"
                             fontStyle={bubble.fontWeight || 'bold'}
+                            lineHeight={bubble.lineHeight ?? 1.4}
+                        />
+                    ))}
+                    {bubble.type === 'megaphone' && (
+                        <MegaphoneText
+                            text={bubble.text}
+                            fontSize={bubble._overrideFontSize ?? bubble.fontSize}
+                            fontColor={bubble.fontColor}
+                            fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
+                            fontWeight={bubble.fontWeight || 'bold'}
+                            width={bubble.width * 0.7}
+                            height={bubble.height * 0.7}
+                            narrowRatio={bubble.narrowRatio ?? 0.3}
+                            isVertical={!!bubble.isVertical}
+                            lineHeight={bubble.lineHeight ?? 1.4}
                         />
                     )}
                 </Group>
@@ -287,7 +297,13 @@ export const BubbleItem: React.FC<{
                             e.cancelBubble = true
                             const dx = e.target.x() - bubble.width / 2
                             const dy = e.target.y() - bubble.height / 2
-                            onUpdate(bubble.id, { tailX: dx, tailY: dy })
+                            onUpdate(bubble.id, { tailX: dx, tailY: dy }, false)
+                        }}
+                        onDragEnd={(e) => {
+                            e.cancelBubble = true
+                            const dx = e.target.x() - bubble.width / 2
+                            const dy = e.target.y() - bubble.height / 2
+                            onUpdate(bubble.id, { tailX: dx, tailY: dy }, true)
                         }}
                     />
                     {(bubble.tailX !== 0 || bubble.tailY !== 0) && (
@@ -304,7 +320,13 @@ export const BubbleItem: React.FC<{
                                 e.cancelBubble = true
                                 const dx = e.target.x() - bubble.width / 2
                                 const dy = e.target.y() - bubble.height / 2
-                                onUpdate(bubble.id, { tailControlX: dx, tailControlY: dy })
+                                onUpdate(bubble.id, { tailControlX: dx, tailControlY: dy }, false)
+                            }}
+                            onDragEnd={(e) => {
+                                e.cancelBubble = true
+                                const dx = e.target.x() - bubble.width / 2
+                                const dy = e.target.y() - bubble.height / 2
+                                onUpdate(bubble.id, { tailControlX: dx, tailControlY: dy }, true)
                             }}
                         />
                     )}
@@ -322,9 +344,17 @@ export const BubbleClusterGroup: React.FC<{ members: any[] }> = ({ members }) =>
     const hash = JSON.stringify(members)
 
     useEffect(() => {
-        if (groupRef.current) {
-            groupRef.current.clearCache();
+        if (!groupRef.current) return
+        groupRef.current.clearCache()
 
+        // Gather unique fonts and await loading before caching so Google Fonts render correctly
+        const fontFamilies = [...new Set(members.map(b => b._overrideFontFamily ?? b.fontFamily).filter(Boolean))]
+        const weight = master.fontWeight || 'bold'
+        const size = master.fontSize || 18
+        Promise.all(fontFamilies.map(f =>
+            document.fonts.load(`${weight} ${size}px ${f}`).catch(() => {})
+        )).then(() => {
+            if (!groupRef.current) return
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             members.forEach(b => {
                 let bx1 = b.x, by1 = b.y, bx2 = b.x + b.width, by2 = b.y + b.height;
@@ -350,7 +380,7 @@ export const BubbleClusterGroup: React.FC<{ members: any[] }> = ({ members }) =>
                 height: (maxY - minY) + pad * 2,
                 pixelRatio: window.devicePixelRatio || 2
             })
-        }
+        }) // end Promise.all().then()
     }, [hash])
 
     return (
@@ -366,28 +396,28 @@ export const BubbleClusterGroup: React.FC<{ members: any[] }> = ({ members }) =>
             {/* 1. Mask Layer: punches holes where the fills intersect, wiping inner strokes */}
             <Group globalCompositeOperation="destination-out">
                 {members.map(b => (
-                    <BubbleItem key={`mask-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="mask" overrideOpacity={1} overrideShadow={false} />
+                    <BubbleItem key={`mask-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="mask" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
                 ))}
             </Group>
 
             {/* 2. Strokes Layer: draws the outer borders below the rest */}
             <Group globalCompositeOperation="destination-over">
                 {members.map(b => (
-                    <BubbleItem key={`strokes-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="strokes" overrideOpacity={1} overrideShadow={false} />
+                    <BubbleItem key={`strokes-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="strokes" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
                 ))}
             </Group>
 
             {/* 3. Fills Layer: draws the actual fill color */}
             <Group globalCompositeOperation="source-over">
                 {members.map(b => (
-                    <BubbleItem key={`fills-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="fills" overrideOpacity={1} overrideShadow={false} />
+                    <BubbleItem key={`fills-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="fills" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
                 ))}
             </Group>
 
             {/* 4. Text Layer */}
             <Group globalCompositeOperation="source-over">
                 {members.map(b => (
-                    <BubbleItem key={`text-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="text" overrideOpacity={1} overrideShadow={false} />
+                    <BubbleItem key={`text-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="text" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
                 ))}
             </Group>
         </Group>
