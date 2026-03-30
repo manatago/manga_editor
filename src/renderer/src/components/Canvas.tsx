@@ -37,6 +37,27 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
     const currentPage = pages.find((p) => p.id === currentPageId)
     const panels = currentPage?.panels || []
     const bubbles = currentPage?.bubbles || []
+    const [isShiftPressed, setIsShiftPressed] = useState(false)
+    const selectedPanel = panels.find((p) => p.id === selectedPanelId)
+    const isBubbleInteractionLocked = !!(isShiftPressed && selectedPanel?.imagePath)
+
+    useEffect(() => {
+        const onKeyDown = (evt: KeyboardEvent) => {
+            if (evt.key === 'Shift') setIsShiftPressed(true)
+        }
+        const onKeyUp = (evt: KeyboardEvent) => {
+            if (evt.key === 'Shift') setIsShiftPressed(false)
+        }
+        const onBlur = () => setIsShiftPressed(false)
+        window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('keyup', onKeyUp)
+        window.addEventListener('blur', onBlur)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keyup', onKeyUp)
+            window.removeEventListener('blur', onBlur)
+        }
+    }, [])
 
     const handleStageClick = (e: any) => {
         if (e.target === e.target.getStage()) {
@@ -208,7 +229,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
             let foundCluster = false
             for (const cluster of clusters) {
                 const master = cluster.master
-                if (master.type === b.type && master.backgroundColor === b.backgroundColor && master.borderColor === b.borderColor) {
+                if (master.type === b.type && master.backgroundColor === b.backgroundColor && master.borderColor === b.borderColor && master.backgroundOpacity === b.backgroundOpacity) {
                     if (cluster.members.some(member => checkOverlap(member, b))) {
                         cluster.members.push(b)
                         foundCluster = true
@@ -233,6 +254,10 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                     _overrideFontFamily: c.master.fontFamily,
                     _overrideFontSize: c.master.fontSize,
                     _overrideBorderWidth: c.master.borderWidth,
+                    _overrideBackgroundColor: c.master.backgroundColor,
+                    _overrideBorderColor: c.master.borderColor,
+                    _overrideBackgroundOpacity: c.master.backgroundOpacity,
+                    _overrideLineHeight: c.master.lineHeight,
                     clipPoints
                 }
             })
@@ -259,58 +284,137 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                     <Layer>
                         {/* 1. Background Layer */}
                         <Group>
-                            <Line
-                                points={[0, 0, 840, 0, 840, 1188, 0, 1188]}
-                                closed
-                                fill={currentPage?.backgroundColor || '#ffffff'}
-                                opacity={currentPage?.backgroundOpacity ?? 1}
-                                listening={false}
-                            />
-                        </Group>
- 
-                        {/* 2. Panel Content (Images/Masks) Layer */}
-                        <Group>
-                            {panels.map((panel) => (
-                                <PanelItem key={`content-${panel.id}`} panel={panel} page={currentPage} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="content" />
-                            ))}
-                        </Group>
- 
-                        {/* 3. Panel Effects Layer (Fades, Focus Lines) */}
-                        <Group>
-                            {panels.map((panel) => (
-                                <PanelItem key={`effects-${panel.id}`} panel={panel} page={currentPage} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="effects" />
-                            ))}
-                        </Group>
+                            {(() => {
+                                const bgType = currentPage?.bgGradientType || 'none';
+                                const bgColor = currentPage?.backgroundColor || '#ffffff';
+                                const bgOpacity = currentPage?.backgroundOpacity ?? 1;
+                                const startColor = currentPage?.bgGradientStartColor || bgColor;
+                                const endColor = currentPage?.bgGradientEndColor || '#ffffff';
+                                const rotation = (currentPage?.bgGradientRotation || 0) * Math.PI / 180;
 
-                        {/* 3.1 Under-Frame Bubbles Layer (Clipped bubbles stay inside frames) */}
-                        <Group>
-                            {underFrameClusters.map((cluster) => (
-                                <BubbleClusterGroup key={`cluster-under-${cluster.id}`} members={cluster.members} />
-                            ))}
-                        </Group>
+                                const bgProps: any = { opacity: bgOpacity };
+                                if (bgType === 'none') {
+                                    bgProps.fill = bgColor;
+                                } else if (bgType === 'linear') {
+                                    const radius = Math.sqrt(840 ** 2 + 1188 ** 2) / 2;
+                                    const cx = 840 / 2;
+                                    const cy = 1188 / 2;
+                                    bgProps.fillLinearGradientStartPoint = { 
+                                        x: cx - Math.cos(rotation) * radius, 
+                                        y: cy - Math.sin(rotation) * radius 
+                                    };
+                                    bgProps.fillLinearGradientEndPoint = { 
+                                        x: cx + Math.cos(rotation) * radius, 
+                                        y: cy + Math.sin(rotation) * radius 
+                                    };
+                                    bgProps.fillLinearGradientColorStops = [0, startColor, 1, endColor];
+                                } else if (bgType === 'radial') {
+                                    const cx = 840 / 2;
+                                    const cy = 1188 / 2;
+                                    const radius = Math.max(840, 1188) / 2;
+                                    bgProps.fillRadialGradientStartPoint = { x: cx, y: cy };
+                                    bgProps.fillRadialGradientEndPoint = { x: cx, y: cy };
+                                    bgProps.fillRadialGradientStartRadius = 0;
+                                    bgProps.fillRadialGradientEndRadius = radius;
+                                    bgProps.fillRadialGradientColorStops = [0, startColor, 1, endColor];
+                                }
 
-                        {/* 3.2 Under-Frame Materials Layer (Clipped materials stay inside frames) */}
+                                return (
+                                    <Line
+                                        points={[0, 0, 840, 0, 840, 1188, 0, 1188]}
+                                        closed
+                                        {...bgProps}
+                                        listening={false}
+                                    />
+                                );
+                            })()}
+                        </Group>
+ 
+                        {/* 2. Panels and their clipped contents */}
+                        {panels.map((panel) => {
+                            const panelBubbles = bubbles.filter(b => b.isClipped && b.panelId === panel.id);
+                            const panelMaterials = materials.filter(m => m.isClipped && m.panelId === panel.id);
+                            const panelUnderFrameClusters = getVisualClusters(panelBubbles);
+
+                            return (
+                                <Group key={`panel-stack-${panel.id}`}>
+                                    {/* Content layer for this panel */}
+                                    <PanelItem 
+                                        panel={panel} 
+                                        page={currentPage} 
+                                        isSelected={false} 
+                                        onSelect={() => { }} 
+                                        onUpdate={() => { }} 
+                                        renderPass="content" 
+                                    />
+                                    {/* Effects layer for this panel */}
+                                    <PanelItem 
+                                        panel={panel} 
+                                        page={currentPage} 
+                                        isSelected={false} 
+                                        onSelect={() => { }} 
+                                        onUpdate={() => { }} 
+                                        renderPass="effects" 
+                                    />
+                                    {/* Under-Frame Bubbles for this panel */}
+                                    {panelUnderFrameClusters.map((cluster) => (
+                                        <BubbleClusterGroup key={`cluster-under-${panel.id}-${cluster.id}`} members={cluster.members} />
+                                    ))}
+                                    {/* Under-Frame Materials for this panel */}
+                                    {panelMaterials.map(m => (
+                                        <MaterialItem 
+                                            key={`material-under-${panel.id}-${m.id}`} 
+                                            material={m} 
+                                            isSelected={false} 
+                                            onSelect={() => { }} 
+                                            onUpdate={() => { }} 
+                                            renderPass="content" 
+                                            clipPoints={getClippedPoints(m, panels)} 
+                                        />
+                                    ))}
+                                    {/* Stroke layer for this panel */}
+                                    <PanelItem 
+                                        panel={panel} 
+                                        page={currentPage} 
+                                        isSelected={false} 
+                                        onSelect={() => { }} 
+                                        onUpdate={() => { }} 
+                                        renderPass="strokes" 
+                                    />
+                                </Group>
+                            );
+                        })}
+
+                        {/* 3. Handle any clipped items that might not have a panelId (fallback/safety) */}
                         <Group>
-                            {materials.filter(m => m.isClipped).map(m => (
-                                <MaterialItem key={`material-under-${m.id}`} material={m} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="content" clipPoints={getClippedPoints(m, panels)} />
+                            {(() => {
+                                const orphanedBubbles = bubbles.filter(b => b.isClipped && (!b.panelId || !panels.find(p => p.id === b.panelId)));
+                                const orphanedClusters = getVisualClusters(orphanedBubbles);
+                                return orphanedClusters.map(cluster => (
+                                    <BubbleClusterGroup key={`cluster-orphaned-${cluster.id}`} members={cluster.members} />
+                                ));
+                            })()}
+                            {materials.filter(m => m.isClipped && (!m.panelId || !panels.find(p => p.id === m.panelId))).map(m => (
+                                <MaterialItem 
+                                    key={`material-orphaned-${m.id}`} 
+                                    material={m} 
+                                    isSelected={false} 
+                                    onSelect={() => { }} 
+                                    onUpdate={() => { }} 
+                                    renderPass="content" 
+                                    clipPoints={getClippedPoints(m, panels)} 
+                                />
                             ))}
                         </Group>
  
-                        {/* 4. Panel Stroke Layer */}
-                        <Group>
-                            {panels.map((panel) => (
-                                <PanelItem key={`strokes-${panel.id}`} panel={panel} page={currentPage} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="strokes" />
-                            ))}
-                        </Group>
- 
-                        {/* 5, 6, 7. Over-Frame Bubbles Layer (Normal bubbles overlap frames) */}
+                        {/* 4. Over-Frame Bubbles Layer (Normal bubbles overlap frames) */}
                         <Group>
                             {overFrameClusters.map((cluster) => (
                                 <BubbleClusterGroup key={`cluster-over-${cluster.id}`} members={cluster.members} />
                             ))}
                         </Group>
 
-                        {/* 7.1 Over-Frame Materials Layer (Normal materials overlap frames) */}
+                        {/* 5. Over-Frame Materials Layer (Normal materials overlap frames) */}
                         <Group>
                             {materials.filter(m => !m.isClipped).map(m => (
                                 <MaterialItem key={`material-over-${m.id}`} material={m} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="content" />
@@ -322,7 +426,45 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                         {/* 8. Interaction Layer (Hidden during export) */}
                         {!isExporting && (
                             <Group>
-                                <Group>{panels.map((p) => <PanelItem key={`interaction-${p.id}`} id={`interaction-${p.id}`} panel={p} page={currentPage} isSelected={selectedPanelId === p.id} onSelect={setSelectedPanel} onUpdate={updatePanel} renderPass="interaction" />)}<Transformer
+                                {/* 8.1 Base Interaction Nodes */ }
+                                <Group>
+                                    {panels.map((p) => <PanelItem key={`interaction-${p.id}`} id={`interaction-${p.id}`} panel={p} page={currentPage} isSelected={selectedPanelId === p.id} onSelect={setSelectedPanel} onUpdate={updatePanel} renderPass="interaction" />)}
+                                </Group>
+                                <Group>
+                                    {bubbles.map((b) => {
+                                        let clipPoints = undefined
+                                        if (b.isClipped && b.panelId) {
+                                            const panel = panels.find(p => p.id === b.panelId)
+                                            if (panel) {
+                                                const pts = getPanelPoints(panel)
+                                                clipPoints = []
+                                                for (let i = 0; i < pts.length; i += 2) {
+                                                    clipPoints.push(pts[i] + panel.x - b.x)
+                                                    clipPoints.push(pts[i + 1] + panel.y - b.y)
+                                                }
+                                            }
+                                        }
+                                        return <BubbleItem key={`interaction-${b.id}`} id={`interaction-${b.id}`} bubble={b} isSelected={selectedBubbleId === b.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" clipPoints={clipPoints} panels={panels} interactionLocked={isBubbleInteractionLocked} />
+                                    })}
+                                </Group>
+                                <Group>
+                                    {materials.map((m) => (
+                                        <MaterialItem
+                                            key={`interaction-material-${m.id}`}
+                                            id={`interaction-material-${m.id}`}
+                                            material={m}
+                                            isSelected={selectedMaterialId === m.id}
+                                            onSelect={setSelectedMaterial}
+                                            onUpdate={updateMaterial}
+                                            renderPass="interaction"
+                                            clipPoints={getClippedPoints(m, panels)}
+                                            panels={panels}
+                                        />
+                                    ))}
+                                </Group>
+
+                                {/* 8.2 Transformer Handles (Always on top) */}
+                                <Transformer
                                     ref={transformerRef}
                                     rotateEnabled={false}
                                     keepRatio={false}
@@ -333,22 +475,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         }
                                         return newBox
                                     }}
-                                /></Group>
-                                <Group>{bubbles.map((b) => {
-                                    let clipPoints = undefined
-                                    if (b.isClipped && b.panelId) {
-                                        const panel = panels.find(p => p.id === b.panelId)
-                                        if (panel) {
-                                            const pts = getPanelPoints(panel)
-                                            clipPoints = []
-                                            for (let i = 0; i < pts.length; i += 2) {
-                                                clipPoints.push(pts[i] + panel.x - b.x)
-                                                clipPoints.push(pts[i + 1] + panel.y - b.y)
-                                            }
-                                        }
-                                    }
-                                    return <BubbleItem key={`interaction-${b.id}`} id={`interaction-${b.id}`} bubble={b} isSelected={selectedBubbleId === b.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" clipPoints={clipPoints} />
-                                })}<Transformer
+                                />
+                                <Transformer
                                     ref={bubbleTransformerRef}
                                     rotateEnabled={true}
                                     keepRatio={false}
@@ -375,26 +503,15 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         return newBox
                                     }}
                                     visible={!!selectedBubbleId}
-                                /></Group>
-                                <Group>{materials.map((m) => (
-                                    <MaterialItem
-                                        key={`interaction-material-${m.id}`}
-                                        id={`interaction-material-${m.id}`}
-                                        material={m}
-                                        isSelected={selectedMaterialId === m.id}
-                                        onSelect={setSelectedMaterial}
-                                        onUpdate={updateMaterial}
-                                        renderPass="interaction"
-                                        clipPoints={getClippedPoints(m, panels)}
-                                    />
-                                ))}<Transformer
+                                />
+                                <Transformer
                                     ref={materialTransformerRef}
                                     rotateEnabled={true}
                                     keepRatio={true}
                                     flipEnabled={false}
                                     enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
                                     visible={!!selectedMaterialId}
-                                /></Group>
+                                />
                             </Group>
                         )}
                     </Layer>

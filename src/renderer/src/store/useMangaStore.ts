@@ -1,7 +1,24 @@
 import { create } from 'zustand'
+import { physicalFileToRelative, toRelativeAssetPath } from '../utils/projectAssets'
+import {
+    bubbleToLastStyleSlice,
+    loadBubbleLastStylesFromStorage,
+    saveBubbleLastStylesToStorage,
+    type BubbleLastStyleSlice
+} from './bubbleLastStyle'
 
-export type PanelType = 'rect' | 'slanted' | 'trapezoid-h' | 'trapezoid-v'
-export type FadeDirection = 'none' | 'top' | 'bottom' | 'left' | 'right'
+export type PanelType = 'rect' | 'slanted' | 'trapezoid-h' | 'trapezoid-v' | 'pentagon' | 'hexagon' | 'circle'
+export type FadeDirection =
+    | 'none'
+    | 'top'
+    | 'bottom'
+    | 'left'
+    | 'right'
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right'
+export type GradientType = 'none' | 'linear' | 'radial'
 
 export interface Panel {
     id: string
@@ -10,7 +27,9 @@ export interface Panel {
     y: number
     width: number
     height: number
+    rotation?: number
     strokeWidth: number
+    strokeColor: string
     slant: number
     offsetB: number
     offsetC: number
@@ -33,6 +52,18 @@ export interface Panel {
     fadeStrength?: number
     isGrayscale?: boolean
     imageFlipX?: boolean
+    // Background properties
+    backgroundColor?: string
+    backgroundOpacity?: number
+    bgGradientType?: GradientType
+    bgGradientStartColor?: string
+    bgGradientEndColor?: string
+    bgGradientRotation?: number
+    // Manga Filters
+    blurRadius?: number
+    hasRainEffect?: boolean
+    rainDensity?: number
+    rainOpacity?: number
 }
 
 export type BubbleType = 'rounded' | 'jagged' | 'rect' | 'flash' | 'shout' | 'square-jagged' | 'megaphone' | 'rect-double'
@@ -95,6 +126,10 @@ interface Page {
     materials: Material[]
     backgroundColor?: string
     backgroundOpacity?: number
+    bgGradientType?: GradientType
+    bgGradientStartColor?: string
+    bgGradientEndColor?: string
+    bgGradientRotation?: number
 }
 
 export interface PageTemplate {
@@ -117,6 +152,9 @@ interface MangaState {
     selectedBubbleId: string | null
     selectedMaterialId: string | null
     clipboardBubble: Omit<Bubble, 'id'> | null
+
+    /** 吹き出しタイプごとの「最後に編集したスタイル」（次回そのタイプを追加するときに適用。localStorage に永続化） */
+    bubbleLastStyleByType: Partial<Record<BubbleType, BubbleLastStyleSlice>>
 
     // History for Undo/Redo
     past: { pages: Page[], currentPageId: string | null }[]
@@ -174,6 +212,7 @@ export const useMangaStore = create<MangaState>((set, get) => {
         selectedBubbleId: null,
         selectedMaterialId: null,
         clipboardBubble: null,
+        bubbleLastStyleByType: loadBubbleLastStylesFromStorage(),
         past: [],
         future: [],
         isExporting: false,
@@ -293,7 +332,9 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     y: 100,
                     width: 200,
                     height: 150,
-                    strokeWidth: 4,
+                    rotation: 0,
+                    strokeWidth: 1,
+                    strokeColor: '#000000',
                     slant: 0,
                     offsetB: 0,
                     offsetC: 0,
@@ -311,6 +352,10 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     focusWidth: 1,
                     focusRadius: 50,
                     fadeStrength: 0.4,
+                    blurRadius: 0,
+                    hasRainEffect: false,
+                    rainDensity: 100,
+                    rainOpacity: 0.3,
                     ...props
                 }
                 const history = saveHistory(state);
@@ -357,17 +402,17 @@ export const useMangaStore = create<MangaState>((set, get) => {
         addBubble: (props) =>
             set((state) => {
                 if (!state.currentPageId) return state
+                const kind = (props.type ?? 'rounded') as BubbleType
+                const lastStyle = state.bubbleLastStyleByType[kind] ?? {}
                 const newBubble: Bubble = {
-                    id: Math.random().toString(36).substr(2, 9),
                     type: 'rounded',
                     x: 200,
                     y: 200,
                     width: 150,
                     height: 100,
-                    text: 'テキストを入力',
-                    fontSize: 18,
+                    fontSize: 22,
                     fontFamily: 'sans-serif',
-                    lineHeight: 1.4,
+                    lineHeight: 1.0,
                     fontColor: '#000000',
                     fontWeight: 'bold',
                     isVertical: true,
@@ -390,7 +435,10 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     flashLength: 1,
                     tailType: 'point',
                     rotation: 0,
-                    ...props
+                    ...lastStyle,
+                    ...props,
+                    id: Math.random().toString(36).substr(2, 9),
+                    text: props.text ?? 'テキストを入力'
                 }
                 const history = saveHistory(state);
                 return {
@@ -408,14 +456,33 @@ export const useMangaStore = create<MangaState>((set, get) => {
             set((state) => {
                 if (!state.currentPageId) return state
                 const history = undoable ? saveHistory(state) : {}
+                let nextBubble: Bubble | null = null
+                const pages = state.pages.map((p) =>
+                    p.id === state.currentPageId
+                        ? {
+                              ...p,
+                              bubbles: p.bubbles.map((b) => {
+                                  if (b.id !== id) return b
+                                  const merged = { ...b, ...updates }
+                                  nextBubble = merged
+                                  return merged
+                              })
+                          }
+                        : p
+                )
+                let bubbleLastStyleByType = state.bubbleLastStyleByType
+                if (nextBubble) {
+                    bubbleLastStyleByType = {
+                        ...state.bubbleLastStyleByType,
+                        [nextBubble.type]: bubbleToLastStyleSlice(nextBubble)
+                    }
+                    saveBubbleLastStylesToStorage(bubbleLastStyleByType)
+                }
                 return {
                     ...state,
                     ...history,
-                    pages: state.pages.map((p) =>
-                        p.id === state.currentPageId
-                            ? { ...p, bubbles: p.bubbles.map((b) => (b.id === id ? { ...b, ...updates } : b)) }
-                            : p
-                    )
+                    pages,
+                    bubbleLastStyleByType
                 }
             }),
         removeBubble: (id) =>
@@ -575,14 +642,16 @@ export const useMangaStore = create<MangaState>((set, get) => {
             }),
         setProjectData: (data) => {
             console.log('Store: setProjectData called with:', data)
+            const projectPathForAssets = get().currentProjectPath
             const sanitizedPages = (data.pages || []).map(page => ({
                 ...page,
                 backgroundColor: page.backgroundColor || '#ffffff',
                 backgroundOpacity: page.backgroundOpacity ?? 1,
                 bubbles: (page.bubbles || []).map(bubble => ({
                     ...bubble,
+                    fontSize: bubble.fontSize || 22,
                     backgroundOpacity: bubble.backgroundOpacity ?? 1,
-                    lineHeight: bubble.lineHeight ?? 1.4,
+                    lineHeight: bubble.lineHeight ?? 1.0,
                     fontWeight: bubble.fontWeight || 'bold',
                     spikeCount: bubble.spikeCount || 36,
                     narrowRatio: bubble.narrowRatio ?? 0.3,
@@ -605,9 +674,11 @@ export const useMangaStore = create<MangaState>((set, get) => {
                         type: panel.type || 'rect',
                         width: width || 200,
                         height: height || 150,
+                        rotation: panel.rotation ?? 0,
                         x: panel.x || 0,
                         y: panel.y || 0,
-                        strokeWidth: panel.strokeWidth ?? 4, // use ?? to allow 0
+                        strokeWidth: panel.strokeWidth ?? 1, // use ?? to allow 0
+                        strokeColor: (panel as any).strokeColor || '#000000',
                         slant: panel.slant || 0,
                         offsetB: panel.offsetB || 0,
                         offsetC: panel.offsetC || 0,
@@ -625,14 +696,26 @@ export const useMangaStore = create<MangaState>((set, get) => {
                         focusRadius: panel.focusRadius ?? 50,
                         fadeStrength: panel.fadeStrength ?? 0.4,
                         isGrayscale: panel.isGrayscale ?? false,
-                        imageFlipX: panel.imageFlipX ?? false
+                        imageFlipX: panel.imageFlipX ?? false,
+                        blurRadius: panel.blurRadius ?? 0,
+                        hasRainEffect: panel.hasRainEffect ?? false,
+                        rainDensity: panel.rainDensity ?? 100,
+                        rainOpacity: panel.rainOpacity ?? 0.3,
+                        imagePath:
+                            projectPathForAssets && panel.imagePath
+                                ? toRelativeAssetPath(projectPathForAssets, panel.imagePath) ?? panel.imagePath
+                                : panel.imagePath
                     }
                 }),
                 materials: (page.materials || []).map(mat => ({
                     ...mat,
                     opacity: mat.opacity ?? 1,
                     isClipped: mat.isClipped ?? false,
-                    isGrayscale: mat.isGrayscale ?? false
+                    isGrayscale: mat.isGrayscale ?? false,
+                    imagePath:
+                        projectPathForAssets && mat.imagePath
+                            ? toRelativeAssetPath(projectPathForAssets, mat.imagePath) ?? mat.imagePath
+                            : mat.imagePath
                 }))
             }))
 
@@ -653,8 +736,26 @@ export const useMangaStore = create<MangaState>((set, get) => {
         },
         getProjectData: () => {
             const state = get()
+            const pp = state.currentProjectPath
+            if (!pp) {
+                return {
+                    pages: state.pages,
+                    lastPageId: state.currentPageId
+                }
+            }
+            const pages = state.pages.map((page) => ({
+                ...page,
+                panels: page.panels.map((p) => ({
+                    ...p,
+                    imagePath: toRelativeAssetPath(pp, p.imagePath) ?? p.imagePath
+                })),
+                materials: (page.materials || []).map((m) => ({
+                    ...m,
+                    imagePath: toRelativeAssetPath(pp, m.imagePath) ?? m.imagePath
+                }))
+            }))
             return {
-                pages: state.pages,
+                pages,
                 lastPageId: state.currentPageId
             }
         },
@@ -736,14 +837,21 @@ export const useMangaStore = create<MangaState>((set, get) => {
             }
 
             try {
-                // 1. Collect all referenced image paths
+                // 1. Collect referenced paths（manga.json と同じく相対パスで比較）
                 const referencedPaths = new Set<string>()
-                state.pages.forEach(page => {
-                    page.panels.forEach(panel => {
-                        if (panel.imagePath) referencedPaths.add(panel.imagePath)
+                const pp = state.currentProjectPath
+                state.pages.forEach((page) => {
+                    page.panels.forEach((panel) => {
+                        if (panel.imagePath) {
+                            const rel = toRelativeAssetPath(pp, panel.imagePath) ?? panel.imagePath
+                            referencedPaths.add(rel)
+                        }
                     })
-                    page.materials.forEach(material => {
-                        if (material.imagePath) referencedPaths.add(material.imagePath)
+                    page.materials.forEach((material) => {
+                        if (material.imagePath) {
+                            const rel = toRelativeAssetPath(pp, material.imagePath) ?? material.imagePath
+                            referencedPaths.add(rel)
+                        }
                     })
                 })
 
@@ -751,7 +859,10 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 const physicalAssets = await window.electron.getAssets(state.currentProjectPath)
 
                 // 3. Find unreferenced files
-                const unusedAssets = physicalAssets.filter(path => !referencedPaths.has(path))
+                const unusedAssets = physicalAssets.filter((fullPath) => {
+                    const rel = physicalFileToRelative(pp, fullPath)
+                    return !referencedPaths.has(rel)
+                })
 
                 if (unusedAssets.length === 0) {
                     alert('未使用のアセットは見つかりませんでした。')

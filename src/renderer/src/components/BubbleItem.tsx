@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { Group, Shape, Text, Circle } from 'react-konva'
-import { Bubble } from '../store/useMangaStore'
+import { Bubble, Panel } from '../store/useMangaStore'
 import { getPanelPoints, drawRectPath, drawJaggedPath, drawRoundedPath, drawFlashPath, drawShoutPath, drawSquareJaggedPath, drawJitteryCircle, drawMegaphonePath, drawDoubleRectPath } from './utils/drawPaths'
+import { findTargetPanel } from './utils/geometry'
 import { getPRand, hexToRGBA } from './utils/bubbleUtils'
 import { VerticalText, MegaphoneText } from './SpeechText'
 
@@ -15,7 +16,9 @@ export const BubbleItem: React.FC<{
     overrideOpacity?: number;
     overrideShadow?: boolean;
     clipPoints?: number[];
-}> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow, clipPoints }) => {
+    panels?: Panel[];
+    interactionLocked?: boolean;
+}> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow, clipPoints, panels, interactionLocked = false }) => {
     const shapeRef = useRef<any>(null)
     const [, forceUpdate] = useState(0)
 
@@ -33,10 +36,22 @@ export const BubbleItem: React.FC<{
 
     const handleDragEnd = (e: any) => {
         if (e.target !== e.currentTarget) return
-        onUpdate(bubble.id, {
+        const updates: any = {
             x: e.target.x(),
             y: e.target.y()
-        })
+        }
+
+        // If clipped, automatically find and update the target panelId
+        if (bubble.isClipped && panels) {
+            const centerX = updates.x + (bubble.width || 100) / 2
+            const centerY = updates.y + (bubble.height || 100) / 2
+            const targetPanel = findTargetPanel(centerX, centerY, panels)
+            if (targetPanel) {
+                updates.panelId = targetPanel.id
+            }
+        }
+
+        onUpdate(bubble.id, updates)
     }
 
     const handleTransformEnd = () => {
@@ -48,7 +63,7 @@ export const BubbleItem: React.FC<{
         node.scaleX(1)
         node.scaleY(1)
 
-        onUpdate(bubble.id, {
+        const updates: any = {
             x: node.x(),
             y: node.y(),
             rotation: rotation,
@@ -59,7 +74,18 @@ export const BubbleItem: React.FC<{
             tailY: (bubble.tailY || 0) * scaleY,
             tailControlX: bubble.tailControlX !== undefined ? bubble.tailControlX * scaleX : undefined,
             tailControlY: bubble.tailControlY !== undefined ? bubble.tailControlY * scaleY : undefined
-        })
+        }
+
+        if (bubble.isClipped && panels) {
+            const centerX = updates.x + updates.width / 2
+            const centerY = updates.y + updates.height / 2
+            const targetPanel = findTargetPanel(centerX, centerY, panels)
+            if (targetPanel) {
+                updates.panelId = targetPanel.id
+            }
+        }
+
+        onUpdate(bubble.id, updates)
     }
 
     const isInteractive = renderPass === 'interaction' || !renderPass;
@@ -71,6 +97,10 @@ export const BubbleItem: React.FC<{
 
     // Read overrides if they exist
     const actualStrokeWidth = bubble._overrideBorderWidth !== undefined ? bubble._overrideBorderWidth : (borderWidth !== undefined ? borderWidth : 2)
+    const actualBackgroundColor = bubble._overrideBackgroundColor !== undefined ? bubble._overrideBackgroundColor : backgroundColor;
+    const actualBorderColor = bubble._overrideBorderColor !== undefined ? bubble._overrideBorderColor : borderColor;
+    const actualBackgroundOpacity = bubble._overrideBackgroundOpacity !== undefined ? bubble._overrideBackgroundOpacity : (bubble.backgroundOpacity ?? 1);
+
     // When drawing strokes for merging, we draw them double width.
     const passStrokeWidth = shouldRenderStrokes && !shouldRenderFills ? actualStrokeWidth * 2 : actualStrokeWidth
     const passOpacity = overrideOpacity !== undefined ? overrideOpacity : opacity;
@@ -80,8 +110,8 @@ export const BubbleItem: React.FC<{
     const commonProps = {
         width: bubble.width,
         height: bubble.height,
-        fill: shouldRenderFills ? (isMask ? 'black' : hexToRGBA(backgroundColor, bubble.backgroundOpacity ?? 1)) : undefined,
-        stroke: shouldRenderStrokes ? borderColor : undefined,
+        fill: shouldRenderFills ? (isMask ? 'black' : hexToRGBA(actualBackgroundColor, overrideOpacity === 1 ? 1 : actualBackgroundOpacity)) : undefined,
+        stroke: shouldRenderStrokes ? actualBorderColor : undefined,
         strokeWidth: shouldRenderStrokes ? passStrokeWidth : 0,
         opacity: isMask ? 1 : passOpacity,
         perfectDrawEnabled: false,
@@ -177,12 +207,12 @@ export const BubbleItem: React.FC<{
             x={bubble.x}
             y={bubble.y}
             rotation={bubble.rotation || 0}
-            draggable={isSelected && renderPass === 'interaction'}
-            listening={isInteractive}
+            draggable={isSelected && renderPass === 'interaction' && !interactionLocked}
+            listening={isInteractive && !interactionLocked}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
-            onClick={(e) => isInteractive && onSelect(bubble.id)}
-            onTap={(e) => isInteractive && onSelect(bubble.id)}
+            onClick={(e) => isInteractive && !interactionLocked && onSelect(bubble.id)}
+            onTap={(e) => isInteractive && !interactionLocked && onSelect(bubble.id)}
             ref={shapeRef}
             clipFunc={clipPoints ? (ctx) => {
                 ctx.beginPath()
@@ -228,59 +258,64 @@ export const BubbleItem: React.FC<{
 
             {renderShape()}
 
-            {shouldRenderText && (
-                <Group
-                    x={bubble.width * 0.15 + (bubble.textOffsetX || 0)}
-                    y={bubble.height * 0.15 + (bubble.textOffsetY || 0)}
-                    width={bubble.width * 0.7}
-                    height={bubble.height * 0.7}
-                    clipX={0}
-                    clipY={0}
-                    clipWidth={bubble.width * 0.7}
-                    clipHeight={bubble.height * 0.7}
-                    listening={false}
-                >
-                    {bubble.type !== 'megaphone' && (bubble.isVertical ? (
-                        <VerticalText
-                            text={bubble.text}
-                            fontSize={bubble._overrideFontSize ?? bubble.fontSize}
-                            fontColor={bubble.fontColor}
-                            fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
-                            fontWeight={bubble.fontWeight || 'bold'}
-                            width={bubble.width * 0.7}
-                            height={bubble.height * 0.7}
-                            lineHeight={bubble.lineHeight ?? 1.4}
-                        />
-                    ) : (
-                        <Text
-                            text={bubble.text}
-                            fontSize={bubble._overrideFontSize ?? bubble.fontSize}
-                            fill={bubble.fontColor}
-                            fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
-                            width={bubble.width * 0.7}
-                            height={bubble.height * 0.7}
-                            align="center"
-                            verticalAlign="middle"
-                            fontStyle={bubble.fontWeight || 'bold'}
-                            lineHeight={bubble.lineHeight ?? 1.4}
-                        />
-                    ))}
-                    {bubble.type === 'megaphone' && (
-                        <MegaphoneText
-                            text={bubble.text}
-                            fontSize={bubble._overrideFontSize ?? bubble.fontSize}
-                            fontColor={bubble.fontColor}
-                            fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
-                            fontWeight={bubble.fontWeight || 'bold'}
-                            width={bubble.width * 0.7}
-                            height={bubble.height * 0.7}
-                            narrowRatio={bubble.narrowRatio ?? 0.3}
-                            isVertical={!!bubble.isVertical}
-                            lineHeight={bubble.lineHeight ?? 1.4}
-                        />
-                    )}
-                </Group>
-            )}
+            {shouldRenderText && (() => {
+                const isRectType = bubble.type === 'rect' || bubble.type === 'rect-double' || bubble.type === 'megaphone';
+                const paddingRatio = isRectType ? 0.05 : 0.10;
+                const innerSizeRatio = 1 - (paddingRatio * 2);
+
+                return (
+                    <Group
+                        x={bubble.width * paddingRatio + (bubble.textOffsetX || 0)}
+                        y={bubble.height * paddingRatio + (bubble.textOffsetY || 0)}
+                        width={bubble.width * innerSizeRatio}
+                        height={bubble.height * innerSizeRatio}
+                        clipX={0}
+                        clipY={0}
+                        clipWidth={bubble.width * innerSizeRatio}
+                        clipHeight={bubble.height * innerSizeRatio}
+                        listening={false}
+                    >
+                        {bubble.type !== 'megaphone' && (bubble.isVertical ? (
+                            <VerticalText
+                                text={bubble.text}
+                                fontSize={bubble._overrideFontSize ?? bubble.fontSize}
+                                fontColor={bubble.fontColor}
+                                fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
+                                fontWeight={bubble.fontWeight || 'bold'}
+                                width={bubble.width * innerSizeRatio}
+                                height={bubble.height * innerSizeRatio}
+                                lineHeight={bubble._overrideLineHeight ?? bubble.lineHeight ?? 1.0}
+                            />
+                        ) : (
+                            <Text
+                                text={bubble.text}
+                                fontSize={bubble._overrideFontSize ?? bubble.fontSize}
+                                fill={bubble.fontColor}
+                                fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
+                                width={bubble.width * innerSizeRatio}
+                                height={bubble.height * innerSizeRatio}
+                                verticalAlign="middle"
+                                fontStyle={bubble.fontWeight || 'bold'}
+                                lineHeight={bubble._overrideLineHeight ?? bubble.lineHeight ?? 1.0}
+                            />
+                        ))}
+                        {bubble.type === 'megaphone' && (
+                            <MegaphoneText
+                                text={bubble.text}
+                                fontSize={bubble._overrideFontSize ?? bubble.fontSize}
+                                fontColor={bubble.fontColor}
+                                fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
+                                fontWeight={bubble.fontWeight || 'bold'}
+                                width={bubble.width * innerSizeRatio}
+                                height={bubble.height * innerSizeRatio}
+                                narrowRatio={bubble.narrowRatio ?? 0.3}
+                                isVertical={!!bubble.isVertical}
+                                lineHeight={bubble._overrideLineHeight ?? bubble.lineHeight ?? 1.0}
+                            />
+                        )}
+                    </Group>
+                )
+            })()}
 
             {isInteractive && isSelected && (
                 <Group>
@@ -337,24 +372,25 @@ export const BubbleItem: React.FC<{
 }
 
 export const BubbleClusterGroup: React.FC<{ members: any[] }> = ({ members }) => {
-    const groupRef = useRef<any>(null)
+    const bgRef = useRef<any>(null)
     const master = members[0]
 
     // Use stringified members to detect ANY change and trigger cache update
     const hash = JSON.stringify(members)
 
     useEffect(() => {
-        if (!groupRef.current) return
-        groupRef.current.clearCache()
+        if (!bgRef.current) return
+        bgRef.current.clearCache()
 
         // Gather unique fonts and await loading before caching so Google Fonts render correctly
         const fontFamilies = [...new Set(members.map(b => b._overrideFontFamily ?? b.fontFamily).filter(Boolean))]
         const weight = master.fontWeight || 'bold'
         const size = master.fontSize || 18
+        
         Promise.all(fontFamilies.map(f =>
             document.fonts.load(`${weight} ${size}px ${f}`).catch(() => {})
         )).then(() => {
-            if (!groupRef.current) return
+            if (!bgRef.current) return
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             members.forEach(b => {
                 let bx1 = b.x, by1 = b.y, bx2 = b.x + b.width, by2 = b.y + b.height;
@@ -373,51 +409,56 @@ export const BubbleClusterGroup: React.FC<{ members: any[] }> = ({ members }) =>
             });
             const pad = 100 + (master.borderWidth || 2) * 2;
 
-            groupRef.current.cache({
+            bgRef.current.cache({
                 x: minX - pad,
                 y: minY - pad,
                 width: (maxX - minX) + pad * 2,
                 height: (maxY - minY) + pad * 2,
                 pixelRatio: window.devicePixelRatio || 2
             })
-        }) // end Promise.all().then()
+        })
     }, [hash])
 
     return (
         <Group
-            ref={groupRef}
             opacity={master.opacity ?? 1}
-            shadowColor="black"
-            shadowBlur={5}
-            shadowOpacity={0.1}
-            shadowOffset={{ x: 2, y: 2 }}
             listening={false}
         >
-            {/* 1. Mask Layer: punches holes where the fills intersect, wiping inner strokes */}
-            <Group globalCompositeOperation="destination-out">
-                {members.map(b => (
-                    <BubbleItem key={`mask-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="mask" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
-                ))}
+            {/* 1. Background Mass: Fills and Strokes flattened into one mass */}
+            <Group 
+                ref={bgRef} 
+                opacity={master.backgroundOpacity ?? 1}
+                shadowColor="black"
+                shadowBlur={5}
+                shadowOpacity={0.1 * (master.backgroundOpacity ?? 1)}
+                shadowOffset={{ x: 2, y: 2 }}
+            >
+                {/* Strokes (Below) */}
+                <Group>
+                    {members.map(b => (
+                        <BubbleItem key={`strokes-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="strokes" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} panels={[]} />
+                    ))}
+                </Group>
+                
+                {/* Mask (destination-out to wipe inner strokes) */}
+                <Group globalCompositeOperation="destination-out">
+                    {members.map(b => (
+                        <BubbleItem key={`mask-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="mask" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} panels={[]} />
+                    ))}
+                </Group>
+
+                {/* Fills (At 100% opacity in this pass) */}
+                <Group globalCompositeOperation="source-over">
+                    {members.map(b => (
+                        <BubbleItem key={`fills-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="fills" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} panels={[]} />
+                    ))}
+                </Group>
             </Group>
 
-            {/* 2. Strokes Layer: draws the outer borders below the rest */}
-            <Group globalCompositeOperation="destination-over">
+            {/* 2. Text Layer: Drawn on top of the flattened mass */}
+            <Group>
                 {members.map(b => (
-                    <BubbleItem key={`strokes-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="strokes" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
-                ))}
-            </Group>
-
-            {/* 3. Fills Layer: draws the actual fill color */}
-            <Group globalCompositeOperation="source-over">
-                {members.map(b => (
-                    <BubbleItem key={`fills-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="fills" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
-                ))}
-            </Group>
-
-            {/* 4. Text Layer */}
-            <Group globalCompositeOperation="source-over">
-                {members.map(b => (
-                    <BubbleItem key={`text-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="text" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} />
+                    <BubbleItem key={`text-${b.id}`} bubble={b} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="text" overrideOpacity={1} overrideShadow={false} clipPoints={(b as any).clipPoints} panels={[]} />
                 ))}
             </Group>
         </Group>

@@ -3,6 +3,16 @@ import { getPRand, getRectPosByD, getRectDByAngle } from './bubbleUtils'
 
 export const getPanelPoints = (panel: Panel) => {
     const { type, width, height, slant, offsetB, offsetC, offsetD } = panel
+    const makeRegularPolygonPoints = (sides: number, radius: number, startAngle = -Math.PI / 2) => {
+        const cx = width / 2
+        const cy = height / 2
+        const points: number[] = []
+        for (let i = 0; i < sides; i++) {
+            const a = startAngle + (i * Math.PI * 2) / sides
+            points.push(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius)
+        }
+        return points
+    }
     switch (type) {
         case 'slanted':
             return [slant, 0, width + slant, 0, width, height, 0, height]
@@ -10,6 +20,16 @@ export const getPanelPoints = (panel: Panel) => {
             return [slant, 0, width + offsetB, 0, width + offsetC, height, offsetD, height]
         case 'trapezoid-v':
             return [0, slant, width, offsetD, width, height + offsetC, 0, height + offsetB]
+        case 'pentagon':
+            // Top-pointing regular pentagon fit into current panel bounds
+            // width extent factor: 2 * sin(72deg), height factor: 1 + sin(54deg)
+            return makeRegularPolygonPoints(5, Math.min(width / 1.9022, height / 1.809), -Math.PI / 2)
+        case 'hexagon':
+            // Flat-top hexagon (top/bottom edges are horizontal)
+            return makeRegularPolygonPoints(6, Math.min(width / 2, height / Math.sqrt(3)), 0)
+        case 'circle':
+            // Keep it a true circle even if width/height differ
+            return makeRegularPolygonPoints(32, Math.min(width, height) / 2)
         case 'rect':
         default:
             return [0, 0, width, 0, width, height, 0, height]
@@ -401,9 +421,9 @@ export const drawMegaphonePath = (context: any, bubble: Bubble, w: number, h: nu
 
 export const drawDoubleRectPath = (context: any, bubble: Bubble, w: number, h: number, shape?: any) => {
     const cornerRadius = 8
-    const sw = shape ? shape.strokeWidth() : 2
-    // Increase gap: at least 6 pixels or 3 times stroke width
-    const gap = Math.max(6, sw * 3)
+    const baseBorderWidth = bubble.borderWidth ?? 2
+    // Use base border width for gap calculation so it stays consistent across passes
+    const gap = Math.max(6, baseBorderWidth * 3)
 
     const drawRect = (ctx: any, width: number, height: number, offset: number) => {
         const r = Math.max(0, cornerRadius - offset)
@@ -420,6 +440,10 @@ export const drawDoubleRectPath = (context: any, bubble: Bubble, w: number, h: n
         ctx.closePath()
     }
 
+    // Determine current pass state
+    const isMask = shape && shape.fill() === 'black' && shape.opacity() === 1;
+    const isFillsPass = shape && !!shape.fill() && !isMask;
+
     // 1. Fill and Stroke the outer rectangle
     drawRect(context, w, h, 0)
     if (shape) {
@@ -430,8 +454,19 @@ export const drawDoubleRectPath = (context: any, bubble: Bubble, w: number, h: n
     }
 
     // 2. Stroke the inner rectangle manually
-    if (sw > 0) {
+    // We draw it during the fills pass (to stay on top of the fill)
+    // or when there's no pass (direct render).
+    // In clustering, Layer 2 (strokes) is behind Layer 3 (fills), 
+    // so we MUST draw the inner line in Layer 3 to be seen.
+    if (baseBorderWidth > 0 && !isMask) {
+        context.save()
+        // Always use original bubble border properties for the inner line 
+        // to avoid doubled width during the strokes pass.
+        context.setAttr('strokeStyle', bubble.borderColor || 'black')
+        context.setAttr('lineWidth', baseBorderWidth)
+        
         drawRect(context, w, h, gap)
         context.stroke()
+        context.restore()
     }
 }

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import path from 'node:path'
 
 if (process.contextIsolated) {
     try {
@@ -15,13 +16,19 @@ if (process.contextIsolated) {
             copyFileToProject: (projectPath: string, sourcePath: string) => ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath }),
             getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
             deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
-            pathToUrl: (path: string) => {
-                if (!path || path.startsWith('data:') || path.startsWith('local-file://')) return path
-                // Ensure the path is encoded for URL safety but slashes are preserved
-                const encodedPath = encodeURI(path)
-                // Ensure it starts with / for triple slash
+            pathToUrl: (p: string) => {
+                if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
+                const encodedPath = encodeURI(p)
                 const standardPath = encodedPath.startsWith('/') ? encodedPath : `/${encodedPath}`
                 return `local-file://${standardPath}`
+            },
+            /** manga.json の assets/... 相対パス、またはレガシー絶対パスを実ファイルの絶対パスに解決 */
+            resolveAssetPath: (projectRoot: string, stored: string) => {
+                if (!stored) return ''
+                if (path.isAbsolute(stored)) {
+                    return stored
+                }
+                return path.join(projectRoot, stored.replace(/\//g, path.sep))
             },
             getPathForFile: (file: File) => webUtils.getPathForFile(file),
             log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args)
@@ -44,11 +51,18 @@ if (process.contextIsolated) {
         copyFileToProject: (projectPath, sourcePath) => ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath }),
         getAssets: (projectPath) => ipcRenderer.invoke('get-assets', projectPath),
         deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
-        pathToUrl: (path) => {
-            if (!path || path.startsWith('data:') || path.startsWith('local-file://')) return path
-            const encodedPath = encodeURI(path)
+        pathToUrl: (p) => {
+            if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
+            const encodedPath = encodeURI(p)
             const standardPath = encodedPath.startsWith('/') ? encodedPath : `/${encodedPath}`
             return `local-file://${standardPath}`
+        },
+        resolveAssetPath: (projectRoot: string, stored: string) => {
+            if (!stored) return ''
+            if (path.isAbsolute(stored)) {
+                return stored
+            }
+            return path.join(projectRoot, stored.replace(/\//g, path.sep))
         },
         getPathForFile: (file) => webUtils.getPathForFile(file),
         log: (level, ...args) => ipcRenderer.send('renderer-log', level, ...args)

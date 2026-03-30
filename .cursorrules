@@ -1,6 +1,31 @@
-# Development Guidelines for Manga Editor
+# 漫画野郎（mangas）— 開発ルール
 
-- **Import Integrity**: Never overwrite top-level imports (React, components, stores) when using `replace_file_content`. Always ensure basic environment setup remains intact.
-- **Renderer Stability**: Any change that results in a blank screen (renderer crash) is a critical failure. Verify component imports and types before finalizing.
-- **Zustand State**: When updating state with spread operators (e.g., `...props`), avoid duplicating keys that were manually defined just above to prevent lint errors and unexpected behavior.
-- **Absolute Paths**: Always use absolute paths for file operations as per system instructions.
+Electron + React + Konva + Zustand のデスクトップ漫画編集アプリ向けの、エージェントおよび開発者向けガイドラインです。
+
+## 目的
+
+- **レンダラーの安定性**（白画面・Konva クラッシュを最優先で防ぐ）
+- **状態の一貫性**（Zustand の更新でメタデータ欠落や重複キーを防ぐ）
+- **資産の扱い**（`local-file`・IPC・プロジェクトパスの取り扱いを統一する）
+
+## 必ず守ること（短く）
+
+1. **インポートの健全性**: `search_replace` 等でファイルを編集する際、トップレベルの import（React・コンポーネント・ストア）を壊さない。編集後もビルド可能な状態を保つ。
+2. **変更後の確認**: レンダラーが真っ白になる変更は**重大な失敗**。コンポーネントの import・型・Konva ツリー構造を確認してから完了とする。
+3. **Zustand のスプレッド**: `set` 内で `...props` やオブジェクト合成をするとき、直前に手で書いたキーと**同じキーを二重に定義しない**（lint エラーと予期しない挙動の原因）。
+4. **ファイル操作のパス**: ツールでファイルを読む・書くときは**ワークスペースの絶対パス**を使う（システム指示に従う）。
+
+## 詳細はプロジェクトスキルへ
+
+細かいルール・パターン・禁止事項は **`.cursor/skills/`** 配下の `SKILL.md` に分割してある。該当する作業をするときは、次を参照すること。
+
+| ディレクトリ | 主な内容 |
+|--------------|----------|
+| `konva-manga` | React-Konva の描画順・空白禁止・Transformer・ドラッグ |
+| `zustand-manga` | `useMangaStore` の更新パターン・履歴・ネスト |
+| `electron-manga` | `local-file`、IPC、D&D、ログ・パス処理 |
+
+## 参照ドキュメント
+
+- 仕様の全体像: `.spec/manga-editor.md`
+- 旧 `.agents/rules/` の内容はスキルに取り込み済み。新規ルールは `.cursor/skills` または本ファイルを更新する。

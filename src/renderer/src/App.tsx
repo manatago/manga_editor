@@ -5,10 +5,11 @@ import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
 import { ExportOverlay } from './components/ExportOverlay'
 import { useMangaStore, PanelType } from './store/useMangaStore'
-import { PanelTop, Square, AlignLeft, Table, Columns, MessageSquare, Zap } from 'lucide-react'
+import { PanelTop, Square, AlignLeft, Table, Columns, Zap, Layers, Volume2, Grid, Megaphone, Ghost, PanelLeft } from 'lucide-react'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
 import { useExport } from './hooks/useExport'
+import { PanelTypeIcon } from './components/icons/PanelTypeIcon'
 
 function App(): React.JSX.Element {
     const {
@@ -44,10 +45,25 @@ function App(): React.JSX.Element {
     // Custom Hooks
     useKeyboardShortcuts()
     const { handleCreateNew, handleOpenProject, handleUseTemplate, handleSaveAsTemplate } = useProjectActions()
-    const { stageRef, handleExportPNG } = useExport()
+    const { stageRef, handleExportPNG, handleExportAllPagesPNG } = useExport()
 
     // Local UI State
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
+    const [leftSidebarOpen, setLeftSidebarOpen] = useState(() => {
+        try {
+            return localStorage.getItem('manga-yarou-left-sidebar') !== 'false'
+        } catch {
+            return true
+        }
+    })
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('manga-yarou-left-sidebar', leftSidebarOpen ? 'true' : 'false')
+        } catch {
+            /* ignore */
+        }
+    }, [leftSidebarOpen])
 
     const currentPage = pages.find(p => p.id === currentPageId)
     const selectedPanel = currentPage?.panels.find(p => p.id === selectedPanelId)
@@ -104,74 +120,126 @@ function App(): React.JSX.Element {
 
     const handleAddPanelWithType = (type: PanelType) => {
         let slant = 0, offsetB = 0, offsetC = 0, offsetD = 0
+        let width = 200, height = 150
         if (type === 'slanted') slant = 40
         if (type === 'trapezoid-h') { slant = 20; offsetB = -20; offsetC = 0; offsetD = 0; }
         if (type === 'trapezoid-v') { slant = 0; offsetD = 20; offsetC = -20; offsetB = 0; }
+        if (type === 'hexagon') { width = 200; height = Math.round(200 * Math.sqrt(3) / 2) }
+        if (type === 'circle') { width = 180; height = 180 }
 
         addPanel({
-            x: 100, y: 100, type, slant, offsetB, offsetC, offsetD
+            x: 100, y: 100, type, slant, offsetB, offsetC, offsetD, width, height
+        })
+    }
+
+    const handleAddBubbleWithType = (type: any) => {
+        if (!selectedPanel) return
+        const centerX = selectedPanel.x + selectedPanel.width / 2
+        const centerY = selectedPanel.y + selectedPanel.height / 2
+        addBubble({
+            type,
+            x: centerX - 75,
+            y: centerY - 50,
+            panelId: selectedPanel.id,
+            isClipped: true
         })
     }
 
     return (
         <div className="flex h-screen bg-zinc-950 text-zinc-300 overflow-hidden font-sans">
-            <SidebarLeft
-                onExportPNG={handleExportPNG}
-                onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
-                handleCreateNew={handleCreateNew}
-                handleOpenProject={handleOpenProject}
-                currentProjectPath={currentProjectPath}
-                currentPageId={currentPageId}
-                pages={pages}
-                selectPage={selectPage}
-                movePage={movePage}
-                removePage={removePage}
-                addPage={addPage}
-            />
+            <div
+                className={`shrink-0 overflow-hidden bg-zinc-900 border-r border-zinc-800 transition-[width] duration-200 ease-in-out ${
+                    leftSidebarOpen ? 'w-64' : 'w-0 border-r-0'
+                }`}
+            >
+                <div className="w-64 h-full min-h-0 flex flex-col">
+                    <SidebarLeft
+                        onExportPNG={handleExportPNG}
+                        onExportAllPagesPNG={handleExportAllPagesPNG}
+                        onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
+                        handleCreateNew={handleCreateNew}
+                        handleOpenProject={handleOpenProject}
+                        currentProjectPath={currentProjectPath}
+                        currentPageId={currentPageId}
+                        pages={pages}
+                        selectPage={selectPage}
+                        movePage={movePage}
+                        removePage={removePage}
+                        addPage={addPage}
+                        onCollapse={() => setLeftSidebarOpen(false)}
+                    />
+                </div>
+            </div>
+
+            {!leftSidebarOpen && (
+                <button
+                    type="button"
+                    className="fixed left-0 top-1/2 z-50 -translate-y-1/2 py-8 pl-1 pr-1.5 rounded-r-md bg-zinc-800/95 border border-zinc-700 border-l-0 text-zinc-400 hover:bg-zinc-700 hover:text-white shadow-lg"
+                    onClick={() => setLeftSidebarOpen(true)}
+                    title="ページ一覧・メニューを表示"
+                >
+                    <PanelLeft size={20} strokeWidth={2} />
+                </button>
+            )}
 
             <div className="flex-1 flex flex-col min-w-0">
-                <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 justify-between shrink-0">
-                    <div className="flex items-center gap-2">
+                <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 justify-between shrink-0 min-w-0 gap-2 overflow-x-auto">
+                    <div className="flex items-center gap-2 min-w-0">
                         {currentPageId && (
                             <>
                                 <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
-                                    <button onClick={() => handleAddPanelWithType('rect')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <Square size={14} />
-                                        <span className="text-xs font-medium">矩形</span>
+                                    <button onClick={() => handleAddPanelWithType('rect')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="矩形">
+                                        <PanelTypeIcon type="rect" size={16} />
                                     </button>
-                                    <button onClick={() => handleAddPanelWithType('slanted')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <AlignLeft size={14} className="skew-x-12" />
-                                        <span className="text-xs font-medium">斜め</span>
+                                    <button onClick={() => handleAddPanelWithType('slanted')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="斜め">
+                                        <PanelTypeIcon type="slanted" size={16} />
                                     </button>
-                                    <button onClick={() => handleAddPanelWithType('trapezoid-h')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <Table size={14} />
-                                        <span className="text-xs font-medium">台形(横)</span>
+                                    <button onClick={() => handleAddPanelWithType('trapezoid-h')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="台形（横）">
+                                        <PanelTypeIcon type="trapezoid-h" size={16} />
                                     </button>
-                                    <button onClick={() => handleAddPanelWithType('trapezoid-v')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <Columns size={14} />
-                                        <span className="text-xs font-medium">台形(縦)</span>
+                                    <button onClick={() => handleAddPanelWithType('trapezoid-v')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="台形（縦）">
+                                        <PanelTypeIcon type="trapezoid-v" size={16} />
+                                    </button>
+                                    <button onClick={() => handleAddPanelWithType('pentagon')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="正五角形">
+                                        <PanelTypeIcon type="pentagon" size={16} />
+                                    </button>
+                                    <button onClick={() => handleAddPanelWithType('hexagon')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="正六角形">
+                                        <PanelTypeIcon type="hexagon" size={16} />
+                                    </button>
+                                    <button onClick={() => handleAddPanelWithType('circle')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="円">
+                                        <PanelTypeIcon type="circle" size={16} />
                                     </button>
                                 </div>
                                 <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800 ml-4">
-                                    <button onClick={() => addBubble({ type: 'rounded' })} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <MessageSquare size={14} />
-                                        <span className="text-xs font-medium">普通</span>
-                                    </button>
-                                    <button onClick={() => addBubble({ type: 'jagged' })} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <Zap size={14} />
-                                        <span className="text-xs font-medium">ギザギザ</span>
-                                    </button>
-                                    <button onClick={() => addBubble({ type: 'rect' })} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center gap-2 px-3">
-                                        <Square size={14} />
-                                        <span className="text-xs font-medium">矩形</span>
-                                    </button>
+                                    {[
+                                        { type: 'rounded', icon: Ghost, label: '普通' },
+                                        { type: 'jagged', icon: Zap, label: 'ギザギザ' },
+                                        { type: 'rect', icon: Square, label: '矩形' },
+                                        { type: 'rect-double', icon: Layers, label: '二重矩形' },
+                                        { type: 'flash', icon: Zap, label: 'ウニ' },
+                                        { type: 'shout', icon: Volume2, label: '叫び' },
+                                        { type: 'square-jagged', icon: Grid, label: '角ギザ' },
+                                        { type: 'megaphone', icon: Megaphone, label: 'メガホン' },
+                                    ].map(({ type, icon: Icon, label }) => (
+                                        <button 
+                                            key={type}
+                                            onClick={() => handleAddBubbleWithType(type)} 
+                                            disabled={!selectedPanelId}
+                                            title={label}
+                                            className={`p-1.5 rounded transition-all flex items-center justify-center min-w-[32px] ${
+                                                selectedPanelId ? 'hover:bg-zinc-700 text-zinc-400 hover:text-white' : 'text-zinc-700 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <Icon size={14} />
+                                        </button>
+                                    ))}
                                 </div>
                             </>
                         )}
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-auto bg-zinc-950 relative">
+                <div className="flex-1 overflow-auto bg-zinc-950 relative manga-scrollbar">
                     {currentPageId ? <Canvas stageRef={stageRef} /> : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-800">
                             <PanelTop size={64} className="mb-4 opacity-10" />
@@ -181,23 +249,7 @@ function App(): React.JSX.Element {
                 </div>
             </div>
 
-            <SidebarRight
-                currentPageId={currentPageId}
-                selectedPanel={selectedPanel}
-                removePanel={removePanel}
-                updatePanel={updatePanel}
-                selectedBubble={selectedBubble}
-                removeBubble={removeBubble}
-                updateBubble={updateBubble}
-                currentPage={currentPage}
-                updatePage={updatePage}
-                addBubble={addBubble}
-                currentProjectPath={currentProjectPath}
-                selectedMaterial={selectedMaterial}
-                removeMaterial={removeMaterial}
-                updateMaterial={updateMaterial}
-                addMaterial={addMaterial}
-            />
+            <SidebarRight />
 
             <TemplateModal
                 isOpen={isTemplateModalOpen}

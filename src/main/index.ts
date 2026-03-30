@@ -100,7 +100,7 @@ app.whenReady().then(() => {
             const destPath = pathModule.join(assetsDir, newFileName)
 
             fs.copyFileSync(sourcePath, destPath)
-            return destPath
+            return pathModule.relative(projectPath, destPath).split(pathModule.sep).join('/')
         } catch (error) {
             console.error('Main: failed to copy file to project:', error)
             throw error

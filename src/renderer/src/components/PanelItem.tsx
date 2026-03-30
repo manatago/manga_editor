@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import Konva from 'konva'
-import { Group, Line, Circle } from 'react-konva'
+import { Group, Line, Circle, Rect, Text } from 'react-konva'
 import useImage from 'use-image'
-import { Panel } from '../store/useMangaStore'
+import { Panel, useMangaStore } from '../store/useMangaStore'
 import { getPanelPoints } from './utils/drawPaths'
 
 const FadeOverlay: React.FC<{ panel: Panel; points: number[]; backgroundColor: string }> = ({ panel, points, backgroundColor }) => {
@@ -11,21 +11,47 @@ const FadeOverlay: React.FC<{ panel: Panel; points: number[]; backgroundColor: s
 
     const width = panel.width || 1
     const height = panel.height || 1
-    const fadeDirection = panel.fadeDirection
+    const strength = panel.fadeStrength ?? 0.4
     let start = { x: 0, y: 0 }
     let end = { x: 0, y: 0 }
 
-    const strength = panel.fadeStrength ?? 0.4
-
-    switch (fadeDirection) {
+    switch (panel.fadeDirection) {
         case 'top':
-            start = { x: width / 2, y: 0 }; end = { x: width / 2, y: height * strength }; break
+            start = { x: width / 2, y: 0 }
+            end = { x: width / 2, y: height * strength }
+            break
         case 'bottom':
-            start = { x: width / 2, y: height }; end = { x: width / 2, y: height * (1 - strength) }; break
+            start = { x: width / 2, y: height }
+            end = { x: width / 2, y: height * (1 - strength) }
+            break
         case 'left':
-            start = { x: 0, y: height / 2 }; end = { x: width * strength, y: height / 2 }; break
+            start = { x: 0, y: height / 2 }
+            end = { x: width * strength, y: height / 2 }
+            break
         case 'right':
-            start = { x: width, y: height / 2 }; end = { x: width * (1 - strength), y: height / 2 }; break
+            start = { x: width, y: height / 2 }
+            end = { x: width * (1 - strength), y: height / 2 }
+            break
+        case 'top-left':
+            start = { x: 0, y: 0 }
+            end = { x: width * strength, y: height * strength }
+            break
+        case 'top-right':
+            start = { x: width, y: 0 }
+            end = { x: width * (1 - strength), y: height * strength }
+            break
+        case 'bottom-left':
+            start = { x: 0, y: height }
+            end = { x: width * strength, y: height * (1 - strength) }
+            break
+        case 'bottom-right':
+            start = { x: width, y: height }
+            end = { x: width * (1 - strength), y: height * (1 - strength) }
+            break
+        default:
+            start = { x: width / 2, y: 0 }
+            end = { x: width / 2, y: height * strength }
+            break
     }
 
     if (isNaN(start.x) || isNaN(start.y) || isNaN(end.x) || isNaN(end.y)) return null
@@ -108,23 +134,84 @@ const FocusLines: React.FC<{ panel: Panel; points: number[] }> = ({ panel, point
     )
 }
 
+const RainEffect: React.FC<{ panel: Panel; points: number[] }> = ({ panel, points }) => {
+    if (!panel.hasRainEffect) return null
+    if (!points || points.length < 6) return null
+
+    const width = panel.width || 1
+    const height = panel.height || 1
+    const lineCount = Math.min(Math.max(10, panel.rainDensity ?? 100), 500)
+    const opacity = panel.rainOpacity ?? 0.3
+
+    // Generate fixed random lines based on panel id to avoid flickering
+    const seed = panel.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const random = (s: number) => {
+        const x = Math.sin(s) * 10000
+        return x - Math.floor(x)
+    }
+
+    const lines: React.ReactNode[] = []
+    for (let i = 0; i < lineCount; i++) {
+        const x = random(seed + i) * width
+        const yStart = random(seed + i + 100) * height
+        const len = 10 + random(seed + i + 200) * 40
+        const yEnd = yStart + len
+        
+        lines.push(
+            <Line
+                key={i}
+                points={[x, yStart, x, yEnd]}
+                stroke="black"
+                strokeWidth={0.5 + random(seed + i + 300) * 1}
+                opacity={opacity * (0.5 + random(seed + i + 400) * 0.5)}
+                listening={false}
+            />
+        )
+    }
+
+    return (
+        <Group
+            clipFunc={(ctx) => {
+                ctx.beginPath()
+                ctx.moveTo(points[0], points[1])
+                for (let i = 2; i < points.length; i += 2) {
+                    ctx.lineTo(points[i], points[i + 1])
+                }
+                ctx.closePath()
+            }}
+            listening={false}
+        >
+            {lines}
+        </Group>
+    )
+}
+
 const PanelStrokes: React.FC<{ panel: Panel; points: number[]; page: any }> = ({ panel, points, page }) => {
+    const strokeColor = panel.strokeColor ?? 'black'
+    if (!points || points.length !== 8) {
+        return <Line points={points} closed={true} stroke={strokeColor} strokeWidth={panel.strokeWidth} />
+    }
     if (!panel.fadeDirection || panel.fadeDirection === 'none') {
-        return <Line points={points} closed={true} stroke="black" strokeWidth={panel.strokeWidth} />
+        return <Line points={points} closed={true} stroke={strokeColor} strokeWidth={panel.strokeWidth} />
     }
 
     const bg = page?.backgroundColor || '#ffffff'
     const sw = panel.strokeWidth
+    const dir = panel.fadeDirection || 'none'
+    const fadeTop = dir === 'top' || dir === 'top-left' || dir === 'top-right'
+    const fadeRight = dir === 'right' || dir === 'top-right' || dir === 'bottom-right'
+    const fadeBottom = dir === 'bottom' || dir === 'bottom-left' || dir === 'bottom-right'
+    const fadeLeft = dir === 'left' || dir === 'top-left' || dir === 'bottom-left'
 
     const Segment = ({ p, fadeType }: { p: number[], fadeType?: 'start' | 'end' }) => {
-        if (!fadeType) return <Line points={p} stroke="black" strokeWidth={sw} />
+        if (!fadeType) return <Line points={p} stroke={strokeColor} strokeWidth={sw} />
         let gStart = { x: p[0], y: p[1] }
         let gEnd = { x: p[2], y: p[3] }
-        const stops = fadeType === 'end' ? [0, 'black', 1, bg] : [0, bg, 1, 'black']
+        const stops = fadeType === 'end' ? [0, strokeColor, 1, bg] : [0, bg, 1, strokeColor]
         return (
             <Line
                 points={p}
-                stroke="black"
+                stroke={strokeColor}
                 strokeWidth={sw}
                 strokeLinearGradientStartPoint={gStart}
                 strokeLinearGradientEndPoint={gEnd}
@@ -135,28 +222,28 @@ const PanelStrokes: React.FC<{ panel: Panel; points: number[]; page: any }> = ({
 
     return (
         <Group>
-            {panel.fadeDirection !== 'top' && (
+            {!fadeTop && (
                 <Segment
                     p={[points[0], points[1], points[2], points[3]]}
-                    fadeType={panel.fadeDirection === 'left' ? 'start' : (panel.fadeDirection === 'right' ? 'end' : undefined)}
+                    fadeType={fadeLeft ? 'start' : (fadeRight ? 'end' : undefined)}
                 />
             )}
-            {panel.fadeDirection !== 'right' && (
+            {!fadeRight && (
                 <Segment
                     p={[points[2], points[3], points[4], points[5]]}
-                    fadeType={panel.fadeDirection === 'top' ? 'start' : (panel.fadeDirection === 'bottom' ? 'end' : undefined)}
+                    fadeType={fadeTop ? 'start' : (fadeBottom ? 'end' : undefined)}
                 />
             )}
-            {panel.fadeDirection !== 'bottom' && (
+            {!fadeBottom && (
                 <Segment
                     p={[points[4], points[5], points[6], points[7]]}
-                    fadeType={panel.fadeDirection === 'right' ? 'start' : (panel.fadeDirection === 'left' ? 'end' : undefined)}
+                    fadeType={fadeRight ? 'start' : (fadeLeft ? 'end' : undefined)}
                 />
             )}
-            {panel.fadeDirection !== 'left' && (
+            {!fadeLeft && (
                 <Segment
                     p={[points[6], points[7], points[0], points[1]]}
-                    fadeType={panel.fadeDirection === 'bottom' ? 'start' : (panel.fadeDirection === 'top' ? 'end' : undefined)}
+                    fadeType={fadeBottom ? 'start' : (fadeTop ? 'end' : undefined)}
                 />
             )}
         </Group>
@@ -206,6 +293,142 @@ const FocusAdjustmentHandle: React.FC<{
     )
 }
 
+type ImageEditMode = 'move' | 'scale' | 'rotate'
+
+const ImageEditModeTabs: React.FC<{
+    mode: ImageEditMode
+    onChange: (mode: ImageEditMode) => void
+    y: number
+    isGrayscale: boolean
+    imageFlipX: boolean
+    onToggleGrayscale: () => void
+    onToggleFlipX: () => void
+}> = ({ mode, onChange, y, isGrayscale, imageFlipX, onToggleGrayscale, onToggleFlipX }) => {
+    const tabs: Array<{ key: ImageEditMode; title: string }> = [
+        { key: 'move', title: '移動' },
+        { key: 'scale', title: '拡大縮小' },
+        { key: 'rotate', title: '回転' }
+    ]
+
+    return (
+        <Group y={y}>
+            <Rect
+                x={0}
+                y={0}
+                width={170}
+                height={34}
+                cornerRadius={8}
+                fill="rgba(24,24,27,0.95)"
+                stroke="#3f3f46"
+                strokeWidth={1}
+                onMouseDown={(e) => { e.cancelBubble = true }}
+                onMouseUp={(e) => { e.cancelBubble = true }}
+                onClick={(e) => { e.cancelBubble = true }}
+                onTap={(e) => { e.cancelBubble = true }}
+            />
+            {tabs.map((tab, i) => {
+                const active = mode === tab.key
+                return (
+                    <Group
+                        key={tab.key}
+                        x={5 + i * 31}
+                        y={4}
+                        name={tab.title}
+                        onMouseDown={(e) => { e.cancelBubble = true; onChange(tab.key) }}
+                        onMouseUp={(e) => { e.cancelBubble = true }}
+                        onClick={(e) => { e.cancelBubble = true; onChange(tab.key) }}
+                        onTouchStart={(e) => { e.cancelBubble = true; onChange(tab.key) }}
+                        onTap={(e) => { e.cancelBubble = true; onChange(tab.key) }}
+                    >
+                        <Rect
+                            width={28}
+                            height={26}
+                            cornerRadius={6}
+                            fill={active ? '#2563eb' : 'transparent'}
+                            stroke={active ? '#3b82f6' : 'transparent'}
+                            strokeWidth={1}
+                        />
+                        {tab.key === 'move' && (
+                            <Group listening={false}>
+                                <Line points={[8, 13, 20, 13]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[10, 10, 8, 13, 10, 16]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[18, 10, 20, 13, 18, 16]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[14, 7, 14, 19]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[11, 9, 14, 7, 17, 9]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[11, 17, 14, 19, 17, 17]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                            </Group>
+                        )}
+                        {tab.key === 'scale' && (
+                            <Group listening={false}>
+                                <Rect x={8} y={8} width={12} height={12} fill="transparent" stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[18, 10, 22, 6]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                                <Line points={[19, 6, 22, 6, 22, 9]} stroke={active ? '#ffffff' : '#a1a1aa'} strokeWidth={2} />
+                            </Group>
+                        )}
+                        {tab.key === 'rotate' && (
+                            <Group listening={false}>
+                                <Text
+                                    x={6}
+                                    y={4}
+                                    width={16}
+                                    text="↻"
+                                    align="center"
+                                    fontSize={16}
+                                    fontStyle="bold"
+                                    fill={active ? '#ffffff' : '#a1a1aa'}
+                                />
+                            </Group>
+                        )}
+                    </Group>
+                )
+            })}
+            <Line points={[99, 6, 99, 28]} stroke="#3f3f46" strokeWidth={1} listening={false} />
+            <Group
+                x={106}
+                y={4}
+                onMouseDown={(e) => { e.cancelBubble = true }}
+                onMouseUp={(e) => { e.cancelBubble = true }}
+                onClick={(e) => { e.cancelBubble = true; onToggleGrayscale() }}
+                onTouchStart={(e) => { e.cancelBubble = true; onToggleGrayscale() }}
+                onTap={(e) => { e.cancelBubble = true; onToggleGrayscale() }}
+            >
+                <Rect
+                    width={28}
+                    height={26}
+                    cornerRadius={6}
+                    fill={isGrayscale ? '#2563eb' : 'transparent'}
+                    stroke={isGrayscale ? '#3b82f6' : 'transparent'}
+                    strokeWidth={1}
+                />
+                <Circle x={14} y={13} radius={7} fill="transparent" stroke={isGrayscale ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
+                <Line points={[14, 6, 14, 20]} stroke={isGrayscale ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
+            </Group>
+            <Group
+                x={137}
+                y={4}
+                onMouseDown={(e) => { e.cancelBubble = true }}
+                onMouseUp={(e) => { e.cancelBubble = true }}
+                onClick={(e) => { e.cancelBubble = true; onToggleFlipX() }}
+                onTouchStart={(e) => { e.cancelBubble = true; onToggleFlipX() }}
+                onTap={(e) => { e.cancelBubble = true; onToggleFlipX() }}
+            >
+                <Rect
+                    width={28}
+                    height={26}
+                    cornerRadius={6}
+                    fill={imageFlipX ? '#2563eb' : 'transparent'}
+                    stroke={imageFlipX ? '#3b82f6' : 'transparent'}
+                    strokeWidth={1}
+                />
+                <Line points={[8, 13, 20, 13]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
+                <Line points={[10, 10, 8, 13, 10, 16]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
+                <Line points={[18, 10, 20, 13, 18, 16]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
+                <Line points={[14, 8, 14, 18]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={1.5} dash={[2, 2]} listening={false} />
+            </Group>
+        </Group>
+    )
+}
+
 export const PanelItem: React.FC<{
     panel: Panel;
     page: any;
@@ -215,30 +438,70 @@ export const PanelItem: React.FC<{
     id?: string;
     renderPass?: 'content' | 'effects' | 'strokes' | 'interaction';
 }> = ({ panel, page, isSelected, onSelect, onUpdate, id, renderPass }) => {
+    const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
+    const [isShiftPressed, setIsShiftPressed] = React.useState(false)
+    const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>('move')
     const points = getPanelPoints(panel)
-    const imagePath = panel.imagePath && window.electron ? window.electron.pathToUrl(panel.imagePath) : (panel.imagePath || '')
+    const imagePath = useMemo(() => {
+        if (!panel.imagePath) return ''
+        if (window.electron?.resolveAssetPath && currentProjectPath) {
+            return window.electron.pathToUrl(window.electron.resolveAssetPath(currentProjectPath, panel.imagePath))
+        }
+        return window.electron ? window.electron.pathToUrl(panel.imagePath) : panel.imagePath || ''
+    }, [panel.imagePath, currentProjectPath])
     const [image] = useImage(imagePath)
     const lineRef = useRef<Konva.Line>(null)
+    const imageTabsRef = useRef<Konva.Group>(null)
 
     useEffect(() => {
         if (lineRef.current) {
             lineRef.current.clearCache()
-            if (image && panel.isGrayscale) {
+            if (image && (panel.isGrayscale || (panel.blurRadius ?? 0) > 0)) {
                 lineRef.current.cache()
             }
         }
-    }, [panel.isGrayscale, image, panel.imageFlipX, panel.imageScale, panel.imageRotation, panel.imageX, panel.imageY, panel.imagePath])
+    }, [panel.isGrayscale, panel.blurRadius, image, panel.imageFlipX, panel.imageScale, panel.imageRotation, panel.imageX, panel.imageY, panel.imagePath])
+
+    useEffect(() => {
+        const onKeyDown = (evt: KeyboardEvent) => {
+            if (evt.key === 'Shift') setIsShiftPressed(true)
+        }
+        const onKeyUp = (evt: KeyboardEvent) => {
+            if (evt.key === 'Shift') setIsShiftPressed(false)
+        }
+        const onBlur = () => setIsShiftPressed(false)
+        window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('keyup', onKeyUp)
+        window.addEventListener('blur', onBlur)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keyup', onKeyUp)
+            window.removeEventListener('blur', onBlur)
+        }
+    }, [])
 
     const isInteractive = renderPass === 'interaction' || !renderPass;
     const shouldRenderContent = renderPass === 'content' || !renderPass;
     const shouldRenderEffects = renderPass === 'effects' || !renderPass;
     const shouldRenderStrokes = renderPass === 'strokes' || !renderPass;
+    const shouldShowImageTabs = isInteractive && isSelected && !!panel.imagePath && isShiftPressed
+    const imageTabsY = panel.y <= 44 ? (panel.height + 8) : -38
+
+    useEffect(() => {
+        if (shouldShowImageTabs && imageTabsRef.current) {
+            imageTabsRef.current.moveToTop()
+            imageTabsRef.current.getLayer()?.batchDraw()
+        }
+    }, [shouldShowImageTabs, imageEditMode, panel.x, panel.y, panel.width, panel.height])
 
     return (
         <Group
             id={id}
-            x={panel.x}
-            y={panel.y}
+            x={panel.x + panel.width / 2}
+            y={panel.y + panel.height / 2}
+            offsetX={panel.width / 2}
+            offsetY={panel.height / 2}
+            rotation={panel.rotation ?? 0}
             draggable={isInteractive}
             listening={isInteractive}
             dragBoundFunc={function (pos) {
@@ -265,8 +528,11 @@ export const PanelItem: React.FC<{
                     target.setAttr('startPointerY', pointerPos?.y)
                     target.setAttr('startImageX', panel.imageX ?? 0)
                     target.setAttr('startImageY', panel.imageY ?? 0)
+                    target.setAttr('startImageScale', panel.imageScale ?? 1)
+                    target.setAttr('startImageRotation', panel.imageRotation ?? 0)
                     target.setAttr('dragStartX', target.x())
                     target.setAttr('dragStartY', target.y())
+                    target.setAttr('imageEditMode', imageEditMode)
 
                     // Clear cache for real-time feedback during drag
                     const contentLine = stage.findOne(`#panel-${panel.id}-image`)
@@ -284,14 +550,25 @@ export const PanelItem: React.FC<{
                     if (pointerPos && target.getAttr('startPointerX') !== undefined) {
                         const totalDx = pointerPos.x - target.getAttr('startPointerX')
                         const totalDy = pointerPos.y - target.getAttr('startPointerY')
-
-                        const newImageX = target.getAttr('startImageX') + totalDx
-                        const newImageY = target.getAttr('startImageY') + totalDy
-
+                        const activeMode = (target.getAttr('imageEditMode') ?? 'move') as ImageEditMode
                         const contentLine = stage.findOne(`#panel-${panel.id}-image`) as any
                         if (contentLine) {
-                            contentLine.fillPatternX(newImageX)
-                            contentLine.fillPatternY(newImageY)
+                            if (activeMode === 'move') {
+                                const newImageX = target.getAttr('startImageX') + totalDx
+                                const newImageY = target.getAttr('startImageY') + totalDy
+                                contentLine.fillPatternX(newImageX)
+                                contentLine.fillPatternY(newImageY)
+                            } else if (activeMode === 'scale') {
+                                const startScale = target.getAttr('startImageScale') ?? 1
+                                const nextScale = Math.max(0.05, Math.min(10, startScale * (1 - totalDy * 0.005)))
+                                const sign = (panel.imageFlipX ? -1 : 1)
+                                contentLine.fillPatternScaleX(sign * nextScale)
+                                contentLine.fillPatternScaleY(nextScale)
+                            } else if (activeMode === 'rotate') {
+                                const startRotation = target.getAttr('startImageRotation') ?? 0
+                                const nextRotation = startRotation + totalDx * 0.4
+                                contentLine.fillPatternRotation(nextRotation)
+                            }
                         }
                     }
                 }
@@ -302,10 +579,21 @@ export const PanelItem: React.FC<{
                     const stage = target.getStage()
                     const contentLine = stage.findOne(`#panel-${panel.id}-image`) as any
                     if (contentLine) {
-                        onUpdate(panel.id, {
-                            imageX: Math.round(contentLine.fillPatternX()),
-                            imageY: Math.round(contentLine.fillPatternY())
-                        })
+                        const activeMode = (target.getAttr('imageEditMode') ?? 'move') as ImageEditMode
+                        if (activeMode === 'move') {
+                            onUpdate(panel.id, {
+                                imageX: Math.round(contentLine.fillPatternX()),
+                                imageY: Math.round(contentLine.fillPatternY())
+                            })
+                        } else if (activeMode === 'scale') {
+                            onUpdate(panel.id, {
+                                imageScale: Number(Math.abs(contentLine.fillPatternScaleY()).toFixed(3))
+                            })
+                        } else if (activeMode === 'rotate') {
+                            onUpdate(panel.id, {
+                                imageRotation: Number(contentLine.fillPatternRotation().toFixed(1))
+                            })
+                        }
                         // Restore grayscale cache after movement
                         if (panel.isGrayscale) {
                             contentLine.cache()
@@ -313,8 +601,8 @@ export const PanelItem: React.FC<{
                     }
                 } else {
                     onUpdate(panel.id, {
-                        x: Math.round(target.x()),
-                        y: Math.round(target.y())
+                        x: Math.round(target.x() - panel.width / 2),
+                        y: Math.round(target.y() - panel.height / 2)
                     })
                 }
                 target.setAttr('isImageMode', false)
@@ -323,13 +611,15 @@ export const PanelItem: React.FC<{
                 const node = e.target
                 const scaleX = node.scaleX()
                 const scaleY = node.scaleY()
+                const nextWidth = Math.round(Math.abs(panel.width * scaleX))
+                const nextHeight = Math.round(Math.abs(panel.height * scaleY))
                 node.scaleX(1)
                 node.scaleY(1)
                 onUpdate(panel.id, {
-                    x: Math.round(node.x()),
-                    y: Math.round(node.y()),
-                    width: Math.round(Math.abs(panel.width * scaleX)),
-                    height: Math.round(Math.abs(panel.height * scaleY)),
+                    x: Math.round(node.x() - nextWidth / 2),
+                    y: Math.round(node.y() - nextHeight / 2),
+                    width: nextWidth,
+                    height: nextHeight,
                     slant: Math.round(panel.slant * scaleX),
                     offsetB: Math.round(panel.offsetB * scaleX),
                     offsetC: Math.round(panel.offsetC * scaleX),
@@ -340,41 +630,107 @@ export const PanelItem: React.FC<{
             {isInteractive && (
                 <Line points={points} closed={true} fill="transparent" />
             )}
-
-            {shouldRenderContent && (
-                <Group
-                    clipFunc={(ctx) => {
-                        if (!points || points.length < 6) return
-                        ctx.beginPath()
-                        ctx.moveTo(points[0], points[1])
-                        for (let i = 2; i < points.length; i += 2) {
-                            ctx.lineTo(points[i], points[i + 1])
+            {shouldShowImageTabs && (
+                <Group ref={imageTabsRef}>
+                    <ImageEditModeTabs
+                        mode={imageEditMode}
+                        onChange={setImageEditMode}
+                        y={imageTabsY}
+                        isGrayscale={!!panel.isGrayscale}
+                        imageFlipX={!!panel.imageFlipX}
+                        onToggleGrayscale={() => onUpdate(panel.id, { isGrayscale: !panel.isGrayscale })}
+                        onToggleFlipX={() =>
+                            onUpdate(panel.id, {
+                                imageFlipX: !panel.imageFlipX,
+                                imageX: panel.width / 2,
+                                imageY: panel.height / 2
+                            })
                         }
-                        ctx.closePath()
-                    }}
-                >
-                    <Line
-                        id={`panel-${panel.id}-image`}
-                        ref={lineRef}
-                        points={points}
-                        closed={true}
-                        fill={panel.imagePath ? undefined : 'white'}
-                        fillPatternImage={image}
-                        fillPatternX={panel.imageX ?? 0}
-                        fillPatternY={panel.imageY ?? 0}
-                        fillPatternOffsetX={image ? image.width / 2 : 0}
-                        fillPatternOffsetY={image ? image.height / 2 : 0}
-                        fillPatternScaleX={(panel.imageFlipX ? -1 : 1) * (panel.imageScale ?? 1)}
-                        fillPatternScaleY={panel.imageScale ?? 1}
-                        fillPatternRotation={panel.imageRotation ?? 0}
-                        fillPatternRepeat="no-repeat"
-                        filters={panel.isGrayscale ? [Konva.Filters.Grayscale] : []}
                     />
                 </Group>
             )}
 
+            {shouldRenderContent && (() => {
+                const bgType = panel.bgGradientType || 'none';
+                const bgColor = panel.backgroundColor || 'white';
+                const bgOpacity = panel.backgroundOpacity ?? 1;
+                const startColor = panel.bgGradientStartColor || bgColor;
+                const endColor = panel.bgGradientEndColor || '#ffffff';
+                const rotation = (panel.bgGradientRotation || 0) * Math.PI / 180;
+
+                const bgProps: any = { opacity: bgOpacity };
+                if (bgType === 'none') {
+                    bgProps.fill = bgColor;
+                } else if (bgType === 'linear') {
+                    const radius = Math.sqrt(panel.width ** 2 + panel.height ** 2) / 2;
+                    const cx = panel.width / 2;
+                    const cy = panel.height / 2;
+                    bgProps.fillLinearGradientStartPoint = { 
+                        x: cx - Math.cos(rotation) * radius, 
+                        y: cy - Math.sin(rotation) * radius 
+                    };
+                    bgProps.fillLinearGradientEndPoint = { 
+                        x: cx + Math.cos(rotation) * radius, 
+                        y: cy + Math.sin(rotation) * radius 
+                    };
+                    bgProps.fillLinearGradientColorStops = [0, startColor, 1, endColor];
+                } else if (bgType === 'radial') {
+                    const cx = panel.width / 2;
+                    const cy = panel.height / 2;
+                    const radius = Math.max(panel.width, panel.height) / 2;
+                    bgProps.fillRadialGradientStartPoint = { x: cx, y: cy };
+                    bgProps.fillRadialGradientEndPoint = { x: cx, y: cy };
+                    bgProps.fillRadialGradientStartRadius = 0;
+                    bgProps.fillRadialGradientEndRadius = radius;
+                    bgProps.fillRadialGradientColorStops = [0, startColor, 1, endColor];
+                }
+
+                return (
+                    <Group
+                        clipFunc={(ctx) => {
+                            if (!points || points.length < 6) return
+                            ctx.beginPath()
+                            ctx.moveTo(points[0], points[1])
+                            for (let i = 2; i < points.length; i += 2) {
+                                ctx.lineTo(points[i], points[i + 1])
+                            }
+                            ctx.closePath()
+                        }}
+                    >
+                        <Line
+                            points={points}
+                            closed={true}
+                            {...bgProps}
+                        />
+                        {panel.imagePath && (
+                            <Line
+                                id={`panel-${panel.id}-image`}
+                                ref={lineRef}
+                                points={points}
+                                closed={true}
+                                fillPatternImage={image}
+                                fillPatternX={panel.imageX ?? 0}
+                                fillPatternY={panel.imageY ?? 0}
+                                fillPatternOffsetX={image ? image.width / 2 : 0}
+                                fillPatternOffsetY={image ? image.height / 2 : 0}
+                                fillPatternScaleX={(panel.imageFlipX ? -1 : 1) * (panel.imageScale ?? 1)}
+                                fillPatternScaleY={panel.imageScale ?? 1}
+                                fillPatternRotation={panel.imageRotation ?? 0}
+                                fillPatternRepeat="no-repeat"
+                                filters={[
+                                    ...(panel.isGrayscale ? [Konva.Filters.Grayscale] : []),
+                                    ...((panel.blurRadius ?? 0) > 0 ? [Konva.Filters.Blur] : [])
+                                ]}
+                                blurRadius={panel.blurRadius ?? 0}
+                            />
+                        )}
+                    </Group>
+                )
+            })()}
+
             {shouldRenderStrokes && <PanelStrokes panel={panel} points={points} page={page} />}
             {shouldRenderEffects && <FocusLines panel={panel} points={points} />}
+            {shouldRenderEffects && <RainEffect panel={panel} points={points} />}
             {shouldRenderEffects && <FadeOverlay panel={panel} points={points} backgroundColor={page?.backgroundColor || '#ffffff'} />}
             {isInteractive && panel.isAdjustingFocus && <FocusAdjustmentHandle panel={panel} onUpdate={onUpdate} />}
             {isInteractive && isSelected && panel.type === 'slanted' && (

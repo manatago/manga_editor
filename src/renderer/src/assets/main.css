@@ -5,3 +5,32 @@
         @apply bg-zinc-900 text-zinc-100 overflow-hidden;
     }
 }
+
+/* Shared scrollbar styling for dark UI panels */
+.manga-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(113, 113, 122, 0.6) rgba(24, 24, 27, 0.35);
+}
+
+.manga-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.manga-scrollbar::-webkit-scrollbar-track {
+    background: rgba(24, 24, 27, 0.35);
+    border-radius: 9999px;
+}
+
+.manga-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(113, 113, 122, 0.7), rgba(82, 82, 91, 0.7));
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+}
+
+.manga-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(161, 161, 170, 0.85), rgba(113, 113, 122, 0.85));
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}

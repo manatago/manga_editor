@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useMemo } from 'react'
 import Konva from 'konva'
 import { Group, Image } from 'react-konva'
 import useImage from 'use-image'
-import { Material } from '../store/useMangaStore'
+import { Material, Panel, useMangaStore } from '../store/useMangaStore'
+import { findTargetPanel } from './utils/geometry'
 
 interface MaterialItemProps {
     material: Material;
@@ -12,6 +13,7 @@ interface MaterialItemProps {
     id?: string;
     renderPass?: 'content' | 'interaction';
     clipPoints?: number[];
+    panels?: Panel[];
 }
 
 export const MaterialItem: React.FC<MaterialItemProps> = ({
@@ -21,9 +23,19 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
     onUpdate,
     id,
     renderPass,
-    clipPoints
+    clipPoints,
+    panels
 }) => {
-    const [image] = useImage(material.imagePath.startsWith('local-file://') ? material.imagePath : `local-file://${material.imagePath}`)
+    const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
+    const imageUrl = useMemo(() => {
+        if (!material.imagePath) return ''
+        if (window.electron?.resolveAssetPath && currentProjectPath) {
+            return window.electron.pathToUrl(window.electron.resolveAssetPath(currentProjectPath, material.imagePath))
+        }
+        if (material.imagePath.startsWith('local-file://')) return material.imagePath
+        return window.electron ? window.electron.pathToUrl(material.imagePath) : ''
+    }, [material.imagePath, currentProjectPath])
+    const [image] = useImage(imageUrl)
     const shapeRef = useRef<any>(null)
     const imageRef = useRef<Konva.Image>(null)
 
@@ -39,10 +51,21 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
 
     const handleDragEnd = (e: any) => {
         if (e.target !== e.currentTarget) return
-        onUpdate(material.id, {
+        const updates: any = {
             x: e.target.x(),
             y: e.target.y()
-        })
+        }
+
+        if (material.isClipped && panels) {
+            const centerX = updates.x + (material.width || 200) / 2
+            const centerY = updates.y + (material.height || 200) / 2
+            const targetPanel = findTargetPanel(centerX, centerY, panels)
+            if (targetPanel) {
+                updates.panelId = targetPanel.id
+            }
+        }
+
+        onUpdate(material.id, updates)
     }
 
     const handleTransformEnd = () => {
@@ -55,13 +78,24 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
         node.scaleX(1)
         node.scaleY(1)
 
-        onUpdate(material.id, {
+        const updates: any = {
             x: node.x(),
             y: node.y(),
             width: Math.max(5, node.width() * scaleX),
             height: Math.max(5, node.height() * scaleY),
             rotation: rotation
-        })
+        }
+
+        if (material.isClipped && panels) {
+            const centerX = updates.x + updates.width / 2
+            const centerY = updates.y + updates.height / 2
+            const targetPanel = findTargetPanel(centerX, centerY, panels)
+            if (targetPanel) {
+                updates.panelId = targetPanel.id
+            }
+        }
+
+        onUpdate(material.id, updates)
     }
 
     if (!image) return null

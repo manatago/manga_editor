@@ -9,6 +9,47 @@ export interface ClipItem {
     rotation?: number;
 }
 
+// ... existing imports ...
+
+/**
+ * Checks if a point (x, y) is inside a polygon defined by points [x1, y1, x2, y2, ...]
+ * Ray casting algorithm
+ */
+export const isPointInPolygon = (x: number, y: number, points: number[]): boolean => {
+    let inside = false
+    for (let i = 0, j = points.length - 2; i < points.length; i += 2) {
+        const xi = points[i], yi = points[i + 1]
+        const xj = points[j], yj = points[j + 1]
+        
+        const intersect = ((yi > y) !== (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+        if (intersect) inside = !inside
+        j = i
+    }
+    return inside
+}
+
+/**
+ * Finds the topmost panel that contains the given point (x, y) in stage coordinates.
+ */
+export const findTargetPanel = (x: number, y: number, panels: Panel[]): Panel | undefined => {
+    // Reverse panels to check from topmost to bottommost
+    const reversedPanels = [...panels].reverse()
+    for (const panel of reversedPanels) {
+        const points = getPanelPoints(panel)
+        // Transform local panel points to stage coordinates
+        const stagePoints = []
+        for (let i = 0; i < points.length; i += 2) {
+            stagePoints.push(points[i] + panel.x, points[i + 1] + panel.y)
+        }
+        
+        if (isPointInPolygon(x, y, stagePoints)) {
+            return panel
+        }
+    }
+    return undefined
+}
+
 /**
  * Calculates the clipping points for an item relative to a panel.
  * Transforms panel vertices into the item's local coordinate system.

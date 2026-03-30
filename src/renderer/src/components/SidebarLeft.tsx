@@ -1,9 +1,10 @@
 import React from 'react'
-import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser } from 'lucide-react'
+import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 
 interface SidebarLeftProps {
     onExportPNG: () => void;
+    onExportAllPagesPNG: () => void;
     onOpenTemplateModal: () => void;
     handleCreateNew: () => void;
     handleOpenProject: () => void;
@@ -14,10 +15,12 @@ interface SidebarLeftProps {
     movePage: (id: string, direction: 'up' | 'down') => void;
     removePage: (id: string) => void;
     addPage: (panels?: any[]) => void;
+    onCollapse?: () => void;
 }
 
 const SidebarLeft: React.FC<SidebarLeftProps> = ({
     onExportPNG,
+    onExportAllPagesPNG,
     onOpenTemplateModal,
     handleCreateNew,
     handleOpenProject,
@@ -28,6 +31,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     // movePage, // Removed from props
     // removePage, // Removed from props
     // addPage // Removed from props
+    onCollapse
 }) => {
     const {
         pages,
@@ -41,15 +45,27 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     } = useMangaStore()
 
     return (
-        <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0">
-            <div className="p-4 border-b border-zinc-800 flex items-center gap-2">
-                <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">M</span>
+        <div className="h-full flex flex-col min-h-0 bg-zinc-900">
+            <div className="p-3 sm:p-4 border-b border-zinc-800 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
+                        <span className="text-white font-bold text-xs">M</span>
+                    </div>
+                    <h1 className="font-bold text-white tracking-tight truncate text-sm sm:text-base">漫画野郎</h1>
                 </div>
-                <h1 className="font-bold text-white tracking-tight">漫画野郎</h1>
+                {onCollapse && (
+                    <button
+                        type="button"
+                        onClick={onCollapse}
+                        className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 shrink-0"
+                        title="メニューを隠す（狭い画面向け）"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-6">
+            <div className="flex-1 overflow-y-auto p-3 space-y-6 manga-scrollbar">
                 {!currentProjectPath ? (
                     <div className="space-y-2">
                         <button onClick={handleCreateNew} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white group">
@@ -63,14 +79,22 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                             <button
                                 onClick={onExportPNG}
                                 disabled={!currentPageId}
                                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 transition-colors text-emerald-400 hover:text-emerald-300 font-bold group disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Download size={18} />
-                                <span className="text-sm">PNG出力 (Export)</span>
+                                <span className="text-sm">PNG出力（現在ページ）</span>
+                            </button>
+                            <button
+                                onClick={onExportAllPagesPNG}
+                                disabled={!currentPageId || pages.length === 0}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Download size={18} />
+                                <span>全ページ一括 PNG</span>
                             </button>
                         </div>
 

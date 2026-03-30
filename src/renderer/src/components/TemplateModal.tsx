@@ -39,7 +39,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                     <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors">&times;</button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8">
+                <div className="flex-1 overflow-y-auto p-8 manga-scrollbar">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Quick Start</h3>

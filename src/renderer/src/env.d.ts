@@ -14,6 +14,8 @@ declare global {
             getAssets: (projectPath: string) => Promise<string[]>
             deleteFile: (path: string) => Promise<boolean>
             pathToUrl: (path: string) => string
+            /** manga.json の相対パス or 絶対パス → 実ファイルの絶対パス */
+            resolveAssetPath: (projectRoot: string, stored: string) => string
             getPathForFile: (file: File) => string
             log: (level: string, ...args: any[]) => void
         }

@@ -24,42 +24,45 @@ export const VerticalText: React.FC<{
 
     return (
         <Group>
-            {lines.map((line, lineIdx) => (
-                <Group key={lineIdx} x={startX - lineIdx * (fontSize + columnSpacing)}>
-                    {line.split('').map((char, charIdx) => {
-                        let rotation = 0
-                        let xOffset = 0
-                        let yOffset = 0
+            {lines.map((line, lineIdx) => {
+                const chars = line.split('')
+                return (
+                    <Group key={lineIdx} x={startX - lineIdx * (fontSize + columnSpacing)}>
+                        {chars.map((char, charIdx) => {
+                            let rotation = 0
+                            let xOffset = 0
+                            let charYOffset = 0
 
-                        if (rotates.includes(char)) {
-                            rotation = 90
-                            xOffset = fontSize
-                        } else if (smallChars.includes(char)) {
-                            xOffset = fontSize * 0.2
-                            yOffset = -fontSize * 0.1
-                        } else if (punctuations.includes(char)) {
-                            xOffset = fontSize * 0.8
-                            yOffset = -fontSize * 0.5
-                        }
+                            if (rotates.includes(char)) {
+                                rotation = 90
+                                xOffset = fontSize
+                            } else if (smallChars.includes(char)) {
+                                xOffset = fontSize * 0.2
+                                charYOffset = -fontSize * 0.1
+                            } else if (punctuations.includes(char)) {
+                                xOffset = fontSize * 0.8
+                                charYOffset = -fontSize * 0.5
+                            }
 
-                        return (
-                            <Text
-                                key={charIdx}
-                                text={char}
-                                x={xOffset}
-                                y={charIdx * (fontSize + charSpacing) + yOffset}
-                                fontSize={fontSize}
-                                fill={fontColor}
-                                fontFamily={fontFamily}
-                                align="center"
-                                width={fontSize}
-                                rotation={rotation}
-                                fontStyle={fontWeight}
-                            />
-                        )
-                    })}
-                </Group>
-            ))}
+                            return (
+                                <Text
+                                    key={charIdx}
+                                    text={char}
+                                    x={xOffset}
+                                    y={charIdx * (fontSize + charSpacing) + charYOffset}
+                                    fontSize={fontSize}
+                                    fill={fontColor}
+                                    fontFamily={fontFamily}
+                                    align="center"
+                                    width={fontSize}
+                                    rotation={rotation}
+                                    fontStyle={fontWeight}
+                                />
+                            )
+                        })}
+                    </Group>
+                )
+            })}
         </Group>
     )
 }
