@@ -31,6 +31,11 @@ description: 漫画野郎の Zustand（useMangaStore）を変更するとき。�
 
 - ドラッグ中の連続更新などは **`undoable: false`** で履歴を増やさない、という使い分けがある。既存の `PanelItem` / `BubbleItem` の呼び出しを確認する
 
+## 吹き出しテキストの「微調整」系フィールド
+
+- `updateBubble` のような更新 API に、`textOffsetX` / `textOffsetY` / `textWeightLevel` / `textRoughness` などのフィールドが追加・拡張されることがある。
+- UI/ドラッグ操作で連続更新される値は、基本的に **ドラッグ中は `undoable: false`、確定時だけ `undoable: true`** にして履歴肥大化を防ぐ（既存の連続更新パターンと揃える）。
+
 ## テンプレート・プロジェクト保存
 
 - `saveAsTemplate` は `imagePath` 等を**除外**してパネル形状だけ保存する

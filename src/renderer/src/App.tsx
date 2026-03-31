@@ -4,12 +4,14 @@ import SidebarLeft from './components/SidebarLeft'
 import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
 import { ExportOverlay } from './components/ExportOverlay'
-import { useMangaStore, PanelType } from './store/useMangaStore'
-import { PanelTop, Square, AlignLeft, Table, Columns, Zap, Layers, Volume2, Grid, Megaphone, Ghost, PanelLeft } from 'lucide-react'
+import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
+import { PanelTop, PanelLeft } from 'lucide-react'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
 import { useExport } from './hooks/useExport'
 import { PanelTypeIcon } from './components/icons/PanelTypeIcon'
+import { BubbleTypeIcon } from './components/icons/BubbleTypeIcon'
+import { BUBBLE_TYPE_LABELS, BUBBLE_TYPE_ORDER } from './components/icons/bubbleTypeMeta'
 
 function App(): React.JSX.Element {
     const {
@@ -132,7 +134,7 @@ function App(): React.JSX.Element {
         })
     }
 
-    const handleAddBubbleWithType = (type: any) => {
+    const handleAddBubbleWithType = (type: BubbleType) => {
         if (!selectedPanel) return
         const centerX = selectedPanel.x + selectedPanel.width / 2
         const centerY = selectedPanel.y + selectedPanel.height / 2
@@ -141,7 +143,7 @@ function App(): React.JSX.Element {
             x: centerX - 75,
             y: centerY - 50,
             panelId: selectedPanel.id,
-            isClipped: true
+            isClipped: false
         })
     }
 
@@ -211,26 +213,18 @@ function App(): React.JSX.Element {
                                     </button>
                                 </div>
                                 <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800 ml-4">
-                                    {[
-                                        { type: 'rounded', icon: Ghost, label: '普通' },
-                                        { type: 'jagged', icon: Zap, label: 'ギザギザ' },
-                                        { type: 'rect', icon: Square, label: '矩形' },
-                                        { type: 'rect-double', icon: Layers, label: '二重矩形' },
-                                        { type: 'flash', icon: Zap, label: 'ウニ' },
-                                        { type: 'shout', icon: Volume2, label: '叫び' },
-                                        { type: 'square-jagged', icon: Grid, label: '角ギザ' },
-                                        { type: 'megaphone', icon: Megaphone, label: 'メガホン' },
-                                    ].map(({ type, icon: Icon, label }) => (
-                                        <button 
+                                    {BUBBLE_TYPE_ORDER.map((type) => (
+                                        <button
                                             key={type}
-                                            onClick={() => handleAddBubbleWithType(type)} 
+                                            type="button"
+                                            onClick={() => handleAddBubbleWithType(type)}
                                             disabled={!selectedPanelId}
-                                            title={label}
+                                            title={BUBBLE_TYPE_LABELS[type]}
                                             className={`p-1.5 rounded transition-all flex items-center justify-center min-w-[32px] ${
                                                 selectedPanelId ? 'hover:bg-zinc-700 text-zinc-400 hover:text-white' : 'text-zinc-700 cursor-not-allowed'
                                             }`}
                                         >
-                                            <Icon size={14} />
+                                            <BubbleTypeIcon type={type} size={14} />
                                         </button>
                                     ))}
                                 </div>

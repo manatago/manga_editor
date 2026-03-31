@@ -6,6 +6,11 @@ export type BubbleLastStyleSlice = Pick<
     | 'fontSize'
     | 'fontFamily'
     | 'lineHeight'
+    | 'letterSpacing'
+    | 'textStrokeColor'
+    | 'textStrokeWidth'
+    | 'textWeightLevel'
+    | 'textRoughness'
     | 'fontColor'
     | 'fontWeight'
     | 'isVertical'
@@ -32,6 +37,11 @@ export function bubbleToLastStyleSlice(b: Bubble): BubbleLastStyleSlice {
         fontSize: b.fontSize,
         fontFamily: b.fontFamily,
         lineHeight: b.lineHeight,
+        letterSpacing: b.letterSpacing,
+        textStrokeColor: b.textStrokeColor,
+        textStrokeWidth: b.textStrokeWidth,
+        textWeightLevel: b.textWeightLevel,
+        textRoughness: b.textRoughness,
         fontColor: b.fontColor,
         fontWeight: b.fontWeight,
         isVertical: b.isVertical,

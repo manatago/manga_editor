@@ -1,26 +1,35 @@
 import React from 'react'
 import { Group, Text } from 'react-konva'
+import { FilteredText } from './FilteredText'
+import {
+    VERTICAL_PUNCT_CHARS,
+    VERTICAL_ROTATE_CHARS,
+    VERTICAL_SMALL_CHARS
+} from './speechTextVerticalGlyphs'
+import { BUBBLE_TEXT_DISTRESS_SCALE, heavyStrokeWidthFor } from './utils/bubbleTextLayout'
 
 export const VerticalText: React.FC<{
     text: string;
     fontSize: number;
     fontColor: string;
+    strokeColor?: string;
+    strokeWidth?: number;
+    weightLevel?: 0 | 1 | 2;
+    roughness?: number;
     fontFamily?: string;
     fontWeight?: string;
     width: number;
     height: number;
     lineHeight?: number;
-}> = ({ text, fontSize, fontColor, fontFamily = 'sans-serif', fontWeight = 'bold', width, height, lineHeight = 1.4 }) => {
+    letterSpacing?: number;
+}> = ({ text, fontSize, fontColor, strokeColor, strokeWidth, weightLevel = 1, roughness = 0, fontFamily = 'sans-serif', fontWeight = 'bold', width, height, lineHeight = 1.4, letterSpacing = 0 }) => {
     const lines = text.split('\n')
-    const charSpacing = 0
+    const charSpacing = letterSpacing
     const columnSpacing = fontSize * lineHeight * 0.6
     const totalColumnsWidth = lines.length * fontSize + (lines.length - 1) * columnSpacing
     const startX = width / 2 + totalColumnsWidth / 2 - fontSize / 2
-
-    // Characters that need special vertical handling
-    const rotates = 'ー〜〜～()（）[]［］{}｛｝「」『』<>〈〉《》【】…―'
-    const smallChars = 'っゃゅょぁぃぅぇぉッャュョァィゥェォ'
-    const punctuations = '。、'
+    const heavyStrokeWidth = heavyStrokeWidthFor(weightLevel, fontSize)
+    const distress = Math.max(0, Math.min(1, roughness))
 
     return (
         <Group>
@@ -33,31 +42,58 @@ export const VerticalText: React.FC<{
                             let xOffset = 0
                             let charYOffset = 0
 
-                            if (rotates.includes(char)) {
+                            if (VERTICAL_ROTATE_CHARS.includes(char)) {
                                 rotation = 90
                                 xOffset = fontSize
-                            } else if (smallChars.includes(char)) {
+                            } else if (VERTICAL_SMALL_CHARS.includes(char)) {
                                 xOffset = fontSize * 0.2
                                 charYOffset = -fontSize * 0.1
-                            } else if (punctuations.includes(char)) {
+                            } else if (VERTICAL_PUNCT_CHARS.includes(char)) {
                                 xOffset = fontSize * 0.8
                                 charYOffset = -fontSize * 0.5
                             }
 
                             return (
-                                <Text
-                                    key={charIdx}
-                                    text={char}
-                                    x={xOffset}
-                                    y={charIdx * (fontSize + charSpacing) + charYOffset}
-                                    fontSize={fontSize}
-                                    fill={fontColor}
-                                    fontFamily={fontFamily}
-                                    align="center"
-                                    width={fontSize}
-                                    rotation={rotation}
-                                    fontStyle={fontWeight}
-                                />
+                                <Group key={charIdx}>
+                                    {weightLevel === 2 && (
+                                        <FilteredText
+                                            text={char}
+                                            x={xOffset}
+                                            y={charIdx * (fontSize + charSpacing) + charYOffset}
+                                            fontSize={fontSize}
+                                            fill={fontColor}
+                                            stroke={fontColor}
+                                            strokeWidth={heavyStrokeWidth}
+                                            lineJoin="round"
+                                            fontFamily={fontFamily}
+                                            align="center"
+                                            width={fontSize}
+                                            rotation={rotation}
+                                            fontStyle={fontWeight}
+                                            distressStrength={distress}
+                                            distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                                            enableCache={distress > 0}
+                                        />
+                                    )}
+                                    <FilteredText
+                                        text={char}
+                                        x={xOffset}
+                                        y={charIdx * (fontSize + charSpacing) + charYOffset}
+                                        fontSize={fontSize}
+                                        fill={fontColor}
+                                        stroke={strokeWidth && strokeWidth > 0 ? (strokeColor ?? '#ffffff') : undefined}
+                                        strokeWidth={strokeWidth && strokeWidth > 0 ? strokeWidth : 0}
+                                        lineJoin="round"
+                                        fontFamily={fontFamily}
+                                        align="center"
+                                        width={fontSize}
+                                        rotation={rotation}
+                                        fontStyle={fontWeight}
+                                        distressStrength={distress}
+                                        distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                                        enableCache={distress > 0}
+                                    />
+                                </Group>
                             )
                         })}
                     </Group>
@@ -71,6 +107,10 @@ export const MegaphoneText: React.FC<{
     text: string;
     fontSize: number;
     fontColor: string;
+    strokeColor?: string;
+    strokeWidth?: number;
+    weightLevel?: 0 | 1 | 2;
+    roughness?: number;
     fontFamily: string;
     fontWeight: string;
     width: number;
@@ -78,10 +118,13 @@ export const MegaphoneText: React.FC<{
     narrowRatio: number;
     isVertical: boolean;
     lineHeight: number;
-}> = ({ text, fontSize, fontColor, fontFamily, fontWeight, width, height, narrowRatio, isVertical, lineHeight }) => {
+    letterSpacing?: number;
+}> = ({ text, fontSize, fontColor, strokeColor, strokeWidth, weightLevel = 1, roughness = 0, fontFamily, fontWeight, width, height, narrowRatio, isVertical, lineHeight, letterSpacing = 0 }) => {
     const lines = text.split('\n').filter((_, i) => i < 20)
     const n = lines.length
     const ratio = narrowRatio || 0.3
+    const heavyStrokeWidth = heavyStrokeWidthFor(weightLevel, fontSize)
+    const distress = Math.max(0, Math.min(1, roughness))
 
     if (isVertical) {
         const columnGap = fontSize * lineHeight * 0.6
@@ -99,7 +142,7 @@ export const MegaphoneText: React.FC<{
                         const scale = 1 - t * (1 - ratio)
                         const charFontSize = Math.max(4, Math.round(fontSize * scale))
                         const y = currentY
-                        currentY += charFontSize * 1.1
+                        currentY += charFontSize * 1.1 + letterSpacing
                         return { char, fontSize: charFontSize, y }
                     })
 
@@ -109,38 +152,62 @@ export const MegaphoneText: React.FC<{
                     return (
                         <Group key={lineIdx} x={startX + (lines.length - 1 - lineIdx) * (fontSize + columnGap)} y={yOffsetTop}>
                             {charData.map((data, charIdx) => {
-                                const rotates = 'ー〜〜～()（）[]［］{}｛｝「」『』<>〈〉《》【】…―'
-                                const smallChars = 'っゃゅょぁぃぅぇぉッャュョァィゥェォ'
-                                const punctuations = '。、'
                                 let charRotation = 0
                                 let xCharOffset = (fontSize - data.fontSize) / 2
                                 let yCharOffset = 0
 
-                                if (rotates.includes(data.char)) {
+                                if (VERTICAL_ROTATE_CHARS.includes(data.char)) {
                                     charRotation = 90
                                     xCharOffset += data.fontSize
-                                } else if (smallChars.includes(data.char)) {
+                                } else if (VERTICAL_SMALL_CHARS.includes(data.char)) {
                                     xCharOffset += data.fontSize * 0.2
                                     yCharOffset = -data.fontSize * 0.1
-                                } else if (punctuations.includes(data.char)) {
+                                } else if (VERTICAL_PUNCT_CHARS.includes(data.char)) {
                                     xCharOffset += data.fontSize * 0.8
                                     yCharOffset = -data.fontSize * 0.5
                                 }
 
                                 return (
-                                    <Text
-                                        key={charIdx}
-                                        text={data.char}
-                                        x={xCharOffset}
-                                        y={data.y + yCharOffset}
-                                        fontSize={data.fontSize}
-                                        fill={fontColor}
-                                        fontFamily={fontFamily}
-                                        fontStyle={fontWeight}
-                                        rotation={charRotation}
-                                        align="center"
-                                        width={data.fontSize}
-                                    />
+                                    <Group key={charIdx}>
+                                        {weightLevel === 2 && (
+                                            <FilteredText
+                                                text={data.char}
+                                                x={xCharOffset}
+                                                y={data.y + yCharOffset}
+                                                fontSize={data.fontSize}
+                                                fill={fontColor}
+                                                stroke={fontColor}
+                                                strokeWidth={heavyStrokeWidth}
+                                                lineJoin="round"
+                                                fontFamily={fontFamily}
+                                                fontStyle={fontWeight}
+                                                rotation={charRotation}
+                                                align="center"
+                                                width={data.fontSize}
+                                                distressStrength={distress}
+                                                distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                                                enableCache={distress > 0}
+                                            />
+                                        )}
+                                        <FilteredText
+                                            text={data.char}
+                                            x={xCharOffset}
+                                            y={data.y + yCharOffset}
+                                            fontSize={data.fontSize}
+                                            fill={fontColor}
+                                            stroke={strokeWidth && strokeWidth > 0 ? (strokeColor ?? '#ffffff') : undefined}
+                                            strokeWidth={strokeWidth && strokeWidth > 0 ? strokeWidth : 0}
+                                            lineJoin="round"
+                                            fontFamily={fontFamily}
+                                            fontStyle={fontWeight}
+                                            rotation={charRotation}
+                                            align="center"
+                                            width={data.fontSize}
+                                            distressStrength={distress}
+                                            distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                                            enableCache={distress > 0}
+                                        />
+                                    </Group>
                                 )
                             })}
                         </Group>
@@ -165,18 +232,46 @@ export const MegaphoneText: React.FC<{
     return (
         <Group y={yOffsetTop}>
             {lineData.map((data, i) => (
-                <Text
-                    key={i}
-                    text={data.line}
-                    x={(width - data.lineW) / 2}
-                    y={data.y}
-                    width={data.lineW}
-                    fontSize={data.fontSize}
-                    fill={fontColor}
-                    fontFamily={fontFamily}
-                    fontStyle={fontWeight}
-                    align="center"
-                />
+                <Group key={i}>
+                    {weightLevel === 2 && (
+                        <FilteredText
+                            text={data.line}
+                            x={(width - data.lineW) / 2}
+                            y={data.y}
+                            width={data.lineW}
+                            fontSize={data.fontSize}
+                            fill={fontColor}
+                            stroke={fontColor}
+                            strokeWidth={heavyStrokeWidth}
+                            lineJoin="round"
+                            fontFamily={fontFamily}
+                            fontStyle={fontWeight}
+                            align="center"
+                            letterSpacing={letterSpacing}
+                            distressStrength={distress}
+                            distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                            enableCache={distress > 0}
+                        />
+                    )}
+                    <FilteredText
+                        text={data.line}
+                        x={(width - data.lineW) / 2}
+                        y={data.y}
+                        width={data.lineW}
+                        fontSize={data.fontSize}
+                        fill={fontColor}
+                        stroke={strokeWidth && strokeWidth > 0 ? (strokeColor ?? '#ffffff') : undefined}
+                        strokeWidth={strokeWidth && strokeWidth > 0 ? strokeWidth : 0}
+                        lineJoin="round"
+                        fontFamily={fontFamily}
+                        fontStyle={fontWeight}
+                        align="center"
+                        letterSpacing={letterSpacing}
+                        distressStrength={distress}
+                        distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                        enableCache={distress > 0}
+                    />
+                </Group>
             ))}
         </Group>
     )

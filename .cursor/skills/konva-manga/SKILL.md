@@ -36,6 +36,17 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 
 親がドラッグ可能なとき、内側のハンドルや子ノードでは **`e.cancelBubble = true`**（`onDragStart` / `onDragMove` 等）で親への伝播を止める。既存の調整ハンドルと同じ考え方。
 
+## 吹き出しテキスト（フィルタ・掠れ・二重レイヤー）
+
+- Konva の `filters` は **`cache()` が前提**。テキストに掠れ等のフィルタを入れるときは、描画後に `cache()` が走るようにする（`requestAnimationFrame` で 1 フレーム遅延する既存パターンに合わせる）。
+- `react-konva` はカスタム props をノードに載せないため、フィルタ用のパラメータは **`setAttr` / `setAttrs`** でノードに渡す必要がある（例: `distressStrength`, `distressScale`）。
+- 極太（擬似太字）の実装で `Text` を二重に重ねる場合、JSX の空白問題を避けるために **サブコンポーネント化**して `Group` の子を詰める（`BubbleHorizontalTextLayers` のように分離する）。
+
+## 吹き出し：Shift+ドラッグのモード切り替え（テキストオフセット）
+
+- 吹き出し選択中に `Shift` 押下でドラッグすると、**吹き出し自体は固定**し、`textOffsetX` / `textOffsetY` を更新するモードがある。
+- 実装は親 `Group` にフラグ（例: `isTextOffsetMode`）と開始時のポインタ座標を `setAttr` で保持し、`dragBoundFunc` で位置固定、`onDragMove` で offset 更新、`onDragEnd` で確定更新（undoable）に分ける。
+
 ## エクスポート時
 
 - `isExporting` が true のときは **インタラクション層（Transformer 含む）を描画しない**。エクスポート用の変更ではこの分岐を壊さない

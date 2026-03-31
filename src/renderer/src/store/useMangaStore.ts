@@ -79,6 +79,11 @@ export interface Bubble {
     fontSize: number
     fontFamily: string
     lineHeight: number
+    letterSpacing: number
+    textStrokeColor?: string
+    textStrokeWidth?: number
+    textWeightLevel?: 0 | 1 | 2
+    textRoughness?: number
     fontColor: string
     fontWeight: string
     isVertical: boolean
@@ -411,8 +416,13 @@ export const useMangaStore = create<MangaState>((set, get) => {
                     width: 150,
                     height: 100,
                     fontSize: 22,
-                    fontFamily: 'sans-serif',
+                    fontFamily: "'Hiragino Mincho ProN', 'MS PMincho', serif",
                     lineHeight: 1.0,
+                    letterSpacing: 0,
+                    textStrokeColor: '#ffffff',
+                    textStrokeWidth: 0,
+                    textWeightLevel: 1,
+                    textRoughness: 0,
                     fontColor: '#000000',
                     fontWeight: 'bold',
                     isVertical: true,

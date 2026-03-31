@@ -39,7 +39,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
     const bubbles = currentPage?.bubbles || []
     const [isShiftPressed, setIsShiftPressed] = useState(false)
     const selectedPanel = panels.find((p) => p.id === selectedPanelId)
-    const isBubbleInteractionLocked = !!(isShiftPressed && selectedPanel?.imagePath)
+    // Shift はパネル背景画像の編集にも使うが、吹き出し選択中の Shift 操作は許可したい
+    const isBubbleInteractionLocked = !!(isShiftPressed && selectedPanel?.imagePath && !selectedBubbleId)
 
     useEffect(() => {
         const onKeyDown = (evt: KeyboardEvent) => {
@@ -444,7 +445,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                                 }
                                             }
                                         }
-                                        return <BubbleItem key={`interaction-${b.id}`} id={`interaction-${b.id}`} bubble={b} isSelected={selectedBubbleId === b.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" clipPoints={clipPoints} panels={panels} interactionLocked={isBubbleInteractionLocked} />
+                                        return <BubbleItem key={`interaction-${b.id}`} id={`interaction-${b.id}`} bubble={b} isSelected={selectedBubbleId === b.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" clipPoints={clipPoints} panels={panels} interactionLocked={isBubbleInteractionLocked} isShiftPressed={isShiftPressed} />
                                     })}
                                 </Group>
                                 <Group>

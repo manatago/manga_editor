@@ -5,6 +5,14 @@ import { getPanelPoints, drawRectPath, drawJaggedPath, drawRoundedPath, drawFlas
 import { findTargetPanel } from './utils/geometry'
 import { getPRand, hexToRGBA } from './utils/bubbleUtils'
 import { VerticalText, MegaphoneText } from './SpeechText'
+import { BubbleHorizontalTextLayers } from './BubbleHorizontalTextLayers'
+import {
+    getBubbleInnerPaddingRatio,
+    getBubbleInnerSizeRatio,
+    resolveTextWeightLevel,
+    resolveBaseFontStyle,
+    clampRoughness
+} from './utils/bubbleTextLayout'
 
 export const BubbleItem: React.FC<{
     bubble: any;
@@ -18,7 +26,8 @@ export const BubbleItem: React.FC<{
     clipPoints?: number[];
     panels?: Panel[];
     interactionLocked?: boolean;
-}> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow, clipPoints, panels, interactionLocked = false }) => {
+    isShiftPressed?: boolean;
+}> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow, clipPoints, panels, interactionLocked = false, isShiftPressed }) => {
     const shapeRef = useRef<any>(null)
     const [, forceUpdate] = useState(0)
 
@@ -26,7 +35,7 @@ export const BubbleItem: React.FC<{
     const actualFontFamily = bubble._overrideFontFamily ?? bubble.fontFamily
     useEffect(() => {
         let cancelled = false
-        const weight = bubble.fontWeight || 'bold'
+        const weight = bubble.fontWeight || (bubble.textWeightLevel === 0 ? 'normal' : 'bold')
         const size = bubble._overrideFontSize ?? bubble.fontSize ?? 18
         document.fonts.load(`${weight} ${size}px ${actualFontFamily}`)
             .then(() => { if (!cancelled) forceUpdate((prev: number) => prev + 1) })
@@ -36,6 +45,24 @@ export const BubbleItem: React.FC<{
 
     const handleDragEnd = (e: any) => {
         if (e.target !== e.currentTarget) return
+        const target = e.currentTarget as any
+        if (target.getAttr('isTextOffsetMode')) {
+            const finalOffsetX = target.getAttr('startTextOffsetX') ?? (bubble.textOffsetX || 0)
+            const finalOffsetY = target.getAttr('startTextOffsetY') ?? (bubble.textOffsetY || 0)
+            const stage = target.getStage()
+            const pointerPos = stage?.getPointerPosition()
+            if (pointerPos && target.getAttr('startPointerX') !== undefined) {
+                const totalDx = pointerPos.x - target.getAttr('startPointerX')
+                const totalDy = pointerPos.y - target.getAttr('startPointerY')
+                onUpdate(
+                    bubble.id,
+                    { textOffsetX: finalOffsetX + totalDx, textOffsetY: finalOffsetY + totalDy },
+                    true
+                )
+            }
+            target.setAttr('isTextOffsetMode', false)
+            return
+        }
         const updates: any = {
             x: e.target.x(),
             y: e.target.y()
@@ -209,6 +236,48 @@ export const BubbleItem: React.FC<{
             rotation={bubble.rotation || 0}
             draggable={isSelected && renderPass === 'interaction' && !interactionLocked}
             listening={isInteractive && !interactionLocked}
+            dragBoundFunc={function (pos) {
+                if ((this as any).getAttr('isTextOffsetMode')) {
+                    return {
+                        x: (this as any).getAttr('dragStartX'),
+                        y: (this as any).getAttr('dragStartY')
+                    }
+                }
+                return pos
+            }}
+            onDragStart={(e) => {
+                const target = e.currentTarget as any
+                const isShift = !!e.evt?.shiftKey || !!isShiftPressed
+                const isTextOffsetMode = isSelected && isShift
+                target.setAttr('isTextOffsetMode', isTextOffsetMode)
+                if (isTextOffsetMode) {
+                    const stage = target.getStage()
+                    const pointerPos = stage?.getPointerPosition()
+                    target.setAttr('startPointerX', pointerPos?.x)
+                    target.setAttr('startPointerY', pointerPos?.y)
+                    target.setAttr('startTextOffsetX', bubble.textOffsetX || 0)
+                    target.setAttr('startTextOffsetY', bubble.textOffsetY || 0)
+                    target.setAttr('dragStartX', target.x())
+                    target.setAttr('dragStartY', target.y())
+                }
+            }}
+            onDragMove={(e) => {
+                const target = e.currentTarget as any
+                if (!target.getAttr('isTextOffsetMode')) return
+                const stage = target.getStage()
+                const pointerPos = stage?.getPointerPosition()
+                if (!pointerPos || target.getAttr('startPointerX') === undefined) return
+                const totalDx = pointerPos.x - target.getAttr('startPointerX')
+                const totalDy = pointerPos.y - target.getAttr('startPointerY')
+                onUpdate(
+                    bubble.id,
+                    {
+                        textOffsetX: (target.getAttr('startTextOffsetX') ?? 0) + totalDx,
+                        textOffsetY: (target.getAttr('startTextOffsetY') ?? 0) + totalDy
+                    },
+                    false
+                )
+            }}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
             onClick={(e) => isInteractive && !interactionLocked && onSelect(bubble.id)}
@@ -259,20 +328,24 @@ export const BubbleItem: React.FC<{
             {renderShape()}
 
             {shouldRenderText && (() => {
-                const isRectType = bubble.type === 'rect' || bubble.type === 'rect-double' || bubble.type === 'megaphone';
-                const paddingRatio = isRectType ? 0.05 : 0.10;
-                const innerSizeRatio = 1 - (paddingRatio * 2);
+                const paddingRatio = getBubbleInnerPaddingRatio(bubble.type)
+                const innerSizeRatio = getBubbleInnerSizeRatio(bubble.type)
+                const tw = bubble.width * innerSizeRatio
+                const th = bubble.height * innerSizeRatio
+                const weightLevel = resolveTextWeightLevel(bubble)
+                const roughness = clampRoughness(bubble)
+                const baseFontStyle = resolveBaseFontStyle(weightLevel)
 
                 return (
                     <Group
                         x={bubble.width * paddingRatio + (bubble.textOffsetX || 0)}
                         y={bubble.height * paddingRatio + (bubble.textOffsetY || 0)}
-                        width={bubble.width * innerSizeRatio}
-                        height={bubble.height * innerSizeRatio}
+                        width={tw}
+                        height={th}
                         clipX={0}
                         clipY={0}
-                        clipWidth={bubble.width * innerSizeRatio}
-                        clipHeight={bubble.height * innerSizeRatio}
+                        clipWidth={tw}
+                        clipHeight={th}
                         listening={false}
                     >
                         {bubble.type !== 'megaphone' && (bubble.isVertical ? (
@@ -280,23 +353,24 @@ export const BubbleItem: React.FC<{
                                 text={bubble.text}
                                 fontSize={bubble._overrideFontSize ?? bubble.fontSize}
                                 fontColor={bubble.fontColor}
+                                strokeColor={bubble.textStrokeColor}
+                                strokeWidth={bubble.textStrokeWidth}
+                                weightLevel={weightLevel}
+                                roughness={roughness}
                                 fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
-                                fontWeight={bubble.fontWeight || 'bold'}
-                                width={bubble.width * innerSizeRatio}
-                                height={bubble.height * innerSizeRatio}
+                                fontWeight={baseFontStyle}
+                                width={tw}
+                                height={th}
                                 lineHeight={bubble._overrideLineHeight ?? bubble.lineHeight ?? 1.0}
+                                letterSpacing={bubble.letterSpacing ?? 0}
                             />
                         ) : (
-                            <Text
-                                text={bubble.text}
-                                fontSize={bubble._overrideFontSize ?? bubble.fontSize}
-                                fill={bubble.fontColor}
-                                fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
-                                width={bubble.width * innerSizeRatio}
-                                height={bubble.height * innerSizeRatio}
-                                verticalAlign="middle"
-                                fontStyle={bubble.fontWeight || 'bold'}
-                                lineHeight={bubble._overrideLineHeight ?? bubble.lineHeight ?? 1.0}
+                            <BubbleHorizontalTextLayers
+                                bubble={bubble}
+                                tw={tw}
+                                th={th}
+                                weightLevel={weightLevel}
+                                baseFontStyle={baseFontStyle}
                             />
                         ))}
                         {bubble.type === 'megaphone' && (
@@ -304,13 +378,18 @@ export const BubbleItem: React.FC<{
                                 text={bubble.text}
                                 fontSize={bubble._overrideFontSize ?? bubble.fontSize}
                                 fontColor={bubble.fontColor}
+                                strokeColor={bubble.textStrokeColor}
+                                strokeWidth={bubble.textStrokeWidth}
+                                weightLevel={weightLevel}
+                                roughness={roughness}
                                 fontFamily={bubble._overrideFontFamily ?? bubble.fontFamily}
-                                fontWeight={bubble.fontWeight || 'bold'}
-                                width={bubble.width * innerSizeRatio}
-                                height={bubble.height * innerSizeRatio}
+                                fontWeight={baseFontStyle}
+                                width={tw}
+                                height={th}
                                 narrowRatio={bubble.narrowRatio ?? 0.3}
                                 isVertical={!!bubble.isVertical}
                                 lineHeight={bubble._overrideLineHeight ?? bubble.lineHeight ?? 1.0}
+                                letterSpacing={bubble.letterSpacing ?? 0}
                             />
                         )}
                     </Group>
