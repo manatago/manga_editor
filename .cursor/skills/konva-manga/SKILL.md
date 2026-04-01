@@ -47,6 +47,10 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 - 吹き出し選択中に `Shift` 押下でドラッグすると、**吹き出し自体は固定**し、`textOffsetX` / `textOffsetY` を更新するモードがある。
 - 実装は親 `Group` にフラグ（例: `isTextOffsetMode`）と開始時のポインタ座標を `setAttr` で保持し、`dragBoundFunc` で位置固定、`onDragMove` で offset 更新、`onDragEnd` で確定更新（undoable）に分ける。
 
+## コマのインタラクション描画順（オーバーレイ UI）
+
+- パネル同士は **配列順＝描画順＝ヒットテスト順**（後勝ち）。コマの上に出す小さな UI（例: Shift 時の画像編集タブ）は、**選択中パネルだけ最後に描画**するなどして、下に重なるコマにイベントを奪われないようにする。
+
 ## エクスポート時
 
 - `isExporting` が true のときは **インタラクション層（Transformer 含む）を描画しない**。エクスポート用の変更ではこの分岐を壊さない

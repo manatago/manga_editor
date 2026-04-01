@@ -268,6 +268,14 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
     const underFrameClusters = useMemo(() => getVisualClusters(bubbles.filter(b => b.isClipped)), [bubbles, panels])
     const overFrameClusters = useMemo(() => getVisualClusters(bubbles.filter(b => !b.isClipped)), [bubbles, panels])
 
+    /** 選択中パネルを最後に描画し、Shift 画像編集タブが他コマより手前に来るようにする */
+    const interactionPanelsOrdered = useMemo(() => {
+        if (!selectedPanelId) return panels
+        const rest = panels.filter((p) => p.id !== selectedPanelId)
+        const sel = panels.find((p) => p.id === selectedPanelId)
+        return sel ? [...rest, sel] : panels
+    }, [panels, selectedPanelId])
+
     return (
         <div
             className="flex flex-col items-center justify-center min-h-full py-12"
@@ -429,7 +437,18 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                             <Group>
                                 {/* 8.1 Base Interaction Nodes */ }
                                 <Group>
-                                    {panels.map((p) => <PanelItem key={`interaction-${p.id}`} id={`interaction-${p.id}`} panel={p} page={currentPage} isSelected={selectedPanelId === p.id} onSelect={setSelectedPanel} onUpdate={updatePanel} renderPass="interaction" />)}
+                                    {interactionPanelsOrdered.map((p) => (
+                                        <PanelItem
+                                            key={`interaction-${p.id}`}
+                                            id={`interaction-${p.id}`}
+                                            panel={p}
+                                            page={currentPage}
+                                            isSelected={selectedPanelId === p.id}
+                                            onSelect={setSelectedPanel}
+                                            onUpdate={updatePanel}
+                                            renderPass="interaction"
+                                        />
+                                    ))}
                                 </Group>
                                 <Group>
                                     {bubbles.map((b) => {
