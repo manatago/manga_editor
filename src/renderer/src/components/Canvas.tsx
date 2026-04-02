@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { Stage, Layer, Line, Transformer, Circle, Group, Rect, Shape, Text } from 'react-konva'
 import useImage from 'use-image'
-import { useMangaStore, Panel } from '../store/useMangaStore'
+import Konva from 'konva'
+import { useMangaStore, Panel, Bubble } from '../store/useMangaStore'
 import { PanelItem } from './PanelItem'
 import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
 import { MaterialItem } from './MaterialItem'
@@ -13,7 +14,7 @@ const PANEL_MIN_SIZE = 10
 
 // --- Main Canvas Component ---
 
-const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
+const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef }) => {
     const {
         pages,
         currentPageId,
@@ -32,8 +33,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
         isExporting
     } = useMangaStore()
     const materialTransformerRef = useRef<any>(null)
-    const transformerRef = useRef<any>(null)
-    const bubbleTransformerRef = useRef<any>(null)
+    const transformerRef = useRef<Konva.Transformer>(null)
+    const bubbleTransformerRef = useRef<Konva.Transformer>(null)
 
     const currentPage = pages.find((p) => p.id === currentPageId)
     const canvasWidth = currentPage?.pageWidth ?? 840
@@ -63,7 +64,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
         }
     }, [])
 
-    const handleStageClick = (e: any) => {
+    const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
         if (e.target === e.target.getStage()) {
             setSelectedPanel(null)
             setSelectedBubble(null)
@@ -78,6 +79,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
         if (!stage) return
 
         const pointerPos = stage.getPointerPosition()
+        if (!pointerPos) return
         const files = Array.from(e.dataTransfer.files)
         const imageFile = files.find(f => f.type.startsWith('image/'))
         
@@ -222,13 +224,13 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
 
     const materials = currentPage?.materials || []
 
-    const getVisualClusters = (bubblesToCluster: any[]) => {
-        const checkOverlap = (b1: any, b2: any) => {
+    const getVisualClusters = (bubblesToCluster: Bubble[]) => {
+        const checkOverlap = (b1: Bubble, b2: Bubble) => {
             const r1 = { x: b1.x, y: b1.y, w: b1.width, h: b1.height }
             const r2 = { x: b2.x, y: b2.y, w: b2.width, h: b2.height }
             return !(r2.x >= r1.x + r1.w || r2.x + r2.w <= r1.x || r2.y >= r1.y + r1.h || r2.y + r2.h <= r1.y)
         }
-        const clusters: { master: any; members: any[] }[] = []
+        const clusters: { master: Bubble; members: Bubble[] }[] = []
         bubblesToCluster.forEach((b) => {
             let foundCluster = false
             for (const cluster of clusters) {
@@ -360,7 +362,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                 const endColor = currentPage?.bgGradientEndColor || '#ffffff';
                                 const rotation = (currentPage?.bgGradientRotation || 0) * Math.PI / 180;
 
-                                const bgProps: any = { opacity: bgOpacity };
+                                const bgProps: Partial<Konva.LineConfig> = { opacity: bgOpacity };
                                 if (bgType === 'none') {
                                     bgProps.fill = bgColor;
                                 } else if (bgType === 'linear') {
@@ -410,7 +412,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                     {/* Content layer for this panel */}
                                     <PanelItem 
                                         panel={panel} 
-                                        page={currentPage} 
+                                        page={currentPage!}
                                         isSelected={false} 
                                         onSelect={() => { }} 
                                         onUpdate={() => { }} 
@@ -419,7 +421,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                     {/* Effects layer for this panel */}
                                     <PanelItem 
                                         panel={panel} 
-                                        page={currentPage} 
+                                        page={currentPage!}
                                         isSelected={false} 
                                         onSelect={() => { }} 
                                         onUpdate={() => { }} 
@@ -444,7 +446,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                     {/* Stroke layer for this panel */}
                                     <PanelItem 
                                         panel={panel} 
-                                        page={currentPage} 
+                                        page={currentPage!}
                                         isSelected={false} 
                                         onSelect={() => { }} 
                                         onUpdate={() => { }} 
@@ -506,7 +508,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                             key={`interaction-${p.id}`}
                                             id={`interaction-${p.id}`}
                                             panel={p}
-                                            page={currentPage}
+                                            page={currentPage!}
                                             isSelected={selectedPanelId === p.id}
                                             onSelect={setSelectedPanel}
                                             onUpdate={updatePanel}

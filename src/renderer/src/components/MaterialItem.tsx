@@ -10,7 +10,7 @@ interface MaterialItemProps {
     material: Material;
     isSelected: boolean;
     onSelect: (id: string | null) => void;
-    onUpdate: (id: string, updates: any, undoable?: boolean) => void;
+    onUpdate: (id: string, updates: Partial<Material>, undoable?: boolean) => void;
     id?: string;
     renderPass?: 'content' | 'interaction';
     clipPoints?: number[];
@@ -52,16 +52,15 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
         }
     }, [material.isGrayscale, image])
 
-    const handleDragEnd = (e: any) => {
+    const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         if (e.target !== e.currentTarget) return
-        const updates: any = {
-            x: snap(e.target.x()),
-            y: snap(e.target.y())
-        }
+        const x = snap(e.target.x())
+        const y = snap(e.target.y())
+        const updates: Partial<Material> = { x, y }
 
         if (material.isClipped && panels) {
-            const centerX = updates.x + (material.width || 200) / 2
-            const centerY = updates.y + (material.height || 200) / 2
+            const centerX = x + (material.width || 200) / 2
+            const centerY = y + (material.height || 200) / 2
             const targetPanel = findTargetPanel(centerX, centerY, panels)
             if (targetPanel) {
                 updates.panelId = targetPanel.id
@@ -81,17 +80,15 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
         node.scaleX(1)
         node.scaleY(1)
 
-        const updates: any = {
-            x: snap(node.x()),
-            y: snap(node.y()),
-            width: Math.max(5, snap(node.width() * scaleX)),
-            height: Math.max(5, snap(node.height() * scaleY)),
-            rotation: rotation
-        }
+        const x = snap(node.x())
+        const y = snap(node.y())
+        const width = Math.max(5, snap(node.width() * scaleX))
+        const height = Math.max(5, snap(node.height() * scaleY))
+        const updates: Partial<Material> = { x, y, width, height, rotation }
 
         if (material.isClipped && panels) {
-            const centerX = updates.x + updates.width / 2
-            const centerY = updates.y + updates.height / 2
+            const centerX = x + width / 2
+            const centerY = y + height / 2
             const targetPanel = findTargetPanel(centerX, centerY, panels)
             if (targetPanel) {
                 updates.panelId = targetPanel.id

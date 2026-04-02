@@ -1,3 +1,4 @@
+import Konva from 'konva'
 import { Panel, Bubble } from '../../store/useMangaStore'
 import { getPRand, getRectPosByD, getRectDByAngle } from './bubbleUtils'
 
@@ -36,7 +37,7 @@ export const getPanelPoints = (panel: Panel) => {
     }
 }
 
-export const drawRectPath = (context: any, bubble: Bubble, w: number, h: number) => {
+export const drawRectPath = (context: Konva.Context, bubble: Bubble, w: number, h: number) => {
     const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
     const tcx = bubble.tailControlX || (tx / 2); const tcy = bubble.tailControlY || (ty / 2)
     const tw = bubble.tailWidth || 20
@@ -78,7 +79,7 @@ export const drawRectPath = (context: any, bubble: Bubble, w: number, h: number)
     context.closePath()
 }
 
-export const drawJaggedPath = (context: any, bubble: Bubble, w: number, h: number) => {
+export const drawJaggedPath = (context: Konva.Context, bubble: Bubble, w: number, h: number) => {
     const spikeCount = bubble.spikeCount || 36
     const def = bubble.deformation ?? 1
     const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
@@ -147,7 +148,7 @@ export const drawJaggedPath = (context: any, bubble: Bubble, w: number, h: numbe
     context.closePath()
 }
 
-export const drawShoutPath = (context: any, bubble: Bubble, w: number, h: number) => {
+export const drawShoutPath = (context: Konva.Context, bubble: Bubble, w: number, h: number) => {
     const def = bubble.deformation ?? 1
     const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
     const tcx = bubble.tailControlX || (tx / 2); const tcy = bubble.tailControlY || (ty / 2)
@@ -241,7 +242,7 @@ export const drawShoutPath = (context: any, bubble: Bubble, w: number, h: number
     context.closePath()
 }
 
-export const drawSquareJaggedPath = (context: any, bubble: Bubble, w: number, h: number) => {
+export const drawSquareJaggedPath = (context: Konva.Context, bubble: Bubble, w: number, h: number) => {
     const spikeCount = bubble.spikeCount || 36
     const def = bubble.deformation ?? 1
     const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
@@ -313,7 +314,7 @@ export const drawSquareJaggedPath = (context: any, bubble: Bubble, w: number, h:
     context.closePath()
 }
 
-export const drawRoundedPath = (context: any, bubble: Bubble, w: number, h: number) => {
+export const drawRoundedPath = (context: Konva.Context, bubble: Bubble, w: number, h: number) => {
     const points = 72
     const def = bubble.deformation ?? 1
     const tx = bubble.tailX || 0; const ty = bubble.tailY || 0
@@ -364,7 +365,7 @@ export const drawRoundedPath = (context: any, bubble: Bubble, w: number, h: numb
     context.closePath()
 }
 
-export const drawFlashPath = (context: any, bubble: Bubble, w: number, h: number) => {
+export const drawFlashPath = (context: Konva.Context, bubble: Bubble, w: number, h: number) => {
     const lineCount = Math.max(100, (bubble.spikeCount || 36) * 10)
     const def = bubble.deformation ?? 1
     context.beginPath()
@@ -380,7 +381,7 @@ export const drawFlashPath = (context: any, bubble: Bubble, w: number, h: number
     }
 }
 
-export const drawJitteryCircle = (context: any, x: number, y: number, radius: number, def: number) => {
+export const drawJitteryCircle = (context: Konva.Context, x: number, y: number, radius: number, def: number) => {
     const points = 36
     const jitterDef = Math.max(0.5, def)
     context.beginPath()
@@ -395,7 +396,7 @@ export const drawJitteryCircle = (context: any, x: number, y: number, radius: nu
     context.closePath()
 }
 
-export const drawMegaphonePath = (context: any, bubble: Bubble, w: number, h: number, shape?: any) => {
+export const drawMegaphonePath = (context: Konva.Context, bubble: Bubble, w: number, h: number, shape?: Konva.Shape) => {
     const ratio = bubble.narrowRatio ?? 0.3
     const topHalfW = w / 2, bottomHalfW = w * ratio / 2, cx = w / 2
     context.beginPath()
@@ -419,13 +420,13 @@ export const drawMegaphonePath = (context: any, bubble: Bubble, w: number, h: nu
     context.closePath()
 }
 
-export const drawDoubleRectPath = (context: any, bubble: Bubble, w: number, h: number, shape?: any) => {
+export const drawDoubleRectPath = (context: Konva.Context, bubble: Bubble, w: number, h: number, shape?: Konva.Shape) => {
     const cornerRadius = 8
     const baseBorderWidth = bubble.borderWidth ?? 2
     // Use base border width for gap calculation so it stays consistent across passes
     const gap = Math.max(6, baseBorderWidth * 3)
 
-    const drawRect = (ctx: any, width: number, height: number, offset: number) => {
+    const drawRect = (ctx: Konva.Context, width: number, height: number, offset: number) => {
         const r = Math.max(0, cornerRadius - offset)
         ctx.beginPath()
         ctx.moveTo(r + offset, offset)

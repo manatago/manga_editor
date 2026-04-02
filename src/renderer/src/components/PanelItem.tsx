@@ -3,6 +3,7 @@ import Konva from 'konva'
 import { Group, Line, Circle, Rect, Text } from 'react-konva'
 import useImage from 'use-image'
 import { Panel, useMangaStore } from '../store/useMangaStore'
+import type { Page } from '../store/types'
 import { getPanelPoints } from './utils/drawPaths'
 import { snapToGrid } from '../utils/gridUtils'
 
@@ -187,7 +188,7 @@ const RainEffect: React.FC<{ panel: Panel; points: number[] }> = ({ panel, point
     )
 }
 
-const PanelStrokes: React.FC<{ panel: Panel; points: number[]; page: any }> = ({ panel, points, page }) => {
+const PanelStrokes: React.FC<{ panel: Panel; points: number[]; page: Page }> = ({ panel, points, page }) => {
     const strokeColor = panel.strokeColor ?? 'black'
     if (!points || points.length !== 8) {
         return <Line points={points} closed={true} stroke={strokeColor} strokeWidth={panel.strokeWidth} />
@@ -481,7 +482,7 @@ const ImageEditModeTabs: React.FC<{
 
 export const PanelItem: React.FC<{
     panel: Panel;
-    page: any;
+    page: Page;
     isSelected: boolean;
     onSelect: (id: string | null) => void;
     onUpdate: (id: string, updates: Partial<Panel>, undoable?: boolean) => void;
@@ -782,7 +783,7 @@ export const PanelItem: React.FC<{
                 const endColor = panel.bgGradientEndColor || '#ffffff';
                 const rotation = (panel.bgGradientRotation || 0) * Math.PI / 180;
 
-                const bgProps: any = { opacity: bgOpacity };
+                const bgProps: Partial<Konva.LineConfig> = { opacity: bgOpacity };
                 if (bgType === 'none') {
                     bgProps.fill = bgColor;
                 } else if (bgType === 'linear') {

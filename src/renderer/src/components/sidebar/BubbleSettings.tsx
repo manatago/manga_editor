@@ -2,15 +2,15 @@ import React from 'react'
 import { Trash2, Type, Palette, Move, Scissors } from 'lucide-react'
 import { BubbleTypeIcon } from '../icons/BubbleTypeIcon'
 import { BUBBLE_TYPE_LABELS, BUBBLE_TYPE_ORDER } from '../icons/bubbleTypeMeta'
-import { useMangaStore } from '../../store/useMangaStore'
+import { useMangaStore, Bubble } from '../../store/useMangaStore'
 import { findTargetPanel } from '../utils/geometry'
 
 const SECTION_TITLE_CLASS =
     'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
 
 interface BubbleSettingsProps {
-    bubble: any
-    updateBubble: (id: string, updates: any) => void
+    bubble: Bubble
+    updateBubble: (id: string, updates: Partial<Bubble>) => void
     removeBubble: (id: string) => void
     currentPageId: string
 }
@@ -25,7 +25,7 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                 <button
                     onClick={() => {
                         const nextClipped = !bubble.isClipped
-                        let updates: any = { isClipped: nextClipped }
+                        let updates: Partial<Bubble> = { isClipped: nextClipped }
 
                         if (nextClipped && !bubble.panelId && pages.find((p) => p.id === currentPageId)?.panels) {
                             const panels = pages.find((p) => p.id === currentPageId)!.panels

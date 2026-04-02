@@ -77,7 +77,7 @@ const SidebarRight: React.FC = () => {
                 />
             ) : (
                 <PageSettings
-                    currentPage={currentPage}
+                    currentPage={currentPage!}
                     currentPageId={currentPageId}
                     updatePage={updatePage}
                     addBubble={addBubble}

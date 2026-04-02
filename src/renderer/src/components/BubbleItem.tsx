@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react'
+import Konva from 'konva'
 import { Group, Shape, Text, Circle } from 'react-konva'
 import { Bubble, Panel, useMangaStore } from '../store/useMangaStore'
 import { getPanelPoints, drawRectPath, drawJaggedPath, drawRoundedPath, drawFlashPath, drawShoutPath, drawSquareJaggedPath, drawJitteryCircle, drawMegaphonePath, drawDoubleRectPath } from './utils/drawPaths'
@@ -15,11 +16,22 @@ import {
     clampRoughness
 } from './utils/bubbleTextLayout'
 
+// BubbleClusterGroup がクラスタ描画時に注入する内部オーバーライドフィールド（永続化されない）
+interface BubbleRenderProps extends Bubble {
+    _overrideFontFamily?: string
+    _overrideFontSize?: number
+    _overrideLineHeight?: number
+    _overrideBorderWidth?: number
+    _overrideBackgroundColor?: string
+    _overrideBorderColor?: string
+    _overrideBackgroundOpacity?: number
+}
+
 export const BubbleItem: React.FC<{
-    bubble: any;
+    bubble: BubbleRenderProps;
     isSelected: boolean;
     onSelect: (id: string | null) => void;
-    onUpdate: (id: string, updates: any, undoable?: boolean) => void;
+    onUpdate: (id: string, updates: Partial<BubbleRenderProps>, undoable?: boolean) => void;
     id?: string;
     renderPass?: 'strokes' | 'fills' | 'text' | 'interaction' | 'mask';
     overrideOpacity?: number;
@@ -29,7 +41,7 @@ export const BubbleItem: React.FC<{
     interactionLocked?: boolean;
     isShiftPressed?: boolean;
 }> = ({ bubble, isSelected, onSelect, onUpdate, id, renderPass, overrideOpacity, overrideShadow, clipPoints, panels, interactionLocked = false, isShiftPressed }) => {
-    const shapeRef = useRef<any>(null)
+    const shapeRef = useRef<Konva.Group>(null)
     const [, forceUpdate] = useState(0)
     const currentPage = useMangaStore((s) => s.pages.find((p) => p.id === s.currentPageId))
     const snap = (value: number) => snapToGrid(value, currentPage)
@@ -46,9 +58,9 @@ export const BubbleItem: React.FC<{
         return () => { cancelled = true }
     }, [actualFontFamily])
 
-    const handleDragEnd = (e: any) => {
+    const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         if (e.target !== e.currentTarget) return
-        const target = e.currentTarget as any
+        const target = e.currentTarget as Konva.Node
         if (target.getAttr('isTextOffsetMode')) {
             const finalOffsetX = target.getAttr('startTextOffsetX') ?? (bubble.textOffsetX || 0)
             const finalOffsetY = target.getAttr('startTextOffsetY') ?? (bubble.textOffsetY || 0)
@@ -66,15 +78,14 @@ export const BubbleItem: React.FC<{
             target.setAttr('isTextOffsetMode', false)
             return
         }
-        const updates: any = {
-            x: snap(e.target.x()),
-            y: snap(e.target.y())
-        }
+        const x = snap(e.target.x())
+        const y = snap(e.target.y())
+        const updates: Partial<Bubble> = { x, y }
 
         // If clipped, automatically find and update the target panelId
         if (bubble.isClipped && panels) {
-            const centerX = updates.x + (bubble.width || 100) / 2
-            const centerY = updates.y + (bubble.height || 100) / 2
+            const centerX = x + (bubble.width || 100) / 2
+            const centerY = y + (bubble.height || 100) / 2
             const targetPanel = findTargetPanel(centerX, centerY, panels)
             if (targetPanel) {
                 updates.panelId = targetPanel.id
@@ -93,12 +104,13 @@ export const BubbleItem: React.FC<{
         node.scaleX(1)
         node.scaleY(1)
 
-        const updates: any = {
-            x: snap(node.x()),
-            y: snap(node.y()),
-            rotation: rotation,
-            width: Math.max(20, snap((bubble.width || 100) * scaleX)),
-            height: Math.max(20, snap((bubble.height || 100) * scaleY)),
+        const x = snap(node.x())
+        const y = snap(node.y())
+        const width = Math.max(20, snap((bubble.width || 100) * scaleX))
+        const height = Math.max(20, snap((bubble.height || 100) * scaleY))
+        const updates: Partial<Bubble> = {
+            x, y, rotation,
+            width, height,
             // Scale tail offsets to maintain relative position after scale reset
             tailX: (bubble.tailX || 0) * scaleX,
             tailY: (bubble.tailY || 0) * scaleY,
@@ -107,8 +119,8 @@ export const BubbleItem: React.FC<{
         }
 
         if (bubble.isClipped && panels) {
-            const centerX = updates.x + updates.width / 2
-            const centerY = updates.y + updates.height / 2
+            const centerX = x + width / 2
+            const centerY = y + height / 2
             const targetPanel = findTargetPanel(centerX, centerY, panels)
             if (targetPanel) {
                 updates.panelId = targetPanel.id
@@ -175,7 +187,7 @@ export const BubbleItem: React.FC<{
 
         const { type, width, height } = bubble
 
-        const runDrawConfig = (context: any, shape: any, drawFn: any) => {
+        const runDrawConfig = (context: Konva.Context, shape: Konva.Shape, drawFn: (ctx: Konva.Context, b: Bubble, w: number, h: number) => void) => {
             drawFn(context, bubble, shape.width(), shape.height())
             if (shouldRenderFills && shouldRenderStrokes) context.fillStrokeShape(shape)
             else if (shouldRenderFills) context.fillShape(shape)
@@ -307,7 +319,7 @@ export const BubbleItem: React.FC<{
                 const dist = Math.sqrt(tx * tx + ty * ty);
                 if (dist < 20) return null;
                 const numCircles = Math.max(3, Math.min(4, Math.floor(dist / 60)));
-                const circles: any[] = [];
+                const circles: React.ReactElement[] = [];
                 const maxRadius = (bubble.tailWidth || 20) / 2;
                 for (let i = 0; i < numCircles; i++) {
                     const t = 0.4 + (0.55 * (i / (numCircles - 1)));
@@ -456,8 +468,8 @@ export const BubbleItem: React.FC<{
     )
 }
 
-export const BubbleClusterGroup: React.FC<{ members: any[] }> = ({ members }) => {
-    const bgRef = useRef<any>(null)
+export const BubbleClusterGroup: React.FC<{ members: BubbleRenderProps[] }> = ({ members }) => {
+    const bgRef = useRef<Konva.Group>(null)
     const master = members[0]
 
     // Use stringified members to detect ANY change and trigger cache update

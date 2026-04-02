@@ -1,5 +1,6 @@
 import React from 'react'
 import { FolderOpen, MessageSquare } from 'lucide-react'
+import type { Page, Bubble, Material, GradientType } from '../../store/types'
 
 const PAGE_SIZE_PRESETS = [
     { id: 'manga-default', label: '漫画野郎標準 (840 x 1188)', w: 840, h: 1188 },
@@ -9,11 +10,11 @@ const PAGE_SIZE_PRESETS = [
 ] as const
 
 interface PageSettingsProps {
-    currentPage: any
+    currentPage: Page
     currentPageId: string
-    updatePage: (id: string, updates: any) => void
-    addBubble: (props: any) => void
-    addMaterial: (props: any) => void
+    updatePage: (id: string, updates: Partial<Page>) => void
+    addBubble: (props: Partial<Omit<Bubble, 'id'>>) => void
+    addMaterial: (props: Partial<Omit<Material, 'id'>>) => void
     currentProjectPath: string | null
 }
 
@@ -139,7 +140,7 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                 <label className="text-[10px] text-zinc-500 uppercase block mb-2">Gradient</label>
                                 <select
                                     value={currentPage?.bgGradientType || 'none'}
-                                    onChange={(e) => currentPageId && updatePage(currentPageId, { bgGradientType: e.target.value })}
+                                    onChange={(e) => currentPageId && updatePage(currentPageId, { bgGradientType: e.target.value as GradientType })}
                                     className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
                                 >
                                     <option value="none">None</option>

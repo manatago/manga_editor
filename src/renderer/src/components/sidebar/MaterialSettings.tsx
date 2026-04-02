@@ -1,11 +1,11 @@
 import React from 'react'
 import { Trash2, Scissors } from 'lucide-react'
-import { useMangaStore } from '../../store/useMangaStore'
+import { useMangaStore, Material } from '../../store/useMangaStore'
 import { findTargetPanel } from '../utils/geometry'
 
 interface MaterialSettingsProps {
-    material: any
-    updateMaterial: (id: string, updates: any) => void
+    material: Material
+    updateMaterial: (id: string, updates: Partial<Material>) => void
     removeMaterial: (id: string) => void
     currentPageId: string
     currentProjectPath: string | null
@@ -21,7 +21,7 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
                 <button
                     onClick={() => {
                         const nextClipped = !material.isClipped
-                        let updates: any = { isClipped: nextClipped }
+                        let updates: Partial<Material> = { isClipped: nextClipped }
                         if (nextClipped && !material.panelId && pages.find(p => p.id === currentPageId)?.panels) {
                             const panels = pages.find(p => p.id === currentPageId)!.panels
                             const centerX = material.x + (material.width || 200) / 2

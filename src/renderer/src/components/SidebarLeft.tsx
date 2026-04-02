@@ -1,6 +1,7 @@
 import React from 'react'
 import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
+import type { Page, Panel } from '../store/types'
 import { confirmMessage } from '../utils/dialogs'
 
 interface SidebarLeftProps {
@@ -11,11 +12,11 @@ interface SidebarLeftProps {
     handleOpenProject: () => void;
     currentProjectPath: string | null;
     currentPageId: string | null;
-    pages: any[];
+    pages: Page[];
     selectPage: (id: string) => void;
     movePage: (id: string, direction: 'up' | 'down') => void;
     removePage: (id: string) => void;
-    addPage: (panels?: any[]) => void;
+    addPage: (panels?: Omit<Panel, 'id'>[]) => void;
     onCollapse?: () => void;
 }
 

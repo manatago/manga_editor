@@ -110,6 +110,7 @@ export interface Material {
     isClipped: boolean
     panelId?: string
     isGrayscale?: boolean
+    whiteAlphaThreshold?: number
 }
 
 export interface Page {

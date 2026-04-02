@@ -1,6 +1,7 @@
 import React from 'react'
 import { Trash2, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, FolderOpen, ChevronsUp, ChevronsDown, CircleX } from 'lucide-react'
-import { FadeDirection } from '../../store/useMangaStore'
+import { FadeDirection, Panel } from '../../store/useMangaStore'
+import type { GradientType } from '../../store/types'
 import { PanelTypeIcon } from '../icons/PanelTypeIcon'
 
 const SECTION_TITLE_CLASS = 'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
@@ -43,8 +44,8 @@ const DirectionButton: React.FC<DirectionButtonProps> = ({ dir, icon, current, o
 )
 
 interface PanelSettingsProps {
-    panel: any
-    updatePanel: (id: string, updates: any) => void
+    panel: Panel
+    updatePanel: (id: string, updates: Partial<Panel>) => void
     removePanel: (id: string) => void
     reorderPanel: (id: string, action: 'front' | 'back' | 'up' | 'down') => void
     currentProjectPath: string | null
@@ -292,7 +293,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                         <label className="text-[10px] text-zinc-500 uppercase block mb-1">グラデーション</label>
                         <select
                             value={panel.bgGradientType || 'none'}
-                            onChange={(e) => updatePanel(panel.id, { bgGradientType: e.target.value })}
+                            onChange={(e) => updatePanel(panel.id, { bgGradientType: e.target.value as GradientType })}
                             className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
                         >
                             <option value="none">なし</option>

@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
 import { showError, showInfo } from '../utils/dialogs'
 
@@ -9,7 +10,7 @@ const waitFrames = async (count: number) => {
     }
 }
 
-const prepareStageForCapture = async (stage: any) => {
+const prepareStageForCapture = async (stage: Konva.Stage | null) => {
     stage?.batchDraw?.()
     // 1フレーム目: React/Konva の変更反映、2フレーム目: レイアウト確定後の描画安定化
     await waitFrames(2)
