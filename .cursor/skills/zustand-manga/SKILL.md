@@ -26,6 +26,7 @@ description: 漫画野郎の Zustand（useMangaStore）を変更するとき。�
 
 - `saveHistory` で `past` に積み、`future` は新規操作でクリアする既存パターンがある
 - `undo` / `redo` では選択 ID（`selectedPanelId` 等）をクリアする仕様に注意。UI 側が「選択が外れた」と解釈する
+- 長時間編集でメモリが膨らまないよう、履歴配列は **上限件数で丸める**（現行は 100 件）
 
 ## updatePanel / updateBubble の `undoable`
 
@@ -35,6 +36,11 @@ description: 漫画野郎の Zustand（useMangaStore）を変更するとき。�
 
 - `updateBubble` のような更新 API に、`textOffsetX` / `textOffsetY` / `textWeightLevel` / `textRoughness` などのフィールドが追加・拡張されることがある。
 - UI/ドラッグ操作で連続更新される値は、基本的に **ドラッグ中は `undoable: false`、確定時だけ `undoable: true`** にして履歴肥大化を防ぐ（既存の連続更新パターンと揃える）。
+
+## クリップボード拡張（吹き出し以外）
+
+- クリップボード機能を増やすときは、`copyX` / `pasteX` の単位で `id` を除いたスナップショットを持つ。
+- 貼り付け後は位置オフセットと選択状態の遷移（どの種別が選択されるか）を明示して、ショートカットの分岐と矛盾しないようにする。
 
 ## テンプレート・プロジェクト保存
 

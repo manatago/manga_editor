@@ -35,6 +35,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
     const bubbleTransformerRef = useRef<any>(null)
 
     const currentPage = pages.find((p) => p.id === currentPageId)
+    const canvasWidth = currentPage?.pageWidth ?? 840
+    const canvasHeight = currentPage?.pageHeight ?? 1188
     const panels = currentPage?.panels || []
     const bubbles = currentPage?.bubbles || []
     const [isShiftPressed, setIsShiftPressed] = useState(false)
@@ -267,6 +269,65 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
 
     const underFrameClusters = useMemo(() => getVisualClusters(bubbles.filter(b => b.isClipped)), [bubbles, panels])
     const overFrameClusters = useMemo(() => getVisualClusters(bubbles.filter(b => !b.isClipped)), [bubbles, panels])
+    const gridSize = Math.max(8, Number(currentPage?.gridSize ?? 24))
+    const showGrid = !!currentPage?.gridEnabled
+    const snapToGrid = (value: number) => {
+        if (!showGrid) return value
+        return Math.round(value / gridSize) * gridSize
+    }
+    const selectedBubble = bubbles.find((b) => b.id === selectedBubbleId)
+    const selectedMaterial = materials.find((m) => m.id === selectedMaterialId)
+    const snapGuides = useMemo(() => {
+        if (!showGrid) return []
+        const target =
+            (selectedPanel ? { x: selectedPanel.x, y: selectedPanel.y, width: selectedPanel.width, height: selectedPanel.height } : null) ||
+            (selectedBubble ? { x: selectedBubble.x, y: selectedBubble.y, width: selectedBubble.width, height: selectedBubble.height } : null) ||
+            (selectedMaterial ? { x: selectedMaterial.x, y: selectedMaterial.y, width: selectedMaterial.width, height: selectedMaterial.height } : null)
+        if (!target) return []
+
+        const x1 = snapToGrid(target.x)
+        const y1 = snapToGrid(target.y)
+        const x2 = snapToGrid(target.x + target.width)
+        const y2 = snapToGrid(target.y + target.height)
+        const cx = snapToGrid(target.x + target.width / 2)
+        const cy = snapToGrid(target.y + target.height / 2)
+
+        return [
+            <Line key="guide-v-left" points={[x1, 0, x1, canvasHeight]} stroke="rgba(59,130,246,0.8)" strokeWidth={1} dash={[6, 4]} listening={false} />,
+            <Line key="guide-v-right" points={[x2, 0, x2, canvasHeight]} stroke="rgba(59,130,246,0.8)" strokeWidth={1} dash={[6, 4]} listening={false} />,
+            <Line key="guide-h-top" points={[0, y1, canvasWidth, y1]} stroke="rgba(59,130,246,0.8)" strokeWidth={1} dash={[6, 4]} listening={false} />,
+            <Line key="guide-h-bottom" points={[0, y2, canvasWidth, y2]} stroke="rgba(59,130,246,0.8)" strokeWidth={1} dash={[6, 4]} listening={false} />,
+            <Line key="guide-v-center" points={[cx, 0, cx, canvasHeight]} stroke="rgba(34,197,94,0.85)" strokeWidth={1} dash={[3, 5]} listening={false} />,
+            <Line key="guide-h-center" points={[0, cy, canvasWidth, cy]} stroke="rgba(34,197,94,0.85)" strokeWidth={1} dash={[3, 5]} listening={false} />
+        ]
+    }, [showGrid, selectedPanel, selectedBubble, selectedMaterial, canvasWidth, canvasHeight, gridSize])
+    const gridLines = useMemo(() => {
+        if (!showGrid) return []
+        const lines: React.ReactNode[] = []
+        for (let x = gridSize; x < canvasWidth; x += gridSize) {
+            lines.push(
+                <Line
+                    key={`grid-v-${x}`}
+                    points={[x, 0, x, canvasHeight]}
+                    stroke="rgba(0,0,0,0.08)"
+                    strokeWidth={1}
+                    listening={false}
+                />
+            )
+        }
+        for (let y = gridSize; y < canvasHeight; y += gridSize) {
+            lines.push(
+                <Line
+                    key={`grid-h-${y}`}
+                    points={[0, y, canvasWidth, y]}
+                    stroke="rgba(0,0,0,0.08)"
+                    strokeWidth={1}
+                    listening={false}
+                />
+            )
+        }
+        return lines
+    }, [showGrid, gridSize, canvasWidth, canvasHeight])
 
     /** 選択中パネルを最後に描画し、Shift 画像編集タブが他コマより手前に来るようにする */
     const interactionPanelsOrdered = useMemo(() => {
@@ -282,11 +343,11 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
         >
-            <div className="bg-white shadow-2xl origin-top" style={{ width: 840, height: 1188 }}>
+            <div className="bg-white shadow-2xl origin-top" style={{ width: canvasWidth, height: canvasHeight }}>
                 <Stage
                     ref={stageRef}
-                    width={840}
-                    height={1188}
+                    width={canvasWidth}
+                    height={canvasHeight}
                     onClick={handleStageClick}
                     onTap={handleStageClick}
                 >
@@ -305,9 +366,9 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                 if (bgType === 'none') {
                                     bgProps.fill = bgColor;
                                 } else if (bgType === 'linear') {
-                                    const radius = Math.sqrt(840 ** 2 + 1188 ** 2) / 2;
-                                    const cx = 840 / 2;
-                                    const cy = 1188 / 2;
+                                    const radius = Math.sqrt(canvasWidth ** 2 + canvasHeight ** 2) / 2;
+                                    const cx = canvasWidth / 2;
+                                    const cy = canvasHeight / 2;
                                     bgProps.fillLinearGradientStartPoint = { 
                                         x: cx - Math.cos(rotation) * radius, 
                                         y: cy - Math.sin(rotation) * radius 
@@ -318,9 +379,9 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                     };
                                     bgProps.fillLinearGradientColorStops = [0, startColor, 1, endColor];
                                 } else if (bgType === 'radial') {
-                                    const cx = 840 / 2;
-                                    const cy = 1188 / 2;
-                                    const radius = Math.max(840, 1188) / 2;
+                                    const cx = canvasWidth / 2;
+                                    const cy = canvasHeight / 2;
+                                    const radius = Math.max(canvasWidth, canvasHeight) / 2;
                                     bgProps.fillRadialGradientStartPoint = { x: cx, y: cy };
                                     bgProps.fillRadialGradientEndPoint = { x: cx, y: cy };
                                     bgProps.fillRadialGradientStartRadius = 0;
@@ -330,13 +391,14 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
 
                                 return (
                                     <Line
-                                        points={[0, 0, 840, 0, 840, 1188, 0, 1188]}
+                                        points={[0, 0, canvasWidth, 0, canvasWidth, canvasHeight, 0, canvasHeight]}
                                         closed
                                         {...bgProps}
                                         listening={false}
                                     />
                                 );
                             })()}
+                            {showGrid && <Group>{gridLines}</Group>}
                         </Group>
  
                         {/* 2. Panels and their clipped contents */}
@@ -429,6 +491,10 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                 <MaterialItem key={`material-over-${m.id}`} material={m} isSelected={false} onSelect={() => { }} onUpdate={() => { }} renderPass="content" />
                             ))}
                         </Group>
+
+                        {showGrid && snapGuides.length > 0 && (
+                            <Group listening={false}>{snapGuides}</Group>
+                        )}
  
                         {/* 8. Interaction Layer (Hidden during export) */}
 
@@ -493,6 +559,17 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         if (newBox.width < PANEL_MIN_SIZE || newBox.height < PANEL_MIN_SIZE) {
                                             return oldBox
                                         }
+                                        if (showGrid) {
+                                            const width = Math.max(PANEL_MIN_SIZE, snapToGrid(newBox.width))
+                                            const height = Math.max(PANEL_MIN_SIZE, snapToGrid(newBox.height))
+                                            return {
+                                                ...newBox,
+                                                x: snapToGrid(newBox.x),
+                                                y: snapToGrid(newBox.y),
+                                                width,
+                                                height
+                                            }
+                                        }
                                         return newBox
                                     }}
                                 />
@@ -520,6 +597,15 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         if (newBox.width < 20 || newBox.height < 20) {
                                             return oldBox
                                         }
+                                        if (showGrid) {
+                                            return {
+                                                ...newBox,
+                                                x: snapToGrid(newBox.x),
+                                                y: snapToGrid(newBox.y),
+                                                width: Math.max(20, snapToGrid(newBox.width)),
+                                                height: Math.max(20, snapToGrid(newBox.height))
+                                            }
+                                        }
                                         return newBox
                                     }}
                                     visible={!!selectedBubbleId}
@@ -530,6 +616,21 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                     keepRatio={true}
                                     flipEnabled={false}
                                     enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                                    boundBoxFunc={(oldBox, newBox) => {
+                                        if (newBox.width < 5 || newBox.height < 5) {
+                                            return oldBox
+                                        }
+                                        if (showGrid) {
+                                            return {
+                                                ...newBox,
+                                                x: snapToGrid(newBox.x),
+                                                y: snapToGrid(newBox.y),
+                                                width: Math.max(5, snapToGrid(newBox.width)),
+                                                height: Math.max(5, snapToGrid(newBox.height))
+                                            }
+                                        }
+                                        return newBox
+                                    }}
                                     visible={!!selectedMaterialId}
                                 />
                             </Group>

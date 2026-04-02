@@ -16,7 +16,11 @@ export const useKeyboardShortcuts = () => {
         currentPageId,
         updatePanel,
         copyBubble,
-        pasteBubble
+        pasteBubble,
+        copyPanel,
+        pastePanel,
+        clipboardBubble,
+        clipboardPanel
     } = useMangaStore()
 
     useEffect(() => {
@@ -77,13 +81,20 @@ export const useKeyboardShortcuts = () => {
                 if (selectedBubbleId) {
                     e.preventDefault();
                     copyBubble(selectedBubbleId);
+                } else if (selectedPanelId) {
+                    e.preventDefault()
+                    copyPanel(selectedPanelId)
                 }
             }
 
             // Paste bubble
             if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
                 e.preventDefault();
-                pasteBubble();
+                if (selectedPanelId || (!selectedBubbleId && !selectedMaterialId && clipboardPanel)) {
+                    pastePanel()
+                } else if (selectedBubbleId || clipboardBubble) {
+                    pasteBubble()
+                }
             }
         };
 
@@ -103,6 +114,10 @@ export const useKeyboardShortcuts = () => {
         currentPageId, 
         updatePanel, 
         copyBubble, 
-        pasteBubble
+        pasteBubble,
+        copyPanel,
+        pastePanel,
+        clipboardBubble,
+        clipboardPanel
     ]);
 }

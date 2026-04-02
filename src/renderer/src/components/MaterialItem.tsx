@@ -27,6 +27,12 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
     panels
 }) => {
     const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
+    const currentPage = useMangaStore((s) => s.pages.find((p) => p.id === s.currentPageId))
+    const snapToGrid = (value: number) => {
+        if (!currentPage?.gridEnabled) return value
+        const g = Math.max(8, Number(currentPage.gridSize ?? 24))
+        return Math.round(value / g) * g
+    }
     const imageUrl = useMemo(() => {
         if (!material.imagePath) return ''
         if (window.electron?.resolveAssetPath && currentProjectPath) {
@@ -52,8 +58,8 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
     const handleDragEnd = (e: any) => {
         if (e.target !== e.currentTarget) return
         const updates: any = {
-            x: e.target.x(),
-            y: e.target.y()
+            x: snapToGrid(e.target.x()),
+            y: snapToGrid(e.target.y())
         }
 
         if (material.isClipped && panels) {
@@ -79,10 +85,10 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
         node.scaleY(1)
 
         const updates: any = {
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
+            x: snapToGrid(node.x()),
+            y: snapToGrid(node.y()),
+            width: Math.max(5, snapToGrid(node.width() * scaleX)),
+            height: Math.max(5, snapToGrid(node.height() * scaleY)),
             rotation: rotation
         }
 
@@ -109,6 +115,13 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
             height={material.height}
             rotation={material.rotation}
             draggable={renderPass === 'interaction'}
+            dragBoundFunc={(pos) => {
+                if (renderPass !== 'interaction') return pos
+                return {
+                    x: snapToGrid(pos.x),
+                    y: snapToGrid(pos.y)
+                }
+            }}
             onDragStart={() => renderPass === 'interaction' && onSelect(material.id)}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}

@@ -1,6 +1,13 @@
 import React from 'react'
 import { FolderOpen, MessageSquare } from 'lucide-react'
 
+const PAGE_SIZE_PRESETS = [
+    { id: 'manga-default', label: '漫画野郎標準 (840 x 1188)', w: 840, h: 1188 },
+    { id: 'a4-portrait', label: 'A4 縦 (794 x 1123)', w: 794, h: 1123 },
+    { id: 'b5-portrait', label: 'B5 縦 (728 x 1031)', w: 728, h: 1031 },
+    { id: 'webtoon', label: 'Webtoon 縦長 (1080 x 1920)', w: 1080, h: 1920 }
+] as const
+
 interface PageSettingsProps {
     currentPage: any
     currentPageId: string
@@ -11,11 +18,88 @@ interface PageSettingsProps {
 }
 
 const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId, updatePage, addBubble, addMaterial, currentProjectPath }) => {
+    const pageWidth = Math.max(400, Math.round(currentPage?.pageWidth ?? 840))
+    const pageHeight = Math.max(400, Math.round(currentPage?.pageHeight ?? 1188))
+
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
             <div>
                 <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Page Settings</h2>
                 <div className="space-y-6">
+                    <div>
+                        <label className="text-xs text-zinc-400 block mb-3">キャンバスサイズ</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {PAGE_SIZE_PRESETS.map((preset) => (
+                                <button
+                                    key={preset.id}
+                                    onClick={() => currentPageId && updatePage(currentPageId, { pageWidth: preset.w, pageHeight: preset.h })}
+                                    className={`text-left px-3 py-2 rounded-lg border text-[11px] transition-all ${
+                                        pageWidth === preset.w && pageHeight === preset.h
+                                            ? 'border-blue-500/60 bg-blue-500/10 text-blue-300'
+                                            : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700'
+                                    }`}
+                                >
+                                    {preset.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase block mb-1">幅 (px)</label>
+                                <input
+                                    type="number"
+                                    min={400}
+                                    max={4000}
+                                    value={pageWidth}
+                                    onChange={(e) => currentPageId && updatePage(currentPageId, { pageWidth: Math.max(400, Number(e.target.value) || 400) })}
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase block mb-1">高さ (px)</label>
+                                <input
+                                    type="number"
+                                    min={400}
+                                    max={8000}
+                                    value={pageHeight}
+                                    onChange={(e) => currentPageId && updatePage(currentPageId, { pageHeight: Math.max(400, Number(e.target.value) || 400) })}
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-zinc-800 space-y-3">
+                            <label className="flex items-center justify-between gap-3 text-xs text-zinc-300">
+                                <span>グリッド表示・スナップ</span>
+                                <button
+                                    type="button"
+                                    onClick={() => currentPageId && updatePage(currentPageId, { gridEnabled: !currentPage?.gridEnabled })}
+                                    className={`px-2 py-1 rounded border text-[10px] transition-all ${
+                                        currentPage?.gridEnabled
+                                            ? 'bg-blue-600/20 border-blue-500/60 text-blue-300'
+                                            : 'bg-zinc-900 border-zinc-700 text-zinc-400'
+                                    }`}
+                                >
+                                    {currentPage?.gridEnabled ? 'ON' : 'OFF'}
+                                </button>
+                            </label>
+                            <div>
+                                <div className="flex justify-between mb-1">
+                                    <label className="text-[10px] text-zinc-500 uppercase">グリッド間隔</label>
+                                    <span className="text-[10px] text-blue-500 font-mono">{Math.max(8, Math.round(currentPage?.gridSize ?? 24))}px</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="8"
+                                    max="200"
+                                    step="2"
+                                    value={Math.max(8, Math.round(currentPage?.gridSize ?? 24))}
+                                    onChange={(e) => currentPageId && updatePage(currentPageId, { gridSize: Math.max(8, Number(e.target.value) || 24) })}
+                                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     <div>
                         <label className="text-xs text-zinc-400 block mb-3">背景色</label>
                         <div className="grid grid-cols-7 gap-1.5">

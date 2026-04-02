@@ -57,6 +57,8 @@
 ### 4.2 ページ (`Page`)
 
 - `id`, `name`（001 形式の連番に正規化される）
+- `pageWidth`, `pageHeight`（ページごとのキャンバスサイズ）
+- `gridEnabled`, `gridSize`（グリッド表示・スナップ設定）
 - `panels`, `bubbles`, `materials`
 - ページ背景: `backgroundColor`, `backgroundOpacity`, `bgGradientType`（none | linear | radial）, グラデーション色・線形時の回転
 
@@ -96,13 +98,16 @@
 ### 4.7 履歴
 
 - `past` / `future` に `pages` と `currentPageId` のスナップショットを保持
+- 履歴は上限あり（`past` / `future` ともに 100 件まで）
 - **Undo**: `Cmd/Ctrl+Z`、**Redo**: `Cmd/Ctrl+Shift+Z` または `Cmd/Ctrl+Y`
 - Undo/Redo 時は選択 ID はクリアされる（パネル・吹き出しは null、Redo 時はマテリアルも null）
 
-### 4.8 クリップボード（吹き出しのみ）
+### 4.8 クリップボード（吹き出し・コマ）
 
 - `copyBubble` / `pasteBubble` は `id` を除いた `clipboardBubble` を保持
 - 貼り付け時は位置を少しオフセット
+- `copyPanel` / `pastePanel` は `id` を除いた `clipboardPanel` を保持
+- 貼り付け時は位置を少しオフセットし、選択対象を貼り付けたコマに移す
 
 ### 4.9 吹き出しタイプごとの「最後のスタイル」
 
@@ -124,7 +129,7 @@
 ### 5.1 レイアウト
 
 - **左サイドバー**: プロジェクト新規/開く、**現在ページの PNG 出力**、**全ページ一括 PNG**、ページ一覧（追加・並べ替え・削除）、Assets 整理
-- **中央**: 固定サイズ **840×1188** の Konva `Stage`（用紙風）
+- **中央**: ページ設定で変更可能な Konva `Stage`（初期値 840×1188）
 - **上部ツールバー**: コマ形状の追加（矩形・斜め・台形2種・正五角形・正六角形・円）、選択中コマ向け吹き出し種類の追加（コマ未選択時は無効）
 - **右サイドバー**: プロパティ（ページ / コマ / 吹き出し / 素材のいずれか）
 
@@ -173,6 +178,7 @@
   ※回転は右サイドバーの「コマ回転」スライダーで行う
 - **吹き出し**: リサイズ＋回転、カスタム回転ハンドル
 - **素材**: リサイズ（アスペクト比維持）＋回転
+- グリッド ON 時は、ドラッグ中・リサイズ中・確定時の座標/サイズがグリッド間隔に吸着する
 
 ---
 
@@ -197,11 +203,14 @@
 - 画像選択、プロジェクトへファイルコピー、PNG 書き出し（base64）
 - アセット一覧、ファイル削除
 - `getPathForFile`（Electron `webUtils`）
+- `showMessage` / `confirmMessage`（Electron ダイアログ）
+- `saveProjectSync`（終了直前の同期 flush 用）
 
 ### 6.3 自動保存
 
 - `pages` またはプロジェクトパス変更から **1 秒デバウンス**で `saveProject`
 - ページ切り替え時も `saveProject`（`lastPageId` 永続化）
+- 終了直前（`beforeunload`）は pending なデバウンス保存を同期 IPC で flush する
 
 ### 6.4 PNG エクスポート
 
@@ -209,6 +218,7 @@
 - 一時的に `isExporting` で Transformer を隠す
 - `exports/<ページ名>.png` に保存（ページの `name`、例 `001.png`）
 - **一括**: 全ページを順に `selectPage` してキャンバス更新後に同様に書き出し、完了後に元の `currentPageId` に戻す
+- 固定 `setTimeout` ではなく、描画フレーム待機（`requestAnimationFrame`）でキャプチャタイミングを安定化している
 
 ---
 

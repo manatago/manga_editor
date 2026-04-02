@@ -8,6 +8,7 @@ if (process.contextIsolated) {
             createProject: (path: string, name: string) => ipcRenderer.invoke('create-project', { path, name }),
             loadProject: (path: string) => ipcRenderer.invoke('load-project', path),
             saveProject: (path: string, data: any) => ipcRenderer.invoke('save-project', { path, data }),
+            saveProjectSync: (path: string, data: any) => ipcRenderer.sendSync('save-project-sync', { path, data }),
             getTemplates: () => ipcRenderer.invoke('get-templates'),
             saveTemplate: (template: any) => ipcRenderer.invoke('save-template', template),
             deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
@@ -31,7 +32,9 @@ if (process.contextIsolated) {
                 return path.join(projectRoot, stored.replace(/\//g, path.sep))
             },
             getPathForFile: (file: File) => webUtils.getPathForFile(file),
-            log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args)
+            log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args),
+            showMessage: (payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => ipcRenderer.invoke('show-message', payload),
+            confirmMessage: (payload: { title?: string; message: string }) => ipcRenderer.invoke('confirm-message', payload)
         })
     } catch (error) {
         console.error(error)
@@ -43,6 +46,7 @@ if (process.contextIsolated) {
         createProject: (path, name) => ipcRenderer.invoke('create-project', { path, name }),
         loadProject: (path) => ipcRenderer.invoke('load-project', path),
         saveProject: (path, data) => ipcRenderer.invoke('save-project', { path, data }),
+        saveProjectSync: (path, data) => ipcRenderer.sendSync('save-project-sync', { path, data }),
         getTemplates: () => ipcRenderer.invoke('get-templates'),
         saveTemplate: (template) => ipcRenderer.invoke('save-template', template),
         deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
@@ -65,6 +69,8 @@ if (process.contextIsolated) {
             return path.join(projectRoot, stored.replace(/\//g, path.sep))
         },
         getPathForFile: (file) => webUtils.getPathForFile(file),
-        log: (level, ...args) => ipcRenderer.send('renderer-log', level, ...args)
+        log: (level, ...args) => ipcRenderer.send('renderer-log', level, ...args),
+        showMessage: (payload) => ipcRenderer.invoke('show-message', payload),
+        confirmMessage: (payload) => ipcRenderer.invoke('confirm-message', payload)
     }
 }

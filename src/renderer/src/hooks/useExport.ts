@@ -1,8 +1,19 @@
 import { useRef } from 'react'
 import { useMangaStore } from '../store/useMangaStore'
+import { showError, showInfo } from '../utils/dialogs'
 
-const PAGE_SWITCH_MS = 150
-const EXPORT_HIDE_MS = 100
+const waitNextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+const waitFrames = async (count: number) => {
+    for (let i = 0; i < count; i += 1) {
+        await waitNextFrame()
+    }
+}
+
+const prepareStageForCapture = async (stage: any) => {
+    stage?.batchDraw?.()
+    // 1フレーム目: React/Konva の変更反映、2フレーム目: レイアウト確定後の描画安定化
+    await waitFrames(2)
+}
 
 export const useExport = () => {
     const stageRef = useRef<any>(null)
@@ -13,23 +24,22 @@ export const useExport = () => {
 
         setExporting(true)
 
-        setTimeout(async () => {
-            try {
-                const dataUrl = stageRef.current.toDataURL({
-                    pixelRatio: 2
-                })
-                const pageName = pages.find((p) => p.id === currentPageId)?.name || 'page'
-                if (window.electron) {
-                    await window.electron.exportPNG(currentProjectPath, pageName, dataUrl)
-                    console.log('useExport: PNG exported successfully')
-                }
-            } catch (error) {
-                console.error('useExport: export failed', error)
-                alert('エクスポートに失敗しました')
-            } finally {
-                setExporting(false)
+        try {
+            await prepareStageForCapture(stageRef.current)
+            const dataUrl = stageRef.current.toDataURL({
+                pixelRatio: 2
+            })
+            const pageName = pages.find((p) => p.id === currentPageId)?.name || 'page'
+            if (window.electron) {
+                await window.electron.exportPNG(currentProjectPath, pageName, dataUrl)
+                console.log('useExport: PNG exported successfully')
             }
-        }, EXPORT_HIDE_MS)
+        } catch (error) {
+            console.error('useExport: export failed', error)
+            await showError('エクスポートに失敗しました')
+        } finally {
+            setExporting(false)
+        }
     }
 
     const handleExportAllPagesPNG = async () => {
@@ -38,12 +48,12 @@ export const useExport = () => {
 
         const originalPageId = currentPageId
         setExporting(true)
-        await new Promise((r) => setTimeout(r, EXPORT_HIDE_MS))
+        await prepareStageForCapture(stageRef.current)
 
         try {
             for (const page of pages) {
                 selectPage(page.id)
-                await new Promise((r) => setTimeout(r, PAGE_SWITCH_MS))
+                await prepareStageForCapture(stageRef.current)
                 const dataUrl = stageRef.current.toDataURL({
                     pixelRatio: 2
                 })
@@ -52,10 +62,10 @@ export const useExport = () => {
                 }
             }
             console.log('useExport: all pages exported', pages.length)
-            alert(`全 ${pages.length} ページを PNG 出力しました（exports/）`)
+            await showInfo(`全 ${pages.length} ページを PNG 出力しました（exports/）`)
         } catch (error) {
             console.error('useExport: batch export failed', error)
-            alert('一括エクスポートに失敗しました')
+            await showError('一括エクスポートに失敗しました')
         } finally {
             if (originalPageId) {
                 selectPage(originalPageId)

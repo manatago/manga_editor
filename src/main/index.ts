@@ -185,6 +185,23 @@ app.whenReady().then(() => {
         }
     })
 
+    // Synchronous save path used only for app close/beforeunload flush.
+    ipcMain.on('save-project-sync', (event, { path, data }) => {
+        try {
+            const trimmedPath = String(path ?? '').trim()
+            if (!trimmedPath) {
+                event.returnValue = false
+                return
+            }
+            const configPath = pathModule.join(trimmedPath, 'manga.json')
+            fs.writeFileSync(configPath, JSON.stringify(data, null, 2))
+            event.returnValue = true
+        } catch (error) {
+            console.error('Main: failed to save project synchronously:', error)
+            event.returnValue = false
+        }
+    })
+
     ipcMain.handle('get-templates', async () => {
         const fs = await import('fs')
         const pathModule = await import('path')
@@ -288,6 +305,29 @@ app.whenReady().then(() => {
             console.error('Main: failed to delete file:', error)
             throw error
         }
+    })
+
+    ipcMain.handle('show-message', async (_, payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => {
+        const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+        await dialog.showMessageBox(win ?? undefined, {
+            type: payload?.type ?? 'info',
+            title: payload?.title ?? 'お知らせ',
+            message: payload?.message ?? ''
+        })
+        return true
+    })
+
+    ipcMain.handle('confirm-message', async (_, payload: { title?: string; message: string }) => {
+        const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+        const result = await dialog.showMessageBox(win ?? undefined, {
+            type: 'question',
+            title: payload?.title ?? '確認',
+            message: payload?.message ?? '',
+            buttons: ['キャンセル', 'OK'],
+            defaultId: 1,
+            cancelId: 0
+        })
+        return result.response === 1
     })
 
     app.on('activate', function () {

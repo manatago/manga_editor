@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Canvas from './components/Canvas'
 import SidebarLeft from './components/SidebarLeft'
 import SidebarRight from './components/SidebarRight'
@@ -30,6 +30,7 @@ function App(): React.JSX.Element {
         updateBubble,
         removeBubble,
         saveProject,
+        getProjectData,
         templates,
         addMaterial,
         updateMaterial,
@@ -41,7 +42,10 @@ function App(): React.JSX.Element {
         setSelectedBubble,
         setSelectedMaterial,
         loadTemplates,
-        isExporting
+        isExporting,
+        isSaving,
+        lastSavedAt,
+        saveError
     } = useMangaStore()
 
     // Custom Hooks
@@ -68,6 +72,15 @@ function App(): React.JSX.Element {
     }, [leftSidebarOpen])
 
     const currentPage = pages.find(p => p.id === currentPageId)
+    const autoSaveTimerRef = useRef<number | null>(null)
+    const saveStatusLabel = saveError
+        ? '保存エラー'
+        : isSaving
+          ? '保存中...'
+          : lastSavedAt
+            ? `保存済み ${new Date(lastSavedAt).toLocaleTimeString()}`
+            : '未保存'
+
     const selectedPanel = currentPage?.panels.find(p => p.id === selectedPanelId)
     const selectedBubble = currentPage?.bubbles.find(b => b.id === selectedBubbleId)
     const selectedMaterial = currentPage?.materials.find(m => m.id === selectedMaterialId)
@@ -113,12 +126,41 @@ function App(): React.JSX.Element {
     // Auto-save logic
     useEffect(() => {
         if (currentProjectPath && pages.length > 0) {
-            const timeout = setTimeout(async () => {
+            if (autoSaveTimerRef.current !== null) {
+                window.clearTimeout(autoSaveTimerRef.current)
+            }
+            autoSaveTimerRef.current = window.setTimeout(async () => {
                 saveProject()
+                autoSaveTimerRef.current = null
             }, 1000)
-            return () => clearTimeout(timeout)
+        }
+        return () => {
+            if (autoSaveTimerRef.current !== null) {
+                window.clearTimeout(autoSaveTimerRef.current)
+                autoSaveTimerRef.current = null
+            }
         }
     }, [pages, currentProjectPath])
+
+    // Flush pending debounce save to avoid data loss on app close.
+    useEffect(() => {
+        const flushPendingSaveOnUnload = () => {
+            if (!currentProjectPath || !window.electron?.saveProjectSync) return
+            if (autoSaveTimerRef.current !== null) {
+                window.clearTimeout(autoSaveTimerRef.current)
+                autoSaveTimerRef.current = null
+            }
+            try {
+                window.electron.saveProjectSync(currentProjectPath, getProjectData())
+            } catch (error) {
+                console.error('App: failed to flush save on unload', error)
+            }
+        }
+        window.addEventListener('beforeunload', flushPendingSaveOnUnload)
+        return () => {
+            window.removeEventListener('beforeunload', flushPendingSaveOnUnload)
+        }
+    }, [currentProjectPath, getProjectData])
 
     const handleAddPanelWithType = (type: PanelType) => {
         let slant = 0, offsetB = 0, offsetC = 0, offsetD = 0
@@ -231,6 +273,11 @@ function App(): React.JSX.Element {
                             </>
                         )}
                     </div>
+                    {currentProjectPath && (
+                        <div className={`text-xs whitespace-nowrap ${saveError ? 'text-red-400' : 'text-zinc-500'}`}>
+                            {saveStatusLabel}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-auto bg-zinc-950 relative manga-scrollbar">

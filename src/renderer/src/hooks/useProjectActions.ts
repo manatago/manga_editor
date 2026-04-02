@@ -1,4 +1,5 @@
 import { useMangaStore } from '../store/useMangaStore'
+import { showError } from '../utils/dialogs'
 
 export const useProjectActions = () => {
     const {
@@ -22,7 +23,7 @@ export const useProjectActions = () => {
             return projectPath
         } catch (error) {
             console.error('useProjectActions: handleCreateNew error:', error)
-            alert('プロジェクトの作成に失敗しました')
+            await showError('プロジェクトの作成に失敗しました')
             return null
         }
     }
@@ -38,7 +39,7 @@ export const useProjectActions = () => {
             return folderPath
         } catch (error) {
             console.error('useProjectActions: handleOpenProject error:', error)
-            alert('プロジェクトの読み込みに失敗しました')
+            await showError('プロジェクトの読み込みに失敗しました')
             return null
         }
     }

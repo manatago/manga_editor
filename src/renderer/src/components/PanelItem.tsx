@@ -501,6 +501,11 @@ export const PanelItem: React.FC<{
     const [image] = useImage(imagePath)
     const lineRef = useRef<Konva.Line>(null)
     const imageTabsRef = useRef<Konva.Group>(null)
+    const snapToGrid = (value: number) => {
+        if (!page?.gridEnabled) return value
+        const g = Math.max(8, Number(page?.gridSize ?? 24))
+        return Math.round(value / g) * g
+    }
 
     useEffect(() => {
         if (lineRef.current) {
@@ -625,7 +630,12 @@ export const PanelItem: React.FC<{
                         y: this.getAttr('dragStartY')
                     }
                 }
-                return pos
+                const snappedTopLeftX = snapToGrid(pos.x - panel.width / 2)
+                const snappedTopLeftY = snapToGrid(pos.y - panel.height / 2)
+                return {
+                    x: snappedTopLeftX + panel.width / 2,
+                    y: snappedTopLeftY + panel.height / 2
+                }
             }}
             onClick={(e) => isInteractive && onSelect(panel.id)}
             onTap={(e) => isInteractive && onSelect(panel.id)}
@@ -714,9 +724,11 @@ export const PanelItem: React.FC<{
                         }
                     }
                 } else {
+                    const nextX = Math.round(target.x() - panel.width / 2)
+                    const nextY = Math.round(target.y() - panel.height / 2)
                     onUpdate(panel.id, {
-                        x: Math.round(target.x() - panel.width / 2),
-                        y: Math.round(target.y() - panel.height / 2)
+                        x: snapToGrid(nextX),
+                        y: snapToGrid(nextY)
                     })
                 }
                 target.setAttr('isImageMode', false)
@@ -727,13 +739,15 @@ export const PanelItem: React.FC<{
                 const scaleY = node.scaleY()
                 const nextWidth = Math.round(Math.abs(panel.width * scaleX))
                 const nextHeight = Math.round(Math.abs(panel.height * scaleY))
+                const snappedWidth = Math.max(20, Math.round(snapToGrid(nextWidth)))
+                const snappedHeight = Math.max(20, Math.round(snapToGrid(nextHeight)))
                 node.scaleX(1)
                 node.scaleY(1)
                 onUpdate(panel.id, {
-                    x: Math.round(node.x() - nextWidth / 2),
-                    y: Math.round(node.y() - nextHeight / 2),
-                    width: nextWidth,
-                    height: nextHeight,
+                    x: snapToGrid(Math.round(node.x() - snappedWidth / 2)),
+                    y: snapToGrid(Math.round(node.y() - snappedHeight / 2)),
+                    width: snappedWidth,
+                    height: snappedHeight,
                     slant: Math.round(panel.slant * scaleX),
                     offsetB: Math.round(panel.offsetB * scaleX),
                     offsetC: Math.round(panel.offsetC * scaleX),

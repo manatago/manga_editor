@@ -5,6 +5,7 @@ declare global {
             createProject: (path: string, name: string) => Promise<string>
             loadProject: (path: string) => Promise<any>
             saveProject: (path: string, data: any) => Promise<boolean>
+            saveProjectSync: (path: string, data: any) => boolean
             getTemplates: () => Promise<any[]>
             saveTemplate: (template: { name: string; panels: any[] }) => Promise<any[]>
             deleteTemplate: (id: string) => Promise<any[]>
@@ -18,6 +19,8 @@ declare global {
             resolveAssetPath: (projectRoot: string, stored: string) => string
             getPathForFile: (file: File) => string
             log: (level: string, ...args: any[]) => void
+            showMessage: (payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => Promise<boolean>
+            confirmMessage: (payload: { title?: string; message: string }) => Promise<boolean>
         }
     }
 }

@@ -6,6 +6,7 @@ import {
     saveBubbleLastStylesToStorage,
     type BubbleLastStyleSlice
 } from './bubbleLastStyle'
+import { confirmMessage, showError, showInfo } from '../utils/dialogs'
 
 export type PanelType = 'rect' | 'slanted' | 'trapezoid-h' | 'trapezoid-v' | 'pentagon' | 'hexagon' | 'circle'
 export type FadeDirection =
@@ -126,6 +127,10 @@ export interface Material {
 interface Page {
     id: string
     name: string
+    pageWidth?: number
+    pageHeight?: number
+    gridEnabled?: boolean
+    gridSize?: number
     panels: Panel[]
     bubbles: Bubble[]
     materials: Material[]
@@ -157,6 +162,10 @@ interface MangaState {
     selectedBubbleId: string | null
     selectedMaterialId: string | null
     clipboardBubble: Omit<Bubble, 'id'> | null
+    clipboardPanel: Omit<Panel, 'id'> | null
+    isSaving: boolean
+    lastSavedAt: number | null
+    saveError: string | null
 
     /** 吹き出しタイプごとの「最後に編集したスタイル」（次回そのタイプを追加するときに適用。localStorage に永続化） */
     bubbleLastStyleByType: Partial<Record<BubbleType, BubbleLastStyleSlice>>
@@ -182,6 +191,8 @@ interface MangaState {
     removeBubble: (id: string) => void
     copyBubble: (id: string) => void
     pasteBubble: () => void
+    copyPanel: (id: string) => void
+    pastePanel: () => void
     addMaterial: (props: Partial<Omit<Material, 'id'>>) => void
     updateMaterial: (id: string, updates: Partial<Material>, undoable?: boolean) => void
     removeMaterial: (id: string) => void
@@ -200,10 +211,13 @@ interface MangaState {
 }
 
 export const useMangaStore = create<MangaState>((set, get) => {
+    const HISTORY_LIMIT = 100
+    const limitHistory = <T,>(list: T[]) => (list.length > HISTORY_LIMIT ? list.slice(-HISTORY_LIMIT) : list)
+
     // Helper to push current state to past before mutating
     const saveHistory = (state: MangaState) => {
         return {
-            past: [...state.past, { pages: JSON.parse(JSON.stringify(state.pages)), currentPageId: state.currentPageId }],
+            past: limitHistory([...state.past, { pages: JSON.parse(JSON.stringify(state.pages)), currentPageId: state.currentPageId }]),
             future: [] // Clear future when a new action occurs
         }
     }
@@ -217,9 +231,13 @@ export const useMangaStore = create<MangaState>((set, get) => {
         selectedBubbleId: null,
         selectedMaterialId: null,
         clipboardBubble: null,
+        clipboardPanel: null,
         bubbleLastStyleByType: loadBubbleLastStylesFromStorage(),
         past: [],
         future: [],
+        isSaving: false,
+        lastSavedAt: null,
+        saveError: null,
         isExporting: false,
 
         undo: () => set((state) => {
@@ -241,8 +259,8 @@ export const useMangaStore = create<MangaState>((set, get) => {
             const next = state.future[0];
             const newFuture = state.future.slice(1);
             return {
-                past: [...state.past, { pages: JSON.parse(JSON.stringify(state.pages)), currentPageId: state.currentPageId }],
-                future: newFuture,
+                past: limitHistory([...state.past, { pages: JSON.parse(JSON.stringify(state.pages)), currentPageId: state.currentPageId }]),
+                future: limitHistory(newFuture),
                 pages: next.pages,
                 currentPageId: next.currentPageId,
                 selectedPanelId: null,
@@ -259,6 +277,10 @@ export const useMangaStore = create<MangaState>((set, get) => {
             const newPage: Page = {
                 id: `page_${new Date().getTime()}`,
                 name: String(state.pages.length + 1).padStart(3, '0'),
+                pageWidth: 840,
+                pageHeight: 1188,
+                gridEnabled: false,
+                gridSize: 24,
                 panels: panels.map(p => ({
                     id: `panel_${Math.random().toString(36).substr(2, 9)}`,
                     ...p
@@ -518,6 +540,14 @@ export const useMangaStore = create<MangaState>((set, get) => {
             const { id: _id, ...bubbleData } = bubble
             return { ...state, clipboardBubble: bubbleData }
         }),
+        copyPanel: (id) => set((state) => {
+            const page = state.pages.find((p) => p.id === state.currentPageId)
+            if (!page) return state
+            const panel = page.panels.find((p) => p.id === id)
+            if (!panel) return state
+            const { id: _id, ...panelData } = panel
+            return { ...state, clipboardPanel: panelData }
+        }),
         pasteBubble: () => set((state) => {
             if (!state.currentPageId || !state.clipboardBubble) return state
             const history = saveHistory(state)
@@ -536,6 +566,26 @@ export const useMangaStore = create<MangaState>((set, get) => {
                         : p
                 ),
                 selectedBubbleId: newBubble.id
+            }
+        }),
+        pastePanel: () => set((state) => {
+            if (!state.currentPageId || !state.clipboardPanel) return state
+            const history = saveHistory(state)
+            const newPanel: Panel = {
+                ...state.clipboardPanel,
+                id: `panel_${new Date().getTime()}`,
+                x: (state.clipboardPanel.x ?? 0) + 20,
+                y: (state.clipboardPanel.y ?? 0) + 20
+            }
+            return {
+                ...state,
+                ...history,
+                pages: state.pages.map((p) =>
+                    p.id === state.currentPageId ? { ...p, panels: [...p.panels, newPanel] } : p
+                ),
+                selectedPanelId: newPanel.id,
+                selectedBubbleId: null,
+                selectedMaterialId: null
             }
         }),
         addMaterial: (props) => set((state) => {
@@ -655,6 +705,10 @@ export const useMangaStore = create<MangaState>((set, get) => {
             const projectPathForAssets = get().currentProjectPath
             const sanitizedPages = (data.pages || []).map(page => ({
                 ...page,
+                pageWidth: Math.max(400, Math.round(page.pageWidth ?? 840)),
+                pageHeight: Math.max(400, Math.round(page.pageHeight ?? 1188)),
+                gridEnabled: !!page.gridEnabled,
+                gridSize: Math.max(8, Math.min(200, Math.round(page.gridSize ?? 24))),
                 backgroundColor: page.backgroundColor || '#ffffff',
                 backgroundOpacity: page.backgroundOpacity ?? 1,
                 bubbles: (page.bubbles || []).map(bubble => ({
@@ -804,22 +858,23 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 const templates = await window.electron.saveTemplate(template)
                 console.log('Store: templates updated', templates)
                 set({ templates })
-                alert(`テンプレート "${name}" を保存しました`)
+                await showInfo(`テンプレート "${name}" を保存しました`)
             } catch (error) {
                 console.error('Store: failed to save template', error)
-                alert('テンプレートの保存に失敗しました')
+                await showError('テンプレートの保存に失敗しました')
             }
         },
         removeTemplate: async (id) => {
             if (!window.electron) return
             try {
-                if (confirm('このテンプレートを削除してもよろしいですか？')) {
+                const ok = await confirmMessage('このテンプレートを削除してもよろしいですか？')
+                if (ok) {
                     const templates = await window.electron.deleteTemplate(id)
                     set({ templates })
                 }
             } catch (error) {
                 console.error('Store: failed to delete template', error)
-                alert('テンプレートの削除に失敗しました')
+                await showError('テンプレートの削除に失敗しました')
             }
         },
         saveProject: async () => {
@@ -830,12 +885,15 @@ export const useMangaStore = create<MangaState>((set, get) => {
             }
 
             try {
+                set({ isSaving: true, saveError: null })
                 const projectData = state.getProjectData()
                 await window.electron.saveProject(state.currentProjectPath, projectData)
                 console.log('Store: project saved successfully to', state.currentProjectPath)
+                set({ isSaving: false, saveError: null, lastSavedAt: Date.now() })
             } catch (error) {
                 console.error('Store: failed to save project', error)
-                alert('プロジェクトの保存に失敗しました')
+                set({ isSaving: false, saveError: 'プロジェクトの保存に失敗しました' })
+                await showError('プロジェクトの保存に失敗しました')
             }
         },
         setExporting: (val) => set({ isExporting: val }),
@@ -875,19 +933,20 @@ export const useMangaStore = create<MangaState>((set, get) => {
                 })
 
                 if (unusedAssets.length === 0) {
-                    alert('未使用のアセットは見つかりませんでした。')
+                    await showInfo('未使用のアセットは見つかりませんでした。')
                     return
                 }
 
-                if (confirm(`${unusedAssets.length}個の未使用アセットを削除しますか？`)) {
+                const ok = await confirmMessage(`${unusedAssets.length}個の未使用アセットを削除しますか？`)
+                if (ok) {
                     for (const path of unusedAssets) {
                         await window.electron.deleteFile(path)
                     }
-                    alert(`${unusedAssets.length}個のアセットを削除しました。`)
+                    await showInfo(`${unusedAssets.length}個のアセットを削除しました。`)
                 }
             } catch (error) {
                 console.error('Store: failed to cleanup assets', error)
-                alert('アセットの整理に失敗しました。')
+                await showError('アセットの整理に失敗しました。')
             }
         },
     }

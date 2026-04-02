@@ -1,6 +1,7 @@
 import React from 'react'
 import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
+import { confirmMessage } from '../utils/dialogs'
 
 interface SidebarLeftProps {
     onExportPNG: () => void;
@@ -149,9 +150,10 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                                     <ChevronDown size={14} />
                                                 </button>
                                                 <button
-                                                    onClick={(e) => {
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        if (window.confirm('このページを削除しますか？')) {
+                                                        const ok = await confirmMessage('このページを削除しますか？')
+                                                        if (ok) {
                                                             removePage(page.id);
                                                         }
                                                     }}

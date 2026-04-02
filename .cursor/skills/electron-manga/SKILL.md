@@ -34,7 +34,12 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 ## ログ
 
 - プリロードで `console.error` / `console.warn` を IPC 経由でメインに送り、ターミナルに出す仕組みがある
-- デバッグ時は重要な失敗を `console.error` または `alert`（既存のユーザー向け）で残す
+- ユーザー通知は `alert` ではなく、`showMessage` / `confirmMessage` の IPC 経由で Electron ダイアログを使う方針
+
+## 終了直前の保存 flush
+
+- デバウンス保存だけでは終了直前に取りこぼすことがあるため、`beforeunload` から呼べる **同期保存 IPC**（`saveProjectSync`）を用意する。
+- 同期保存は通常フローでは使わず、終了時の最終 flush に限定する。
 
 ## 新しい IPC を足すとき
 
