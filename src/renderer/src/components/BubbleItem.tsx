@@ -3,6 +3,7 @@ import { Group, Shape, Text, Circle } from 'react-konva'
 import { Bubble, Panel, useMangaStore } from '../store/useMangaStore'
 import { getPanelPoints, drawRectPath, drawJaggedPath, drawRoundedPath, drawFlashPath, drawShoutPath, drawSquareJaggedPath, drawJitteryCircle, drawMegaphonePath, drawDoubleRectPath } from './utils/drawPaths'
 import { findTargetPanel } from './utils/geometry'
+import { snapToGrid } from '../utils/gridUtils'
 import { getPRand, hexToRGBA } from './utils/bubbleUtils'
 import { VerticalText, MegaphoneText } from './SpeechText'
 import { BubbleHorizontalTextLayers } from './BubbleHorizontalTextLayers'
@@ -31,11 +32,7 @@ export const BubbleItem: React.FC<{
     const shapeRef = useRef<any>(null)
     const [, forceUpdate] = useState(0)
     const currentPage = useMangaStore((s) => s.pages.find((p) => p.id === s.currentPageId))
-    const snapToGrid = (value: number) => {
-        if (!currentPage?.gridEnabled) return value
-        const g = Math.max(8, Number(currentPage.gridSize ?? 24))
-        return Math.round(value / g) * g
-    }
+    const snap = (value: number) => snapToGrid(value, currentPage)
 
     // Wait for the selected font to load, then force re-render so Konva draws with the real font
     const actualFontFamily = bubble._overrideFontFamily ?? bubble.fontFamily
@@ -70,8 +67,8 @@ export const BubbleItem: React.FC<{
             return
         }
         const updates: any = {
-            x: snapToGrid(e.target.x()),
-            y: snapToGrid(e.target.y())
+            x: snap(e.target.x()),
+            y: snap(e.target.y())
         }
 
         // If clipped, automatically find and update the target panelId
@@ -97,11 +94,11 @@ export const BubbleItem: React.FC<{
         node.scaleY(1)
 
         const updates: any = {
-            x: snapToGrid(node.x()),
-            y: snapToGrid(node.y()),
+            x: snap(node.x()),
+            y: snap(node.y()),
             rotation: rotation,
-            width: Math.max(20, snapToGrid((bubble.width || 100) * scaleX)),
-            height: Math.max(20, snapToGrid((bubble.height || 100) * scaleY)),
+            width: Math.max(20, snap((bubble.width || 100) * scaleX)),
+            height: Math.max(20, snap((bubble.height || 100) * scaleY)),
             // Scale tail offsets to maintain relative position after scale reset
             tailX: (bubble.tailX || 0) * scaleX,
             tailY: (bubble.tailY || 0) * scaleY,
@@ -250,8 +247,8 @@ export const BubbleItem: React.FC<{
                     }
                 }
                 return {
-                    x: snapToGrid(pos.x),
-                    y: snapToGrid(pos.y)
+                    x: snap(pos.x),
+                    y: snap(pos.y)
                 }
             }}
             onDragStart={(e) => {

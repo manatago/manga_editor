@@ -4,6 +4,7 @@ import { Group, Line, Circle, Rect, Text } from 'react-konva'
 import useImage from 'use-image'
 import { Panel, useMangaStore } from '../store/useMangaStore'
 import { getPanelPoints } from './utils/drawPaths'
+import { snapToGrid } from '../utils/gridUtils'
 
 const FadeOverlay: React.FC<{ panel: Panel; points: number[]; backgroundColor: string }> = ({ panel, points, backgroundColor }) => {
     if (!panel.fadeDirection || panel.fadeDirection === 'none') return null
@@ -501,11 +502,7 @@ export const PanelItem: React.FC<{
     const [image] = useImage(imagePath)
     const lineRef = useRef<Konva.Line>(null)
     const imageTabsRef = useRef<Konva.Group>(null)
-    const snapToGrid = (value: number) => {
-        if (!page?.gridEnabled) return value
-        const g = Math.max(8, Number(page?.gridSize ?? 24))
-        return Math.round(value / g) * g
-    }
+    const snap = (value: number) => snapToGrid(value, page)
 
     useEffect(() => {
         if (lineRef.current) {
@@ -630,8 +627,8 @@ export const PanelItem: React.FC<{
                         y: this.getAttr('dragStartY')
                     }
                 }
-                const snappedTopLeftX = snapToGrid(pos.x - panel.width / 2)
-                const snappedTopLeftY = snapToGrid(pos.y - panel.height / 2)
+                const snappedTopLeftX = snap(pos.x - panel.width / 2)
+                const snappedTopLeftY = snap(pos.y - panel.height / 2)
                 return {
                     x: snappedTopLeftX + panel.width / 2,
                     y: snappedTopLeftY + panel.height / 2
@@ -727,8 +724,8 @@ export const PanelItem: React.FC<{
                     const nextX = Math.round(target.x() - panel.width / 2)
                     const nextY = Math.round(target.y() - panel.height / 2)
                     onUpdate(panel.id, {
-                        x: snapToGrid(nextX),
-                        y: snapToGrid(nextY)
+                        x: snap(nextX),
+                        y: snap(nextY)
                     })
                 }
                 target.setAttr('isImageMode', false)
@@ -739,13 +736,13 @@ export const PanelItem: React.FC<{
                 const scaleY = node.scaleY()
                 const nextWidth = Math.round(Math.abs(panel.width * scaleX))
                 const nextHeight = Math.round(Math.abs(panel.height * scaleY))
-                const snappedWidth = Math.max(20, Math.round(snapToGrid(nextWidth)))
-                const snappedHeight = Math.max(20, Math.round(snapToGrid(nextHeight)))
+                const snappedWidth = Math.max(20, Math.round(snap(nextWidth)))
+                const snappedHeight = Math.max(20, Math.round(snap(nextHeight)))
                 node.scaleX(1)
                 node.scaleY(1)
                 onUpdate(panel.id, {
-                    x: snapToGrid(Math.round(node.x() - snappedWidth / 2)),
-                    y: snapToGrid(Math.round(node.y() - snappedHeight / 2)),
+                    x: snap(Math.round(node.x() - snappedWidth / 2)),
+                    y: snap(Math.round(node.y() - snappedHeight / 2)),
                     width: snappedWidth,
                     height: snappedHeight,
                     slant: Math.round(panel.slant * scaleX),

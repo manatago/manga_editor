@@ -56,6 +56,7 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 - 吸着対象が Konva のドラッグなら、`dragBoundFunc` で位置を丸めると **ドラッグ中プレビュー**でも吸着する。
 - 変形中のライブ吸着は、`Transformer` の `boundBoxFunc` で `x/y/width/height` を丸める。最小サイズ判定は丸め前後で破綻しないよう `Math.max` を使う。
 - 特殊モード（例: Shift 画像編集、テキストオフセット）では通常ドラッグを固定する既存分岐を優先し、吸着処理を混ぜない。
+- **`snapToGrid` は `src/renderer/src/utils/gridUtils.ts` に一元化されている**。各コンポーネントはこれを import し、`const snap = (v) => snapToGrid(v, currentPage)` のラッパーを作って使う。ローカルに再実装しない。
 
 ## スナップガイド表示
 
@@ -65,6 +66,7 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 ## エクスポート時
 
 - `isExporting` が true のときは **インタラクション層（Transformer 含む）を描画しない**。エクスポート用の変更ではこの分岐を壊さない
+- **グリッド線・スナップガイドも `!isExporting` でガードすること**。ガードを外すとエクスポートした PNG にグリッドが焼き込まれる
 
 ## 参照
 

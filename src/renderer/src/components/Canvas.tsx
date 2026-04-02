@@ -7,6 +7,7 @@ import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
 import { MaterialItem } from './MaterialItem'
 import { getPanelPoints } from './utils/drawPaths'
 import { getClippedPoints } from './utils/geometry'
+import { snapToGrid } from '../utils/gridUtils'
 
 const PANEL_MIN_SIZE = 10
 
@@ -269,12 +270,9 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
 
     const underFrameClusters = useMemo(() => getVisualClusters(bubbles.filter(b => b.isClipped)), [bubbles, panels])
     const overFrameClusters = useMemo(() => getVisualClusters(bubbles.filter(b => !b.isClipped)), [bubbles, panels])
-    const gridSize = Math.max(8, Number(currentPage?.gridSize ?? 24))
     const showGrid = !!currentPage?.gridEnabled
-    const snapToGrid = (value: number) => {
-        if (!showGrid) return value
-        return Math.round(value / gridSize) * gridSize
-    }
+    const gridSize = Math.max(8, Number(currentPage?.gridSize ?? 24))
+    const snap = (value: number) => snapToGrid(value, currentPage)
     const selectedBubble = bubbles.find((b) => b.id === selectedBubbleId)
     const selectedMaterial = materials.find((m) => m.id === selectedMaterialId)
     const snapGuides = useMemo(() => {
@@ -285,12 +283,12 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
             (selectedMaterial ? { x: selectedMaterial.x, y: selectedMaterial.y, width: selectedMaterial.width, height: selectedMaterial.height } : null)
         if (!target) return []
 
-        const x1 = snapToGrid(target.x)
-        const y1 = snapToGrid(target.y)
-        const x2 = snapToGrid(target.x + target.width)
-        const y2 = snapToGrid(target.y + target.height)
-        const cx = snapToGrid(target.x + target.width / 2)
-        const cy = snapToGrid(target.y + target.height / 2)
+        const x1 = snap(target.x)
+        const y1 = snap(target.y)
+        const x2 = snap(target.x + target.width)
+        const y2 = snap(target.y + target.height)
+        const cx = snap(target.x + target.width / 2)
+        const cy = snap(target.y + target.height / 2)
 
         return [
             <Line key="guide-v-left" points={[x1, 0, x1, canvasHeight]} stroke="rgba(59,130,246,0.8)" strokeWidth={1} dash={[6, 4]} listening={false} />,
@@ -560,12 +558,12 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                             return oldBox
                                         }
                                         if (showGrid) {
-                                            const width = Math.max(PANEL_MIN_SIZE, snapToGrid(newBox.width))
-                                            const height = Math.max(PANEL_MIN_SIZE, snapToGrid(newBox.height))
+                                            const width = Math.max(PANEL_MIN_SIZE, snap(newBox.width))
+                                            const height = Math.max(PANEL_MIN_SIZE, snap(newBox.height))
                                             return {
                                                 ...newBox,
-                                                x: snapToGrid(newBox.x),
-                                                y: snapToGrid(newBox.y),
+                                                x: snap(newBox.x),
+                                                y: snap(newBox.y),
                                                 width,
                                                 height
                                             }
@@ -600,10 +598,10 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         if (showGrid) {
                                             return {
                                                 ...newBox,
-                                                x: snapToGrid(newBox.x),
-                                                y: snapToGrid(newBox.y),
-                                                width: Math.max(20, snapToGrid(newBox.width)),
-                                                height: Math.max(20, snapToGrid(newBox.height))
+                                                x: snap(newBox.x),
+                                                y: snap(newBox.y),
+                                                width: Math.max(20, snap(newBox.width)),
+                                                height: Math.max(20, snap(newBox.height))
                                             }
                                         }
                                         return newBox
@@ -623,10 +621,10 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                         if (showGrid) {
                                             return {
                                                 ...newBox,
-                                                x: snapToGrid(newBox.x),
-                                                y: snapToGrid(newBox.y),
-                                                width: Math.max(5, snapToGrid(newBox.width)),
-                                                height: Math.max(5, snapToGrid(newBox.height))
+                                                x: snap(newBox.x),
+                                                y: snap(newBox.y),
+                                                width: Math.max(5, snap(newBox.width)),
+                                                height: Math.max(5, snap(newBox.height))
                                             }
                                         }
                                         return newBox

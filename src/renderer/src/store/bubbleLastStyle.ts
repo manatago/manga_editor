@@ -1,4 +1,4 @@
-import type { Bubble, BubbleType } from './useMangaStore'
+import type { Bubble, BubbleType } from './types'
 
 /** 吹き出しタイプごとに「次回追加時に引き継ぐ」スタイル（位置・テキスト・しっぽ先端座標は含めない） */
 export type BubbleLastStyleSlice = Pick<

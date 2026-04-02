@@ -4,6 +4,7 @@ import { Group, Image } from 'react-konva'
 import useImage from 'use-image'
 import { Material, Panel, useMangaStore } from '../store/useMangaStore'
 import { findTargetPanel } from './utils/geometry'
+import { snapToGrid } from '../utils/gridUtils'
 
 interface MaterialItemProps {
     material: Material;
@@ -28,11 +29,7 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
 }) => {
     const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
     const currentPage = useMangaStore((s) => s.pages.find((p) => p.id === s.currentPageId))
-    const snapToGrid = (value: number) => {
-        if (!currentPage?.gridEnabled) return value
-        const g = Math.max(8, Number(currentPage.gridSize ?? 24))
-        return Math.round(value / g) * g
-    }
+    const snap = (value: number) => snapToGrid(value, currentPage)
     const imageUrl = useMemo(() => {
         if (!material.imagePath) return ''
         if (window.electron?.resolveAssetPath && currentProjectPath) {
@@ -58,8 +55,8 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
     const handleDragEnd = (e: any) => {
         if (e.target !== e.currentTarget) return
         const updates: any = {
-            x: snapToGrid(e.target.x()),
-            y: snapToGrid(e.target.y())
+            x: snap(e.target.x()),
+            y: snap(e.target.y())
         }
 
         if (material.isClipped && panels) {
@@ -85,10 +82,10 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
         node.scaleY(1)
 
         const updates: any = {
-            x: snapToGrid(node.x()),
-            y: snapToGrid(node.y()),
-            width: Math.max(5, snapToGrid(node.width() * scaleX)),
-            height: Math.max(5, snapToGrid(node.height() * scaleY)),
+            x: snap(node.x()),
+            y: snap(node.y()),
+            width: Math.max(5, snap(node.width() * scaleX)),
+            height: Math.max(5, snap(node.height() * scaleY)),
             rotation: rotation
         }
 
@@ -118,8 +115,8 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
             dragBoundFunc={(pos) => {
                 if (renderPass !== 'interaction') return pos
                 return {
-                    x: snapToGrid(pos.x),
-                    y: snapToGrid(pos.y)
+                    x: snap(pos.x),
+                    y: snap(pos.y)
                 }
             }}
             onDragStart={() => renderPass === 'interaction' && onSelect(material.id)}

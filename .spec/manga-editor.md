@@ -20,7 +20,7 @@
 | デスクトップ | Electron 40.x、`electron-vite` 5 |
 | UI | React 19、Tailwind CSS 4、Lucide React、Framer Motion（一部アニメーション） |
 | キャンバス | Konva / react-konva |
-| 状態 | Zustand（単一ストア `useMangaStore`） |
+| 状態 | Zustand（スライスパターン、`useMangaStore` で結合） |
 | 画像 | `use-image`、カスタムプロトコル `local-file://` でローカルファイルを表示 |
 | フォント | `@fontsource/*`（日本語向け複数フォントを依存に含む） |
 | テスト | Vitest |
@@ -34,6 +34,29 @@
 - **メイン** (`src/main/index.ts`): `BrowserWindow`、IPC、`local-file` プロトコル、ファイル I/O
 - **プリロード** (`src/preload/index.ts`): `contextBridge` で `window.electron` を公開
 - **レンダラー** (`src/renderer/`): React アプリ
+
+### 3.4 ストア構成（Zustand スライスパターン）
+
+`useMangaStore` はスライスを結合するだけの薄いファイル。ロジックは各スライスに分割されている。
+
+| ファイル | 責務 |
+|---------|------|
+| `store/types.ts` | 全ドメイン型定義（Panel / Bubble / Material / Page 等） |
+| `store/helpers.ts` | `deepClone` / `limitHistory` / `saveHistory` / `HISTORY_LIMIT` |
+| `store/slices/historySlice.ts` | past / future / undo / redo |
+| `store/slices/pageSlice.ts` | pages / currentPageId / ページ CRUD / movePage |
+| `store/slices/panelSlice.ts` | selectedPanelId / clipboard / パネル CRUD / reorderPanel |
+| `store/slices/bubbleSlice.ts` | selectedBubbleId / clipboard / bubbleLastStyleByType / 吹き出し CRUD |
+| `store/slices/materialSlice.ts` | selectedMaterialId / 素材 CRUD |
+| `store/slices/projectSlice.ts` | 保存・読込・テンプレート・アセット整理・エクスポート状態 |
+
+### 3.5 共有ユーティリティ
+
+| ファイル | 内容 |
+|---------|------|
+| `utils/gridUtils.ts` | `snapToGrid(value, page)` — グリッド吸着の単一実装。各コンポーネントはここから import する |
+| `utils/dialogs.ts` | `showError` / `showInfo` / `confirmMessage` — Electron ネイティブダイアログのラッパー |
+| `utils/projectAssets.ts` | アセットパスの相対化・解決ロジック |
 
 ### 3.2 カスタムプロトコル `local-file`
 
@@ -239,6 +262,9 @@
 
 - Zustand でスプレッド更新する際、**キーの重複**に注意（`.cursorrules` の記載）
 - レンダラー変更後はインポート・型を確認し、**白画面**を避ける
+- **グリッドスナップは `utils/gridUtils.ts` の `snapToGrid` を使う**。各コンポーネントにローカル実装しない
+- **ストアのロジックを追加・変更するときは `store/slices/` の対応スライスを編集する**。`useMangaStore.ts` 本体にはロジックを書かない
+- **グリッド線・スナップガイドは `!isExporting` でガードすること**（ガードがないと PNG にグリッドが焼き込まれる）
 
 ---
 

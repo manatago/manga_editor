@@ -5,9 +5,31 @@ description: 漫画野郎の Zustand（useMangaStore）を変更するとき。�
 
 # Zustand（useMangaStore）
 
+## ストアのファイル構成
+
+ストアは **スライスパターン** で分割されている。触る機能に対応するファイルだけ編集すればよい。
+
+```
+src/renderer/src/store/
+  types.ts                   ← Panel / Bubble / Material / Page など全ドメイン型
+  helpers.ts                 ← deepClone / limitHistory / saveHistory / HISTORY_LIMIT
+  bubbleLastStyle.ts         ← 吹き出しタイプごとの最終スタイル（localStorage 永続化）
+  slices/
+    historySlice.ts          ← past / future / undo / redo
+    pageSlice.ts             ← pages / currentPageId / addPage / selectPage 等
+    panelSlice.ts            ← selectedPanelId / clipboard / addPanel / reorderPanel 等
+    bubbleSlice.ts           ← selectedBubbleId / clipboard / addBubble 等
+    materialSlice.ts         ← selectedMaterialId / addMaterial 等
+    projectSlice.ts          ← 保存・読込・テンプレート・アセット整理・エクスポート状態
+  useMangaStore.ts           ← スライスを結合するだけ（ロジックは書かない）
+```
+
+**型を追加・変更する場合は `types.ts` を編集する。**
+`useMangaStore.ts` は全型を re-export しているので、既存の import パスはそのまま機能する。
+
 ## このスキルを使うとき
 
-- `src/renderer/src/store/useMangaStore.ts` を編集するとき
+- 上記スライスファイルのいずれかを編集するとき
 - ページ / コマ / 吹き出し / 素材の**追加・更新・削除**のロジックを追加するとき
 - **Undo / Redo** の挙動に触るとき
 
@@ -46,6 +68,13 @@ description: 漫画野郎の Zustand（useMangaStore）を変更するとき。�
 
 - `saveAsTemplate` は `imagePath` 等を**除外**してパネル形状だけ保存する
 - `setProjectData` は旧データ向けの**正規化**が入っている。フィールド追加時はここも検討
+
+## 新しいスライスを追加するとき
+
+1. `store/slices/xxxSlice.ts` を作り `StateCreator<MangaState, [], [], XxxSlice>` で型付けする
+2. `store/useMangaStore.ts` の `MangaState` 型に `& XxxSlice` を追加する
+3. `create()((...a) => ({ ...createXxxSlice(...a), ... }))` に追加する
+4. スライスファイルで `MangaState` を使う場合は `import type { MangaState } from '../useMangaStore'`（type-only import）にする（循環を runtime に持ち込まないため）
 
 ## 参照
 
