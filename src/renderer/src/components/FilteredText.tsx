@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { Text } from 'react-konva'
-import type { Text as KonvaText } from 'konva'
+import type Konva from 'konva'
 import { ensureDistressFilterRegistered, DISTRESS_FILTER } from './textFilters'
 
 type TextProps = React.ComponentProps<typeof Text>
@@ -23,7 +23,7 @@ export const FilteredText: React.FC<Props> = ({
     filters: _filtersProp,
     ...rest
 }) => {
-    const ref = useRef<KonvaText | null>(null)
+    const ref = useRef<Konva.Text | null>(null)
 
     useEffect(() => {
         let cancelled = false
