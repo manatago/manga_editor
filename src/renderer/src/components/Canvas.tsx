@@ -398,7 +398,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                                     />
                                 );
                             })()}
-                            {showGrid && <Group>{gridLines}</Group>}
+                            {showGrid && !isExporting && <Group>{gridLines}</Group>}
                         </Group>
  
                         {/* 2. Panels and their clipped contents */}
@@ -492,7 +492,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<any> }> = ({ stageRef }) => {
                             ))}
                         </Group>
 
-                        {showGrid && snapGuides.length > 0 && (
+                        {showGrid && !isExporting && snapGuides.length > 0 && (
                             <Group listening={false}>{snapGuides}</Group>
                         )}
  
