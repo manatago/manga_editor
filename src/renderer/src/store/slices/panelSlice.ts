@@ -6,6 +6,7 @@ import { saveHistory } from '../helpers'
 export interface PanelSlice {
     selectedPanelId: string | null
     clipboardPanel: Omit<Panel, 'id'> | null
+    clipboardPanelCopiedAt: number | null
     setSelectedPanel: (id: string | null) => void
     addPanel: (props: Partial<Omit<Panel, 'id'>>) => void
     updatePanel: (id: string, updates: Partial<Panel>, undoable?: boolean) => void
@@ -18,6 +19,7 @@ export interface PanelSlice {
 export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (set) => ({
     selectedPanelId: null,
     clipboardPanel: null,
+    clipboardPanelCopiedAt: null,
 
     setSelectedPanel: (id) => set({ selectedPanelId: id, selectedBubbleId: null, selectedMaterialId: null }),
 
@@ -129,7 +131,7 @@ export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (s
         const panel = page.panels.find((p) => p.id === id)
         if (!panel) return state
         const { id: _id, ...panelData } = panel
-        return { ...state, clipboardPanel: panelData }
+        return { ...state, clipboardPanel: panelData, clipboardPanelCopiedAt: Date.now() }
     }),
 
     pastePanel: () => set((state) => {

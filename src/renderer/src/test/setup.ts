@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-// Mock Electron
-vi.stubGlobal('electron', {
+// Mock Electron bridge
+const electronBridge = {
   getPathForFile: vi.fn(),
   pathToUrl: vi.fn((p: string) => p),
   resolveAssetPath: vi.fn((_root: string, stored: string) => stored),
@@ -14,4 +14,13 @@ vi.stubGlobal('electron', {
   showMessage: vi.fn(async () => true),
   confirmMessage: vi.fn(async () => true),
   // Add other mocks as needed
-})
+}
+
+vi.stubGlobal('electron', electronBridge)
+if (typeof window !== 'undefined') {
+  ;(window as any).electron = electronBridge
+}
+
+// Silence jsdom's unimplemented dialog methods when fallback is used.
+vi.stubGlobal('alert', vi.fn())
+vi.stubGlobal('confirm', vi.fn(() => true))

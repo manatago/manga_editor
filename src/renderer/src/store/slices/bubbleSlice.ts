@@ -12,6 +12,7 @@ import {
 export interface BubbleSlice {
     selectedBubbleId: string | null
     clipboardBubble: Omit<Bubble, 'id'> | null
+    clipboardBubbleCopiedAt: number | null
     bubbleLastStyleByType: Partial<Record<BubbleType, BubbleLastStyleSlice>>
     setSelectedBubble: (id: string | null) => void
     addBubble: (props: Partial<Omit<Bubble, 'id'>>) => void
@@ -24,6 +25,7 @@ export interface BubbleSlice {
 export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = (set) => ({
     selectedBubbleId: null,
     clipboardBubble: null,
+    clipboardBubbleCopiedAt: null,
     bubbleLastStyleByType: loadBubbleLastStylesFromStorage(),
 
     setSelectedBubble: (id) => set({ selectedBubbleId: id, selectedPanelId: null, selectedMaterialId: null }),
@@ -135,7 +137,7 @@ export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = 
         const bubble = page.bubbles.find((b) => b.id === id)
         if (!bubble) return state
         const { id: _id, ...bubbleData } = bubble
-        return { ...state, clipboardBubble: bubbleData }
+        return { ...state, clipboardBubble: bubbleData, clipboardBubbleCopiedAt: Date.now() }
     }),
 
     pasteBubble: () => set((state) => {

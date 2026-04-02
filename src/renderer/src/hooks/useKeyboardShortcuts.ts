@@ -20,7 +20,9 @@ export const useKeyboardShortcuts = () => {
         copyPanel,
         pastePanel,
         clipboardBubble,
-        clipboardPanel
+        clipboardPanel,
+        clipboardBubbleCopiedAt,
+        clipboardPanelCopiedAt
     } = useMangaStore()
 
     useEffect(() => {
@@ -90,9 +92,21 @@ export const useKeyboardShortcuts = () => {
             // Paste bubble
             if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
                 e.preventDefault();
-                if (selectedPanelId || (!selectedBubbleId && !selectedMaterialId && clipboardPanel)) {
+                const hasPanelClip = !!clipboardPanel
+                const hasBubbleClip = !!clipboardBubble
+                if (!hasPanelClip && !hasBubbleClip) return
+
+                // Last copied wins; if timestamps are equal/missing, fall back to selection context.
+                if (hasPanelClip && hasBubbleClip) {
+                    const panelTs = clipboardPanelCopiedAt ?? 0
+                    const bubbleTs = clipboardBubbleCopiedAt ?? 0
+                    if (panelTs > bubbleTs) pastePanel()
+                    else if (bubbleTs > panelTs) pasteBubble()
+                    else if (selectedPanelId && !selectedBubbleId && !selectedMaterialId) pastePanel()
+                    else pasteBubble()
+                } else if (hasPanelClip) {
                     pastePanel()
-                } else if (selectedBubbleId || clipboardBubble) {
+                } else {
                     pasteBubble()
                 }
             }
@@ -118,6 +132,8 @@ export const useKeyboardShortcuts = () => {
         copyPanel,
         pastePanel,
         clipboardBubble,
-        clipboardPanel
+        clipboardPanel,
+        clipboardBubbleCopiedAt,
+        clipboardPanelCopiedAt
     ]);
 }
