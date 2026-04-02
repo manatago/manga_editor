@@ -79,3 +79,9 @@ src/renderer/src/store/
 ## 参照
 
 - データモデル一覧: `.spec/manga-editor.md` の「データモデル」
+
+## テストパターン
+
+- 純粋関数は `vitest` で直接テストする（例: `utils/gridUtils.test.ts`）。
+- ストアは `useMangaStore.getState()` ベースで操作し、`beforeEach` で最小限の初期状態に戻す。
+- 追加するテストは、最低でも「状態変化」と「履歴（undo/redo）」のどちらかを検証する。

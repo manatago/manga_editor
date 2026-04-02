@@ -36,6 +36,15 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 
 親がドラッグ可能なとき、内側のハンドルや子ノードでは **`e.cancelBubble = true`**（`onDragStart` / `onDragMove` 等）で親への伝播を止める。既存の調整ハンドルと同じ考え方。
 
+## PanelItem の分割構成
+
+- `PanelItem.tsx` にロジックを集約しすぎない。エフェクトは次の分割先を使う：
+  - `components/effects/FadeOverlay.tsx`
+  - `components/effects/FocusLines.tsx`
+  - `components/effects/RainEffect.tsx`
+  - `components/PanelStrokes.tsx`
+- 変更時は「分割ファイルを更新し、`PanelItem` は組み立て」に徹する。
+
 ## 吹き出しテキスト（フィルタ・掠れ・二重レイヤー）
 
 - Konva の `filters` は **`cache()` が前提**。テキストに掠れ等のフィルタを入れるときは、描画後に `cache()` が走るようにする（`requestAnimationFrame` で 1 フレーム遅延する既存パターンに合わせる）。

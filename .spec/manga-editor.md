@@ -262,6 +262,9 @@
 
 - Zustand でスプレッド更新する際、**キーの重複**に注意（`.cursorrules` の記載）
 - レンダラー変更後はインポート・型を確認し、**白画面**を避ける
+- `PanelItem` のエフェクト系実装は分割済み（`components/effects/FadeOverlay.tsx`、`components/effects/FocusLines.tsx`、`components/effects/RainEffect.tsx`、`components/PanelStrokes.tsx`）
+- グリッド吸着ロジックは `utils/gridUtils.ts` の `snapToGrid` を共通利用する
+- `npx tsc --noEmit` で型エラーゼロを維持し、`vitest` で `gridUtils` / `useMangaStore` の基本テストを回す
 - **グリッドスナップは `utils/gridUtils.ts` の `snapToGrid` を使う**。各コンポーネントにローカル実装しない
 - **ストアのロジックを追加・変更するときは `store/slices/` の対応スライスを編集する**。`useMangaStore.ts` 本体にはロジックを書かない
 - **グリッド線・スナップガイドは `!isExporting` でガードすること**（ガードがないと PNG にグリッドが焼き込まれる）
