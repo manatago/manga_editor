@@ -62,6 +62,45 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 - **`npm run dist:with-rembg`** … `bundle-rembg` 後にビルドし rembg を同梱（容量大）。
 - ユーザーが「ビルド」「dist」とだけ言った場合のエージェント手順は **`.cursorrules` の「配布ビルド（dist）」** に従い、**どちらでビルドするか確認してから**実行する。
 
+### rembg 同梱の実装ルール（破ると配布版で動かない）
+
+**`scripts/bundle-rembg.mjs` で `pip install` するパッケージ**
+
+```
+rembg[cpu]   # ← [cli] を付けない。typer/click/gradio が引き込まれ venv が肥大化し、
+             #   かつ同梱漏れ時に "CLI dependencies are not installed" で即クラッシュする
+```
+
+**`resources/bundled-rembg/invoke-rembg.py` の実装方針**
+
+- `from rembg.cli import main` は**使わない**（CLI extras 必須になるため）
+- `rembg.remove()` / `rembg.new_session()` を直接呼ぶ
+- 引数形式: `invoke-rembg.py i -m <model> <input.png> <output.png>`
+
+**`rembgRunner.ts` の `runSpawn` の `cwd`**
+
+```typescript
+cwd: os.tmpdir()   // 必須。省略するとプロジェクトルートの coverage/（vitest出力）を
+                   // Python が coverage モジュールと誤認し numba がクラッシュする
+```
+
+**エラー `コマンドが見つかりません: python` が出たら**
+
+このエラーは最後の候補（PATH の `python`）の ENOENT であり、本当の原因が隠れている。
+インストール済み .app の venv を `cd /tmp` してから直接テストし、実際の stderr を確認する：
+
+```sh
+cd /tmp
+VENV="/Applications/漫画野郎.app/Contents/Resources/rembg/venv"
+"$VENV/bin/python3" /Applications/漫画野郎.app/Contents/Resources/rembg/invoke-rembg.py \
+  i -m isnet-anime /path/to/test.png /tmp/out.png
+```
+
+よくある本当の原因:
+- onnxruntime 未インストール → `rembg[cpu]` で pip install
+- CLI 依存不足 → `invoke-rembg.py` が `rembg.cli` を使っていないか確認
+- numba クラッシュ → `cwd: os.tmpdir()` が抜けていないか確認
+
 ## 参照
 
 - IPC 一覧・保存形式: `.spec/manga-editor.md` の「ファイル・IPC」

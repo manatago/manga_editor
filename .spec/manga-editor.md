@@ -262,6 +262,35 @@
 
 - `electron-builder` で macOS は **dmg** ターゲット（`appId`: `com.electron.manga` など）
 
+### 8.1 rembg 同梱（`dist:with-rembg`）
+
+`scripts/bundle-rembg.mjs` が `resources/bundled-rembg/<platform>-<arch>/venv/` を生成し、`electron-builder` の `extraResources` で `Resources/rembg/` に同梱する。
+
+**重要な制約（過去のバグから）**
+
+| 禁止 / 注意 | 理由 |
+|------------|------|
+| `pip install rembg[cli]` は**不要** | `typer`/`click`/`gradio` など巨大な CLI 依存が引き込まれ、同梱 venv に含まれない場合にエラー |
+| `pip install rembg` は **`rembg[cpu]`** にする | onnxruntime（推論エンジン）が入らず起動直後に `No onnxruntime backend found` で落ちる |
+| `rembg.cli.main` 経由でのCLI呼び出し**禁止** | CLI extras なしでは `import` 時点で失敗する |
+| `invoke-rembg.py` は `rembg.remove()` / `new_session()` を**直接呼ぶ** | CLI を経由しないため `rembg[cpu]` だけで動く |
+| `spawn` の `cwd` は必ず **`os.tmpdir()`** に固定 | 指定しないとプロジェクトルートの `coverage/`（vitest 出力）を Python が `coverage` モジュールと誤認し numba が壊れる |
+
+**エラーメッセージの読み方**
+
+`runRembgToFile` は全候補を試して最後のエラーで上書きするため、実際の原因が隠れやすい。
+`コマンドが見つかりません: python` というエラーが出ても、本当の原因は手前の候補の stderr にある場合が多い（onnxruntime 不在、CLI 依存不足、numba クラッシュなど）。
+
+**確認手順**
+
+```sh
+# インストール済み .app の venv から直接テスト（cwd は /tmp など、プロジェクトルート以外で実行）
+cd /tmp
+VENV="/Applications/漫画野郎.app/Contents/Resources/rembg/venv"
+"$VENV/bin/python3" /Applications/漫画野郎.app/Contents/Resources/rembg/invoke-rembg.py \
+  i -m isnet-anime /path/to/test.png /tmp/out.png
+```
+
 ---
 
 ## 9. コード上の注意（開発時）
