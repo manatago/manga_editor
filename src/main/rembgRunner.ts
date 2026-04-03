@@ -11,6 +11,7 @@
  */
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { app } from 'electron'
 
@@ -53,31 +54,74 @@ function bundledRembgDir(): string {
     return path.join(process.cwd(), 'resources', 'bundled-rembg', devBundledRembgKey())
 }
 
-function getBundledRembgExecutable(): string | null {
+function shouldUseBundledRembg(): boolean {
     if (process.env.MANGAS_SKIP_BUNDLED_REMBG === '1') {
-        return null
+        return false
     }
-    const useBundled = app.isPackaged || process.env.MANGAS_USE_BUNDLED_REMBG === '1'
-    if (!useBundled) {
-        return null
+    return app.isPackaged || process.env.MANGAS_USE_BUNDLED_REMBG === '1'
+}
+
+/** bundle-rembg が targetDir にコピー。未実行時は親 bundled-rembg のみにある */
+function resolveInvokeRembgScript(bundledDir: string): string | null {
+    const beside = path.join(bundledDir, 'invoke-rembg.py')
+    if (fs.existsSync(beside)) {
+        return beside
     }
-    const dir = bundledRembgDir()
+    const parent = path.join(path.dirname(bundledDir), 'invoke-rembg.py')
+    if (fs.existsSync(parent)) {
+        return parent
+    }
+    return null
+}
+
+/**
+ * venv/bin/rembg の shebang はビルド機の絶対パスになり .app 移動後に壊れる。
+ * 同梱 venv の python にスクリプトパスを渡して実行する（shebang を使わない）。
+ */
+function bundledRembgCandidates(dir: string, tail: string[]): { command: string; args: string[] }[] {
+    const out: { command: string; args: string[] }[] = []
+    const invoke = resolveInvokeRembgScript(dir)
+
     if (process.platform === 'win32') {
+        const py = path.join(dir, 'venv', 'Scripts', 'python.exe')
+        if (fs.existsSync(py)) {
+            if (invoke) {
+                out.push({ command: py, args: [invoke, ...tail] })
+            }
+        }
         const cmd = path.join(dir, 'rembg.cmd')
         if (fs.existsSync(cmd)) {
-            return cmd
+            out.push({ command: cmd, args: tail })
         }
         const exe = path.join(dir, 'rembg.exe')
         if (fs.existsSync(exe)) {
-            return exe
+            out.push({ command: exe, args: tail })
         }
-    } else {
-        const sh = path.join(dir, 'rembg')
-        if (fs.existsSync(sh)) {
-            return sh
+        return out
+    }
+
+    let py: string | null = null
+    for (const name of ['python3', 'python3.11', 'python'] as const) {
+        const candidate = path.join(dir, 'venv', 'bin', name)
+        if (fs.existsSync(candidate)) {
+            py = candidate
+            break
         }
     }
-    return null
+    if (py) {
+        if (invoke) {
+            out.push({ command: py, args: [invoke, ...tail] })
+        }
+        const legacyScript = path.join(dir, 'venv', 'bin', 'rembg')
+        if (fs.existsSync(legacyScript)) {
+            out.push({ command: py, args: [legacyScript, ...tail] })
+        }
+    }
+    const sh = path.join(dir, 'rembg')
+    if (fs.existsSync(sh)) {
+        out.push({ command: sh, args: tail })
+    }
+    return out
 }
 
 function buildCandidates(model: string, inputPath: string, outputPath: string): { command: string; args: string[] }[] {
@@ -87,9 +131,10 @@ function buildCandidates(model: string, inputPath: string, outputPath: string): 
     if (custom) {
         list.push({ command: custom, args: tail })
     }
-    const bundled = getBundledRembgExecutable()
-    if (bundled) {
-        list.push({ command: bundled, args: tail })
+    if (shouldUseBundledRembg()) {
+        for (const c of bundledRembgCandidates(bundledRembgDir(), tail)) {
+            list.push(c)
+        }
     }
     list.push({ command: 'rembg', args: tail })
     list.push({ command: 'python3', args: ['-m', 'rembg', ...tail] })
@@ -109,7 +154,10 @@ function runSpawn(command: string, args: string[]): Promise<{ code: number | nul
         const child = spawn(command, args, {
             stdio: ['ignore', 'pipe', 'pipe'],
             env: { ...process.env },
-            shell: useShell
+            shell: useShell,
+            // CWD をシステム一時ディレクトリに固定し、プロジェクトルートの
+            // coverage/ ディレクトリ等が Python のモジュール検索パスに混入するのを防ぐ
+            cwd: os.tmpdir()
         })
         let stderr = ''
         child.stderr?.on('data', (chunk: Buffer) => {
