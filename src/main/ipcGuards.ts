@@ -33,6 +33,9 @@ export function parseSaveProjectSyncPayload(payload: unknown): { path: string; d
     }
 }
 
+/**
+ * 新規テンプレートは id を送らない（メインが付与）。送られてきた場合は型と非空を検証する。
+ */
 export function assertTemplateForSave(template: unknown): Record<string, unknown> {
     if (!isRecord(template)) {
         throw new Error('save-template: テンプレートがオブジェクトではありません')
@@ -43,5 +46,19 @@ export function assertTemplateForSave(template: unknown): Record<string, unknown
     if (!Array.isArray(template.panels)) {
         throw new Error('save-template: panels が配列ではありません')
     }
+    if ('id' in template) {
+        const id = template.id
+        if (typeof id !== 'string' || !id.trim()) {
+            throw new Error('save-template: id が不正です（空でない文字列である必要があります）')
+        }
+    }
     return template
+}
+
+/** メインが id を付与した直後の行に必ず通す（削除 IPC が id に依存するため） */
+export function assertTemplateHasPersistableId(row: Record<string, unknown>): void {
+    const id = row.id
+    if (typeof id !== 'string' || !id) {
+        throw new Error('save-template: 保存結果に id がありません（内部エラー）')
+    }
 }

@@ -5,7 +5,12 @@ import * as pathModule from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { runRembgToFile, resolveReferenceRembgPaths, toProjectRelativePath } from './rembgRunner'
-import { assertTemplateForSave, parseSaveProjectPayload, parseSaveProjectSyncPayload } from './ipcGuards'
+import {
+    assertTemplateForSave,
+    assertTemplateHasPersistableId,
+    parseSaveProjectPayload,
+    parseSaveProjectSyncPayload
+} from './ipcGuards'
 import { ASSETS_DUST_DIR, ASSETS_IMAGES_DIR, ASSETS_REFERENCES_DIR } from './assetsLayoutRoot'
 
 // Add this for renderer logs to terminal
@@ -280,6 +285,7 @@ app.whenReady().then(() => {
             }
 
             const newTemplate = { ...template, id: Math.random().toString(36).substr(2, 9) }
+            assertTemplateHasPersistableId(newTemplate)
             templates.push(newTemplate)
 
             fs.writeFileSync(templatePath, JSON.stringify(templates, null, 2))

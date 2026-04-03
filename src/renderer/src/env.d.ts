@@ -1,3 +1,5 @@
+import type { PageTemplate } from './store/types'
+
 declare global {
     interface Window {
         electron: {
@@ -6,9 +8,9 @@ declare global {
             loadProject: (path: string) => Promise<any>
             saveProject: (path: string, data: unknown) => Promise<boolean>
             saveProjectSync: (path: string, data: unknown) => boolean
-            getTemplates: () => Promise<any[]>
-            saveTemplate: (template: { name: string; panels: unknown[] }) => Promise<any[]>
-            deleteTemplate: (id: string) => Promise<any[]>
+            getTemplates: () => Promise<PageTemplate[]>
+            saveTemplate: (template: { name: string; panels: unknown[] }) => Promise<PageTemplate[]>
+            deleteTemplate: (id: string) => Promise<PageTemplate[]>
             exportPNG: (path: string, name: string, data: string) => Promise<string>
             /** 合成ツール用: assets/images/composite/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
