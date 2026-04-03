@@ -17,6 +17,19 @@ import { app } from 'electron'
 const DEFAULT_MODEL = 'isnet-anime'
 const REMBG_TIMEOUT_MS = 10 * 60 * 1000
 
+/**
+ * path.resolve 後の candidate が dir 配下に収まるか（トラバーサル対策の多層防御）
+ */
+export function isResolvedPathInsideDir(dir: string, candidate: string): boolean {
+    const base = path.resolve(dir)
+    const resolved = path.resolve(candidate)
+    if (resolved === base) {
+        return true
+    }
+    const rel = path.relative(base, resolved)
+    return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
+}
+
 function rembgTailArgs(model: string, inputPath: string, outputPath: string): string[] {
     return ['i', '-m', model, inputPath, outputPath]
 }
@@ -148,7 +161,9 @@ export async function runRembgToFile(inputPath: string, outputPath: string): Pro
                 lastMessage = `コマンドが見つかりません: ${command}`
                 continue
             }
-            throw e
+            // EACCES 等も次の候補（別インタプリタ）を試す。最終的にすべて失敗すれば下で throw
+            lastMessage = `${command}: ${err.message || String(e)}`
+            continue
         }
     }
 
@@ -169,8 +184,7 @@ export function resolveReferenceRembgPaths(
     }
     const inputAbs = path.resolve(path.join(root, rel.split('/').join(path.sep)))
     const assetsRoot = path.resolve(path.join(root, 'assets'))
-    const underAssets = path.relative(assetsRoot, inputAbs)
-    if (underAssets.startsWith('..') || path.isAbsolute(underAssets)) {
+    if (!isResolvedPathInsideDir(assetsRoot, inputAbs)) {
         throw new Error('参照画像はプロジェクトの assets 内である必要があります')
     }
     if (!fs.existsSync(inputAbs)) {
@@ -181,6 +195,9 @@ export function resolveReferenceRembgPaths(
     let outputAbs = path.join(dir, `${base}_nobg.png`)
     if (fs.existsSync(outputAbs)) {
         outputAbs = path.join(dir, `${base}_nobg_${Date.now()}.png`)
+    }
+    if (!isResolvedPathInsideDir(assetsRoot, outputAbs)) {
+        throw new Error('出力パスが assets 外になりました')
     }
     return { inputAbs, outputAbs }
 }

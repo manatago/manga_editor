@@ -5,6 +5,7 @@ import * as pathModule from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { runRembgToFile, resolveReferenceRembgPaths, toProjectRelativePath } from './rembgRunner'
+import { assertTemplateForSave, parseSaveProjectPayload, parseSaveProjectSyncPayload } from './ipcGuards'
 import { ASSETS_DUST_DIR, ASSETS_IMAGES_DIR, ASSETS_REFERENCES_DIR } from './assetsLayoutRoot'
 
 // Add this for renderer logs to terminal
@@ -216,9 +217,9 @@ app.whenReady().then(() => {
         }
     })
 
-    ipcMain.handle('save-project', async (_, { path, data }) => {
-        const trimmedPath = path.trim()
-        const configPath = pathModule.join(trimmedPath, 'manga.json')
+    ipcMain.handle('save-project', async (_, payload: unknown) => {
+        const { path: savePath, data } = parseSaveProjectPayload(payload)
+        const configPath = pathModule.join(savePath, 'manga.json')
 
         try {
             fs.writeFileSync(configPath, JSON.stringify(data, null, 2))
@@ -230,15 +231,15 @@ app.whenReady().then(() => {
     })
 
     // Synchronous save path used only for app close/beforeunload flush.
-    ipcMain.on('save-project-sync', (event, { path, data }) => {
+    ipcMain.on('save-project-sync', (event, payload: unknown) => {
         try {
-            const trimmedPath = String(path ?? '').trim()
-            if (!trimmedPath) {
+            const parsed = parseSaveProjectSyncPayload(payload)
+            if (!parsed) {
                 event.returnValue = false
                 return
             }
-            const configPath = pathModule.join(trimmedPath, 'manga.json')
-            fs.writeFileSync(configPath, JSON.stringify(data, null, 2))
+            const configPath = pathModule.join(parsed.path, 'manga.json')
+            fs.writeFileSync(configPath, JSON.stringify(parsed.data, null, 2))
             event.returnValue = true
         } catch (error) {
             console.error('Main: failed to save project synchronously:', error)
@@ -261,7 +262,7 @@ app.whenReady().then(() => {
         }
     })
 
-    ipcMain.handle('save-template', async (_, template) => {
+    ipcMain.handle('save-template', async (_, templateRaw: unknown) => {
         const fs = await import('fs')
         const pathModule = await import('path')
         const userDataPath = app.getPath('userData')
@@ -270,6 +271,7 @@ app.whenReady().then(() => {
         console.log('Main: saving template to', templatePath)
 
         try {
+            const template = assertTemplateForSave(templateRaw)
             let templates = []
             if (fs.existsSync(templatePath)) {
                 const existingData = fs.readFileSync(templatePath, 'utf8')
@@ -447,11 +449,16 @@ app.whenReady().then(() => {
     ipcMain.handle(
         'rembg-remove-background',
         async (_, { projectPath, inputRelativePath }: { projectPath: string; inputRelativePath: string }) => {
-            const root = String(projectPath ?? '').trim()
-            const relIn = String(inputRelativePath ?? '').trim()
-            const { inputAbs, outputAbs } = resolveReferenceRembgPaths(root, relIn)
-            await runRembgToFile(inputAbs, outputAbs)
-            return { relativePath: toProjectRelativePath(root, outputAbs) }
+            try {
+                const root = String(projectPath ?? '').trim()
+                const relIn = String(inputRelativePath ?? '').trim()
+                const { inputAbs, outputAbs } = resolveReferenceRembgPaths(root, relIn)
+                await runRembgToFile(inputAbs, outputAbs)
+                return { relativePath: toProjectRelativePath(root, outputAbs) }
+            } catch (e) {
+                console.error('Main: rembg-remove-background failed', e)
+                throw e
+            }
         }
     )
 

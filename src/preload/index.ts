@@ -73,10 +73,10 @@ if (process.contextIsolated) {
             selectFolder: () => ipcRenderer.invoke('select-folder'),
             createProject: (path: string, name: string) => ipcRenderer.invoke('create-project', { path, name }),
             loadProject: (path: string) => ipcRenderer.invoke('load-project', path),
-            saveProject: (path: string, data: any) => ipcRenderer.invoke('save-project', { path, data }),
-            saveProjectSync: (path: string, data: any) => ipcRenderer.sendSync('save-project-sync', { path, data }),
+            saveProject: (path: string, data: unknown) => ipcRenderer.invoke('save-project', { path, data }),
+            saveProjectSync: (path: string, data: unknown) => ipcRenderer.sendSync('save-project-sync', { path, data }),
             getTemplates: () => ipcRenderer.invoke('get-templates'),
-            saveTemplate: (template: any) => ipcRenderer.invoke('save-template', template),
+            saveTemplate: (template: unknown) => ipcRenderer.invoke('save-template', template),
             deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
             exportPNG: (path: string, name: string, data: string) => ipcRenderer.invoke('export-png', { path, name, data }),
             saveCompositePng: (projectPath: string, data: string) =>

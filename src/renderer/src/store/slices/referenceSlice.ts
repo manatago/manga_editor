@@ -49,8 +49,8 @@ export const createReferenceSlice: StateCreator<MangaState, [], [], ReferenceSli
                 if (abs) {
                     try {
                         await window.electron.deleteFile(abs)
-                    } catch {
-                        /* ファイルが無い場合も続行 */
+                    } catch (e) {
+                        console.warn('referenceSlice: deleteFile skipped', im.relativePath, e)
                     }
                 }
             }
