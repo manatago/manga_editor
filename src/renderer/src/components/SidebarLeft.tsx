@@ -1,5 +1,8 @@
-import React from 'react'
-import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft } from 'lucide-react'
+import React, { useState } from 'react'
+import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus } from 'lucide-react'
+import { ReferenceCharactersModal } from './ReferenceCharactersModal'
+import { BackgroundLibraryModal } from './BackgroundLibraryModal'
+import { ImageCompositorModal } from './ImageCompositorModal'
 import { useMangaStore } from '../store/useMangaStore'
 import type { Page, Panel } from '../store/types'
 import { confirmMessage } from '../utils/dialogs'
@@ -45,6 +48,10 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         saveAsTemplate, // Not used in this component, but part of the store destructuring
         cleanupAssets
     } = useMangaStore()
+
+    const [referenceModalOpen, setReferenceModalOpen] = useState(false)
+    const [backgroundLibraryOpen, setBackgroundLibraryOpen] = useState(false)
+    const [compositorOpen, setCompositorOpen] = useState(false)
 
     return (
         <div className="h-full flex flex-col min-h-0 bg-zinc-900">
@@ -97,6 +104,30 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                             >
                                 <Download size={18} />
                                 <span>全ページ一括 PNG</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setReferenceModalOpen(true)}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-violet-950/40 hover:bg-violet-900/40 border border-violet-800/40 transition-colors text-violet-200 hover:text-violet-100 font-bold text-sm"
+                            >
+                                <Users size={18} />
+                                <span>参照キャラクター</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setBackgroundLibraryOpen(true)}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-sky-950/40 hover:bg-sky-900/40 border border-sky-800/40 transition-colors text-sky-200 hover:text-sky-100 font-bold text-sm"
+                            >
+                                <Layers size={18} />
+                                <span>背景ライブラリ</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCompositorOpen(true)}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-pink-950/40 hover:bg-pink-900/40 border border-pink-900/40 transition-colors text-pink-100 hover:text-pink-50 font-bold text-sm"
+                            >
+                                <ImagePlus size={18} />
+                                <span>背景＋人物の合成</span>
                             </button>
                         </div>
 
@@ -172,17 +203,31 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                             <div className="pt-4 mt-4 border-t border-zinc-800">
                                 <button
                                     onClick={cleanupAssets}
-                                    title="プロジェクト内の未使用画像を削除して整理します"
+                                    title="参照されていない画像を assets/_trash/ に移動します（完全削除しません）"
                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-red-900/20 border border-zinc-700 hover:border-red-900/30 transition-all text-zinc-400 hover:text-red-400 group"
                                 >
                                     <Eraser size={18} className="group-hover:animate-pulse" />
-                                    <span className="text-sm font-bold">Assets整理</span>
+                                    <span className="text-sm font-bold">Assets整理（ゴミ箱へ移動）</span>
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
+            <ReferenceCharactersModal
+                isOpen={referenceModalOpen}
+                onClose={() => setReferenceModalOpen(false)}
+            />
+            <BackgroundLibraryModal
+                isOpen={backgroundLibraryOpen}
+                onClose={() => setBackgroundLibraryOpen(false)}
+            />
+            <ImageCompositorModal
+                isOpen={compositorOpen}
+                onClose={() => setCompositorOpen(false)}
+                currentProjectPath={currentProjectPath}
+            />
         </div>
     )
 }

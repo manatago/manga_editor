@@ -5,6 +5,11 @@ import { createPanelSlice, type PanelSlice } from './slices/panelSlice'
 import { createBubbleSlice, type BubbleSlice } from './slices/bubbleSlice'
 import { createMaterialSlice, type MaterialSlice } from './slices/materialSlice'
 import { createProjectSlice, type ProjectSlice } from './slices/projectSlice'
+import { createReferenceSlice, type ReferenceSlice } from './slices/referenceSlice'
+import {
+    createBackgroundLibrarySlice,
+    type BackgroundLibrarySlice
+} from './slices/backgroundLibrarySlice'
 
 // Re-export all domain types so existing imports from this file continue to work
 export type {
@@ -17,7 +22,11 @@ export type {
     Material,
     Page,
     PageTemplate,
-    MangaProjectData
+    MangaProjectData,
+    ReferenceCharacter,
+    ReferenceCharacterImage,
+    BackgroundLibraryImage,
+    PageBackgroundImageFit
 } from './types'
 
 export type MangaState =
@@ -26,7 +35,9 @@ export type MangaState =
     PanelSlice &
     BubbleSlice &
     MaterialSlice &
-    ProjectSlice
+    ProjectSlice &
+    ReferenceSlice &
+    BackgroundLibrarySlice
 
 export const useMangaStore = create<MangaState>()((...a) => ({
     ...createHistorySlice(...a),
@@ -34,5 +45,7 @@ export const useMangaStore = create<MangaState>()((...a) => ({
     ...createPanelSlice(...a),
     ...createBubbleSlice(...a),
     ...createMaterialSlice(...a),
-    ...createProjectSlice(...a)
+    ...createProjectSlice(...a),
+    ...createReferenceSlice(...a),
+    ...createBackgroundLibrarySlice(...a)
 }))

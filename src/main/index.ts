@@ -1,9 +1,10 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net, nativeImage } from 'electron'
 import { join, extname, basename } from 'path'
 import * as fs from 'fs'
 import * as pathModule from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { runRembgToFile, resolveReferenceRembgPaths, toProjectRelativePath } from './rembgRunner'
 
 // Add this for renderer logs to terminal
 ipcMain.on('renderer-log', (_e, level, ...args) => {
@@ -80,8 +81,26 @@ app.whenReady().then(() => {
 
     createWindow()
 
-    ipcMain.handle('copy-file-to-project', async (_, { projectPath, sourcePath }) => {
-        const assetsDir = pathModule.join(projectPath, 'assets')
+    /** assets/ 以下のみ。`..` や不正文字を拒否 */
+    function sanitizeAssetsSubPath(input: unknown): string {
+        if (input == null || typeof input !== 'string') return ''
+        const s = input.replace(/\\/g, '/').replace(/^\/+/g, '').replace(/\/+$/g, '')
+        if (!s || s.includes('..')) return ''
+        if (!/^[a-zA-Z0-9/_-]+$/.test(s)) return ''
+        const parts = s.split('/').filter(Boolean)
+        if (parts.length === 0 || parts.length > 16) return ''
+        for (const p of parts) {
+            if (p.length > 120) return ''
+        }
+        return parts.join(pathModule.sep)
+    }
+
+    ipcMain.handle('copy-file-to-project', async (_, { projectPath, sourcePath, assetsSubPath }) => {
+        const trimmedRoot = String(projectPath ?? '').trim()
+        const sub = sanitizeAssetsSubPath(assetsSubPath)
+        const assetsDir = sub
+            ? pathModule.join(trimmedRoot, 'assets', sub)
+            : pathModule.join(trimmedRoot, 'assets')
 
         try {
             if (!fs.existsSync(assetsDir)) {
@@ -100,10 +119,28 @@ app.whenReady().then(() => {
             const destPath = pathModule.join(assetsDir, newFileName)
 
             fs.copyFileSync(sourcePath, destPath)
-            return pathModule.relative(projectPath, destPath).split(pathModule.sep).join('/')
+            return pathModule.relative(trimmedRoot, destPath).split(pathModule.sep).join('/')
         } catch (error) {
             console.error('Main: failed to copy file to project:', error)
             throw error
+        }
+    })
+
+    // HTML dragstart から呼ぶ（非同期 IPC 不可）。Finder 等へファイルをドラッグする。
+    ipcMain.on('start-drag-file', (event, absPath: string) => {
+        const p = typeof absPath === 'string' ? absPath.trim() : ''
+        if (!p || !fs.existsSync(p)) {
+            console.warn('Main: start-drag-file skipped — missing path:', p)
+            return
+        }
+        try {
+            let icon = nativeImage.createFromPath(p)
+            if (icon.isEmpty()) {
+                icon = nativeImage.createEmpty()
+            }
+            event.sender.startDrag({ file: p, icon })
+        } catch (error) {
+            console.error('Main: start-drag-file failed:', error)
         }
     })
 
@@ -138,8 +175,12 @@ app.whenReady().then(() => {
             // Create subdirectories
             const assetsDir = pathModule.join(projectPath, 'assets')
             const exportsDir = pathModule.join(projectPath, 'exports')
+            const trashDir = pathModule.join(assetsDir, '_trash')
+            const compositeDir = pathModule.join(assetsDir, 'composite')
             if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true })
             if (!fs.existsSync(exportsDir)) fs.mkdirSync(exportsDir, { recursive: true })
+            if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true })
+            if (!fs.existsSync(compositeDir)) fs.mkdirSync(compositeDir, { recursive: true })
 
             const configPath = pathModule.join(projectPath, 'manga.json')
             const configData = JSON.stringify({ name, createdAt: new Date().toISOString(), pages: [] }, null, 2)
@@ -283,11 +324,50 @@ app.whenReady().then(() => {
         }
     })
 
-    ipcMain.handle('get-assets', async (_, projectPath) => {
-        const assetsDir = pathModule.join(projectPath, 'assets')
+    /** 合成ツール: assets/composite/ に日時ベースのファイル名で PNG 保存 */
+    ipcMain.handle('save-composite-png', async (_, { projectPath, data }: { projectPath: string; data: string }) => {
+        const root = String(projectPath ?? '').trim()
+        const compositeDir = pathModule.join(root, 'assets', 'composite')
         try {
-            if (!fs.existsSync(assetsDir)) return []
-            return fs.readdirSync(assetsDir).map(file => pathModule.join(assetsDir, file))
+            if (!fs.existsSync(compositeDir)) {
+                fs.mkdirSync(compositeDir, { recursive: true })
+            }
+            const d = new Date()
+            const pad = (n: number) => String(n).padStart(2, '0')
+            const baseName = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${d.getMilliseconds()}`
+            let filePath = pathModule.join(compositeDir, `${baseName}.png`)
+            let n = 0
+            while (fs.existsSync(filePath)) {
+                n += 1
+                filePath = pathModule.join(compositeDir, `${baseName}_${n}.png`)
+            }
+            const base64Data = data.replace(/^data:image\/png;base64,/, '')
+            fs.writeFileSync(filePath, base64Data, 'base64')
+            const rel = pathModule.relative(root, filePath).split(pathModule.sep).join('/')
+            console.log('Main: composite PNG saved to', rel)
+            return { relativePath: rel }
+        } catch (error) {
+            console.error('Main: failed to save composite png:', error)
+            throw error
+        }
+    })
+
+    function listAssetFilesRecursive(dir: string): string[] {
+        const out: string[] = []
+        if (!fs.existsSync(dir)) return out
+        for (const name of fs.readdirSync(dir)) {
+            const full = pathModule.join(dir, name)
+            const st = fs.statSync(full)
+            if (st.isDirectory()) out.push(...listAssetFilesRecursive(full))
+            else out.push(full)
+        }
+        return out
+    }
+
+    ipcMain.handle('get-assets', async (_, projectPath) => {
+        const assetsDir = pathModule.join(projectPath.trim(), 'assets')
+        try {
+            return listAssetFilesRecursive(assetsDir)
         } catch (error) {
             console.error('Main: failed to get assets:', error)
             return []
@@ -306,6 +386,65 @@ app.whenReady().then(() => {
             throw error
         }
     })
+
+    /** 未使用アセット整理用: 削除せず assets/_trash/ へ移動 */
+    ipcMain.handle(
+        'move-asset-to-trash',
+        async (_, payload: { projectPath: string; absoluteFilePath: string }) => {
+            const root = pathModule.resolve(String(payload.projectPath ?? '').trim())
+            const assetsRoot = pathModule.resolve(pathModule.join(root, 'assets'))
+            const src = pathModule.resolve(String(payload.absoluteFilePath ?? '').trim())
+
+            if (!fs.existsSync(src)) {
+                return { moved: false as const, reason: 'missing' as const }
+            }
+
+            const relFromAssets = pathModule.relative(assetsRoot, src)
+            if (relFromAssets.startsWith('..') || pathModule.isAbsolute(relFromAssets)) {
+                throw new Error('パスがプロジェクトの assets 外です')
+            }
+
+            const relNorm = relFromAssets.split(pathModule.sep).join('/')
+            if (relNorm === '_trash' || relNorm.startsWith('_trash/')) {
+                return { moved: false as const, reason: 'already-trash' as const }
+            }
+
+            const trashDir = pathModule.join(assetsRoot, '_trash')
+            if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true })
+
+            const base = pathModule.basename(src)
+            const ext = pathModule.extname(base)
+            const stem = pathModule.basename(base, ext)
+            let dest = pathModule.join(trashDir, `${Date.now()}_${stem}${ext}`)
+            let n = 0
+            while (fs.existsSync(dest)) {
+                n += 1
+                dest = pathModule.join(trashDir, `${Date.now()}_${n}_${stem}${ext}`)
+            }
+
+            try {
+                fs.renameSync(src, dest)
+            } catch {
+                fs.copyFileSync(src, dest)
+                fs.unlinkSync(src)
+            }
+
+            const relOut = pathModule.relative(root, dest).split(pathModule.sep).join('/')
+            console.log('Main: moved unused asset to trash', relOut)
+            return { moved: true as const, relativePath: relOut }
+        }
+    )
+
+    ipcMain.handle(
+        'rembg-remove-background',
+        async (_, { projectPath, inputRelativePath }: { projectPath: string; inputRelativePath: string }) => {
+            const root = String(projectPath ?? '').trim()
+            const relIn = String(inputRelativePath ?? '').trim()
+            const { inputAbs, outputAbs } = resolveReferenceRembgPaths(root, relIn)
+            await runRembgToFile(inputAbs, outputAbs)
+            return { relativePath: toProjectRelativePath(root, outputAbs) }
+        }
+    )
 
     ipcMain.handle('show-message', async (_, payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => {
         const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

@@ -1,7 +1,9 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { PageTemplate, MangaProjectData, Page } from '../types'
-import { toRelativeAssetPath, physicalFileToRelative } from '../../utils/projectAssets'
+import { toRelativeAssetPath, physicalFileToRelative, isAssetTrashRelativePath } from '../../utils/projectAssets'
+import { normalizeReferenceCharacters } from '../../utils/referenceCharacters'
+import { normalizeBackgroundLibrary } from '../../utils/backgroundLibrary'
 import { confirmMessage, showError, showInfo } from '../../utils/dialogs'
 
 export interface ProjectSlice {
@@ -12,7 +14,12 @@ export interface ProjectSlice {
     saveError: string | null
     isExporting: boolean
     setCurrentProject: (path: string) => void
-    setProjectData: (data: { pages: Page[]; lastPageId?: string | null }) => void
+    setProjectData: (data: {
+        pages: Page[]
+        lastPageId?: string | null
+        referenceCharacters?: MangaProjectData['referenceCharacters']
+        backgroundLibrary?: MangaProjectData['backgroundLibrary']
+    }) => void
     getProjectData: () => MangaProjectData
     saveProject: () => Promise<void>
     loadTemplates: () => Promise<void>
@@ -98,7 +105,23 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     imagePath:
                         projectPathForAssets && panel.imagePath
                             ? toRelativeAssetPath(projectPathForAssets, panel.imagePath) ?? panel.imagePath
-                            : panel.imagePath
+                            : panel.imagePath,
+                    backgroundImagePath: (() => {
+                        const bp = panel.backgroundImagePath
+                        if (!bp) return undefined
+                        if (bp.startsWith('builtin://')) return bp
+                        return projectPathForAssets
+                            ? toRelativeAssetPath(projectPathForAssets, bp) ?? bp
+                            : bp
+                    })(),
+                    backgroundImageOpacity:
+                        panel.backgroundImageOpacity != null
+                            ? Math.max(0, Math.min(1, panel.backgroundImageOpacity))
+                            : 1,
+                    backgroundImageFit:
+                        panel.backgroundImageFit === 'stretch' || panel.backgroundImageFit === 'tile'
+                            ? panel.backgroundImageFit
+                            : undefined
                 }
             }),
             materials: (page.materials || []).map((mat) => ({
@@ -110,7 +133,23 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     projectPathForAssets && mat.imagePath
                         ? toRelativeAssetPath(projectPathForAssets, mat.imagePath) ?? mat.imagePath
                         : mat.imagePath
-            }))
+            })),
+            backgroundImagePath: (() => {
+                const bp = page.backgroundImagePath
+                if (!bp) return undefined
+                if (bp.startsWith('builtin://')) return bp
+                return projectPathForAssets
+                    ? toRelativeAssetPath(projectPathForAssets, bp) ?? bp
+                    : bp
+            })(),
+            backgroundImageOpacity:
+                page.backgroundImageOpacity != null
+                    ? Math.max(0, Math.min(1, page.backgroundImageOpacity))
+                    : 1,
+            backgroundImageFit:
+                page.backgroundImageFit === 'stretch' || page.backgroundImageFit === 'tile'
+                    ? page.backgroundImageFit
+                    : undefined
         }))
 
         const normalizedPages = sanitizedPages.map((p, i) => ({
@@ -123,7 +162,9 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             currentPageId: data.lastPageId || normalizedPages[0]?.id || null,
             selectedPanelId: null,
             selectedBubbleId: null,
-            currentProjectPath: get().currentProjectPath
+            currentProjectPath: get().currentProjectPath,
+            referenceCharacters: normalizeReferenceCharacters(data.referenceCharacters),
+            backgroundLibrary: normalizeBackgroundLibrary(data.backgroundLibrary)
         })
         console.log('Store: setProjectData done. normalized count:', normalizedPages.length)
     },
@@ -132,20 +173,40 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
         const state = get()
         const pp = state.currentProjectPath
         if (!pp) {
-            return { pages: state.pages, lastPageId: state.currentPageId }
+            return {
+                pages: state.pages,
+                lastPageId: state.currentPageId,
+                referenceCharacters: state.referenceCharacters,
+                backgroundLibrary: state.backgroundLibrary
+            }
         }
         const pages = state.pages.map((page) => ({
             ...page,
             panels: page.panels.map((p) => ({
                 ...p,
-                imagePath: toRelativeAssetPath(pp, p.imagePath) ?? p.imagePath
+                imagePath: toRelativeAssetPath(pp, p.imagePath) ?? p.imagePath,
+                backgroundImagePath: p.backgroundImagePath?.startsWith('builtin://')
+                    ? p.backgroundImagePath
+                    : p.backgroundImagePath
+                      ? toRelativeAssetPath(pp, p.backgroundImagePath) ?? p.backgroundImagePath
+                      : undefined
             })),
             materials: (page.materials || []).map((m) => ({
                 ...m,
                 imagePath: toRelativeAssetPath(pp, m.imagePath) ?? m.imagePath
-            }))
+            })),
+            backgroundImagePath: page.backgroundImagePath?.startsWith('builtin://')
+                ? page.backgroundImagePath
+                : page.backgroundImagePath
+                  ? toRelativeAssetPath(pp, page.backgroundImagePath) ?? page.backgroundImagePath
+                  : undefined
         }))
-        return { pages, lastPageId: state.currentPageId }
+        return {
+            pages,
+            lastPageId: state.currentPageId,
+            referenceCharacters: state.referenceCharacters,
+            backgroundLibrary: state.backgroundLibrary
+        }
     },
 
     saveProject: async () => {
@@ -230,6 +291,11 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                         const rel = toRelativeAssetPath(pp, panel.imagePath) ?? panel.imagePath
                         referencedPaths.add(rel)
                     }
+                    const pbg = panel.backgroundImagePath
+                    if (pbg && !pbg.startsWith('builtin://')) {
+                        const rel = toRelativeAssetPath(pp, pbg) ?? pbg
+                        referencedPaths.add(rel)
+                    }
                 })
                 page.materials.forEach((material) => {
                     if (material.imagePath) {
@@ -238,10 +304,28 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     }
                 })
             })
+            state.referenceCharacters.forEach((ch) => {
+                ch.images.forEach((im) => {
+                    const rel = toRelativeAssetPath(pp, im.relativePath) ?? im.relativePath
+                    referencedPaths.add(rel)
+                })
+            })
+            state.backgroundLibrary.forEach((bg) => {
+                const rel = toRelativeAssetPath(pp, bg.relativePath) ?? bg.relativePath
+                referencedPaths.add(rel)
+            })
+            state.pages.forEach((page) => {
+                const bp = page.backgroundImagePath
+                if (bp && !bp.startsWith('builtin://')) {
+                    const rel = toRelativeAssetPath(pp, bp) ?? bp
+                    referencedPaths.add(rel)
+                }
+            })
 
             const physicalAssets = await window.electron.getAssets(state.currentProjectPath)
             const unusedAssets = physicalAssets.filter((fullPath) => {
                 const rel = physicalFileToRelative(pp, fullPath)
+                if (isAssetTrashRelativePath(rel)) return false
                 return !referencedPaths.has(rel)
             })
 
@@ -250,12 +334,16 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                 return
             }
 
-            const ok = await confirmMessage(`${unusedAssets.length}個の未使用アセットを削除しますか？`)
+            const ok = await confirmMessage(
+                `${unusedAssets.length} 件の未使用ファイルを assets/_trash/ に移動しますか？\n（漫画データから参照されていない画像のみ。完全削除ではありません）`
+            )
             if (ok) {
-                for (const path of unusedAssets) {
-                    await window.electron.deleteFile(path)
+                let moved = 0
+                for (const absPath of unusedAssets) {
+                    const r = await window.electron.moveAssetToTrash(pp, absPath)
+                    if (r.moved) moved += 1
                 }
-                await showInfo(`${unusedAssets.length}個のアセットを削除しました。`)
+                await showInfo(`${moved} 件を assets/_trash/ に移動しました。`)
             }
         } catch (error) {
             console.error('Store: failed to cleanup assets', error)

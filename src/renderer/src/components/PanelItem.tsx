@@ -10,6 +10,8 @@ import { FadeOverlay } from './effects/FadeOverlay'
 import { FocusLines } from './effects/FocusLines'
 import { RainEffect } from './effects/RainEffect'
 import { PanelStrokes } from './PanelStrokes'
+import { PanelBackgroundImageLayer } from './PanelBackgroundImageLayer'
+import { showError } from '../utils/dialogs'
 
 const FocusAdjustmentHandle: React.FC<{
     panel: Panel;
@@ -113,7 +115,20 @@ const ImageEditModeTabs: React.FC<{
     imageFlipX: boolean
     onToggleGrayscale: () => void
     onToggleFlipX: () => void
-}> = ({ mode, onChange, isGrayscale, imageFlipX, onToggleGrayscale, onToggleFlipX }) => {
+    rembgEnabled?: boolean
+    rembgBusy?: boolean
+    onRembg?: () => void
+}> = ({
+    mode,
+    onChange,
+    isGrayscale,
+    imageFlipX,
+    onToggleGrayscale,
+    onToggleFlipX,
+    rembgEnabled,
+    rembgBusy,
+    onRembg
+}) => {
     const tabs: Array<{ key: ImageEditMode; title: string }> = [
         { key: 'move', title: '移動' },
         { key: 'scale', title: '拡大縮小' },
@@ -235,6 +250,44 @@ const ImageEditModeTabs: React.FC<{
                 <Line points={[18, 10, 20, 13, 18, 16]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
                 <Line points={[14, 8, 14, 18]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={1.5} dash={[2, 2]} listening={false} />
             </Group>
+            {rembgEnabled && onRembg ? (
+                <Group y={38}>
+                    <Rect
+                        x={0}
+                        y={0}
+                        width={170}
+                        height={28}
+                        cornerRadius={6}
+                        fill="rgba(24,24,27,0.95)"
+                        stroke="#3f3f46"
+                        strokeWidth={1}
+                        onMouseDown={(e) => {
+                            e.cancelBubble = true
+                        }}
+                        onMouseUp={(e) => {
+                            e.cancelBubble = true
+                        }}
+                        onClick={(e) => {
+                            e.cancelBubble = true
+                            if (!rembgBusy) onRembg()
+                        }}
+                        onTap={(e) => {
+                            e.cancelBubble = true
+                            if (!rembgBusy) onRembg()
+                        }}
+                    />
+                    <Text
+                        x={0}
+                        y={7}
+                        width={170}
+                        align="center"
+                        text={rembgBusy ? '背景除去中…' : '背景除去 (rembg)'}
+                        fontSize={11}
+                        fill={rembgBusy ? '#71717a' : '#e4e4e7'}
+                        listening={false}
+                    />
+                </Group>
+            ) : null}
         </Group>
     )
 }
@@ -251,6 +304,7 @@ export const PanelItem: React.FC<{
     const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
     const [isShiftPressed, setIsShiftPressed] = React.useState(false)
     const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>('move')
+    const [rembgBusy, setRembgBusy] = useState(false)
     const points = getPanelPoints(panel)
     const imagePath = useMemo(() => {
         if (!panel.imagePath) return ''
@@ -296,6 +350,32 @@ export const PanelItem: React.FC<{
     const shouldRenderEffects = renderPass === 'effects' || !renderPass;
     const shouldRenderStrokes = renderPass === 'strokes' || !renderPass;
     const shouldShowImageTabs = isInteractive && isSelected && !!panel.imagePath && isShiftPressed
+
+    const handlePanelRembg = async () => {
+        if (!currentProjectPath || !panel.imagePath || rembgBusy || !window.electron) return
+        const abs = window.electron.resolveAssetPath(currentProjectPath, panel.imagePath)
+        if (!abs) {
+            await showError('プロジェクト内の画像のみ背景除去できます')
+            return
+        }
+        setRembgBusy(true)
+        try {
+            const { relativePath } = await window.electron.rembgRemoveBackground(
+                currentProjectPath,
+                panel.imagePath
+            )
+            onUpdate(panel.id, { imagePath: relativePath }, true)
+        } catch (e: unknown) {
+            const msg =
+                e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string'
+                    ? (e as { message: string }).message
+                    : '背景除去に失敗しました（rembg が PATH にあるか確認してください）'
+            console.error('PanelItem: rembg', e)
+            await showError(msg)
+        } finally {
+            setRembgBusy(false)
+        }
+    }
 
     const defaultTabY = panel.y <= 44 ? panel.height + 8 : -38
     const [tabPos, setTabPos] = useState({ x: 0, y: defaultTabY })
@@ -530,6 +610,9 @@ export const PanelItem: React.FC<{
                                 imageY: panel.height / 2
                             })
                         }
+                        rembgEnabled={!!currentProjectPath && !!panel.imagePath}
+                        rembgBusy={rembgBusy}
+                        onRembg={handlePanelRembg}
                     />
                 </Group>
             )}
@@ -586,6 +669,9 @@ export const PanelItem: React.FC<{
                             closed={true}
                             {...bgProps}
                         />
+                        {panel.backgroundImagePath ? (
+                            <PanelBackgroundImageLayer panel={panel} projectPath={currentProjectPath} />
+                        ) : null}
                         {panel.imagePath && (
                             <Line
                                 id={`panel-${panel.id}-image`}

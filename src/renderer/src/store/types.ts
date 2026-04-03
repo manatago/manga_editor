@@ -13,6 +13,9 @@ export type FadeDirection =
 
 export type GradientType = 'none' | 'linear' | 'radial'
 
+/** ページ／コマの背景トーン・画像のフィット */
+export type PageBackgroundImageFit = 'tile' | 'stretch'
+
 export interface Panel {
     id: string
     type: PanelType
@@ -53,6 +56,10 @@ export interface Panel {
     hasRainEffect?: boolean
     rainDensity?: number
     rainOpacity?: number
+    /** コマ内の人物画像の下に重ねるトーン／画像（ページ背景とは独立） */
+    backgroundImagePath?: string
+    backgroundImageOpacity?: number
+    backgroundImageFit?: PageBackgroundImageFit
 }
 
 export type BubbleType = 'rounded' | 'jagged' | 'rect' | 'flash' | 'shout' | 'square-jagged' | 'megaphone' | 'rect-double'
@@ -129,6 +136,12 @@ export interface Page {
     bgGradientStartColor?: string
     bgGradientEndColor?: string
     bgGradientRotation?: number
+    /** スクリーントーン or ライブラリ画像。`builtin://` で内蔵 */
+    backgroundImagePath?: string
+    /** トーン・画像を重ねる不透明度（0〜1） */
+    backgroundImageOpacity?: number
+    /** 未指定時: 内蔵は tile、assets は stretch */
+    backgroundImageFit?: PageBackgroundImageFit
 }
 
 export interface PageTemplate {
@@ -137,7 +150,37 @@ export interface PageTemplate {
     panels: Omit<Panel, 'id'>[]
 }
 
+/** 参照用キャラクターに紐づく画像（プロジェクト内相対パス） */
+export interface ReferenceCharacterImage {
+    id: string
+    /** 例: assets/reference/characters/{characterId}/xxx.png */
+    relativePath: string
+    addedAt: string
+}
+
+/** AI 参照・整理用のキャラクター単位メタデータ */
+export interface ReferenceCharacter {
+    id: string
+    name: string
+    positivePrompt: string
+    negativePrompt: string
+    images: ReferenceCharacterImage[]
+}
+
+/** 背景ライブラリに登録した自作画像 */
+export interface BackgroundLibraryImage {
+    id: string
+    name: string
+    /** assets/reference/backgrounds/... */
+    relativePath: string
+    addedAt: string
+}
+
 export interface MangaProjectData {
     pages: Page[]
     lastPageId: string | null
+    /** 漫画ページ以外の参照キャラ管理（manga.json に保存） */
+    referenceCharacters?: ReferenceCharacter[]
+    /** 背景用に登録した自作画像一覧 */
+    backgroundLibrary?: BackgroundLibraryImage[]
 }

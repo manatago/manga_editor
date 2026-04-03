@@ -32,3 +32,6 @@ yarn-error.log*
 
 # Electron
 *.log
+
+# rembg 同梱用 Python venv（ラッパーのみコミット、venv は npm run bundle-rembg で生成）
+resources/bundled-rembg/*/venv/

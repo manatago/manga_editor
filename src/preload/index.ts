@@ -13,10 +13,18 @@ if (process.contextIsolated) {
             saveTemplate: (template: any) => ipcRenderer.invoke('save-template', template),
             deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
             exportPNG: (path: string, name: string, data: string) => ipcRenderer.invoke('export-png', { path, name, data }),
+            saveCompositePng: (projectPath: string, data: string) =>
+                ipcRenderer.invoke('save-composite-png', { projectPath, data }),
             selectFile: () => ipcRenderer.invoke('select-file'),
-            copyFileToProject: (projectPath: string, sourcePath: string) => ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath }),
+            copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) =>
+                ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
+            startDragFile: (absolutePath: string) => ipcRenderer.send('start-drag-file', absolutePath),
+            rembgRemoveBackground: (projectPath: string, inputRelativePath: string) =>
+                ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
             getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
             deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
+            moveAssetToTrash: (projectPath: string, absoluteFilePath: string) =>
+                ipcRenderer.invoke('move-asset-to-trash', { projectPath, absoluteFilePath }),
             pathToUrl: (p: string) => {
                 if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
                 const encodedPath = encodeURI(p)
@@ -51,10 +59,18 @@ if (process.contextIsolated) {
         saveTemplate: (template) => ipcRenderer.invoke('save-template', template),
         deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
         exportPNG: (path, name, data) => ipcRenderer.invoke('export-png', { path, name, data }),
+        saveCompositePng: (projectPath, data) =>
+            ipcRenderer.invoke('save-composite-png', { projectPath, data }),
         selectFile: () => ipcRenderer.invoke('select-file'),
-        copyFileToProject: (projectPath, sourcePath) => ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath }),
+        copyFileToProject: (projectPath, sourcePath, assetsSubPath) =>
+            ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
+        startDragFile: (absolutePath) => ipcRenderer.send('start-drag-file', absolutePath),
+        rembgRemoveBackground: (projectPath, inputRelativePath) =>
+            ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
         getAssets: (projectPath) => ipcRenderer.invoke('get-assets', projectPath),
         deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
+        moveAssetToTrash: (projectPath, absoluteFilePath) =>
+            ipcRenderer.invoke('move-asset-to-trash', { projectPath, absoluteFilePath }),
         pathToUrl: (p) => {
             if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
             const encodedPath = encodeURI(p)

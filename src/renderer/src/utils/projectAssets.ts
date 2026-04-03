@@ -31,6 +31,14 @@ export function toRelativeAssetPath(projectRoot: string, stored: string | undefi
     return stored
 }
 
+/** アセット整理のゴミ箱（未参照ファイルの移動先）。この配下は再整理の対象外 */
+export const ASSETS_TRASH_REL_PREFIX = 'assets/_trash/'
+
+export function isAssetTrashRelativePath(rel: string): boolean {
+    const n = rel.replace(/\\/g, '/')
+    return n === 'assets/_trash' || n.startsWith(ASSETS_TRASH_REL_PREFIX)
+}
+
 /** getAssets が返す絶対パスを、プロジェクトルートからの相対パス表現に揃える（比較用） */
 export function physicalFileToRelative(projectRoot: string, fullPath: string): string {
     const root = projectRoot.replace(/\\/g, '/').replace(/\/$/, '')

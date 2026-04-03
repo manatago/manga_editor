@@ -8,6 +8,7 @@ import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
 import { MaterialItem } from './MaterialItem'
 import { getPanelPoints } from './utils/drawPaths'
 import { getClippedPoints } from './utils/geometry'
+import { PageBackgroundImageLayer } from './PageBackgroundImageLayer'
 import { snapToGrid } from '../utils/gridUtils'
 
 const PANEL_MIN_SIZE = 10
@@ -398,6 +399,12 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                                     />
                                 );
                             })()}
+                            <PageBackgroundImageLayer
+                                page={currentPage}
+                                canvasWidth={canvasWidth}
+                                canvasHeight={canvasHeight}
+                                projectPath={currentProjectPath}
+                            />
                             {showGrid && !isExporting && <Group>{gridLines}</Group>}
                         </Group>
  

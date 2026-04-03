@@ -45,7 +45,9 @@ function App(): React.JSX.Element {
         isExporting,
         isSaving,
         lastSavedAt,
-        saveError
+        saveError,
+        referenceCharacters,
+        backgroundLibrary
     } = useMangaStore()
 
     // Custom Hooks
@@ -140,7 +142,7 @@ function App(): React.JSX.Element {
                 autoSaveTimerRef.current = null
             }
         }
-    }, [pages, currentProjectPath])
+    }, [pages, currentProjectPath, referenceCharacters, backgroundLibrary])
 
     // Flush pending debounce save to avoid data loss on app close.
     useEffect(() => {

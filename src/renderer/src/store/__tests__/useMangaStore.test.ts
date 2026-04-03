@@ -9,6 +9,8 @@ describe('useMangaStore', () => {
             pages: [],
             currentPageId: null,
             currentProjectPath: null,
+            referenceCharacters: [],
+            backgroundLibrary: []
         })
     })
 
@@ -26,8 +28,11 @@ describe('useMangaStore', () => {
 
         expect(projectData).toHaveProperty('pages')
         expect(projectData).toHaveProperty('lastPageId')
+        expect(projectData).toHaveProperty('referenceCharacters')
         expect(projectData.pages).toEqual(testPages)
         expect(projectData.lastPageId).toBe('page-1')
+        expect(projectData.referenceCharacters).toEqual([])
+        expect(projectData.backgroundLibrary).toEqual([])
     })
 
     it('saveAsTemplate should filter out image data from panels', async () => {

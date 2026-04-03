@@ -1,0 +1,9 @@
+#!/bin/sh
+# 同梱 venv 内の rembg を起動する。venv は npm run bundle-rembg で生成（git には含めない）。
+set -e
+HERE="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+if [ ! -x "$HERE/venv/bin/rembg" ]; then
+    echo "漫画野郎: 同梱 rembg の venv がありません。npm run bundle-rembg を実行してからパッケージしてください。" >&2
+    exit 127
+fi
+exec "$HERE/venv/bin/rembg" "$@"

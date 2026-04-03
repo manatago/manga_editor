@@ -46,6 +46,13 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 - **preload の `contextBridge`** にメソッドを追加し、型は `src/renderer/src/env.d.ts`（または同等）で `Window` を拡張する
 - メインで `ipcMain.handle`、レンダラーは `window.electron.xxx` 経由に統一する
 
+## 配布ビルドと rembg 同梱
+
+- **`npm run dist`** … rembg の venv は同梱しない（軽量）。ユーザが rembg を別途入れている必要がある。
+- **`npm run dist:with-rembg`** … `bundle-rembg` 後にビルドし rembg を同梱（容量大）。
+- ユーザーが「ビルド」「dist」とだけ言った場合のエージェント手順は **`.cursorrules` の「配布ビルド（dist）」** に従い、**どちらでビルドするか確認してから**実行する。
+
 ## 参照
 
 - IPC 一覧・保存形式: `.spec/manga-editor.md` の「ファイル・IPC」
+- 配布コマンドの使い分け: ルートの `.cursorrules`（配布ビルド）
