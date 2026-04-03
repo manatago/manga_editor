@@ -18,18 +18,24 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 
 ### ルール
 
-- 画像を表示するパスは、**プロジェクト内の `assets/` にコピーした**後のパスを `manga.json` に保存する（`copyFileToProject`）
-- 表示時は `window.electron.pathToUrl(path)` を通す（既存コンポーネントのパターンに合わせる）
+- 画像を表示するパスは、**プロジェクト内の `assets/` 配下にコピーした**後のパスを `manga.json` に保存する（`copyFileToProject`）
+- **既定の取り込み先**は `assets/images/`（第3引数省略時）。参照キャラ・背景ライブラリは `assets/references/...`（詳細は `src/renderer/src/utils/assetsLayout.ts` とメインの `src/main/assetsLayoutRoot.ts`）
+- 表示時は `resolveAssetPath(projectRoot, stored)` で実パスに解決し、続けて `window.electron.pathToUrl(...)` を通す（旧 `assets/workspace/` などは存在すればフォールバック）
 
 ## プロジェクトパス
 
 - メインの IPC では **`trim()`** したパスを使う（末尾スペースで保存失敗するのを防ぐ）
-- プロジェクトフォルダ構成: `manga.json`、`assets/`、`exports/`（作成時にメインが作る）
+- プロジェクトフォルダ構成: `manga.json`、`assets/`（**直下はフォルダのみ**）、`exports/`（作成時にメインが作る）
+- **`assets/` 直下の3フォルダ**: `images`（＋ `images/composite`）、`dust`（整理退避）、`references`
 
 ## ドラッグ＆ドロップ
 
 - ブラウザの `File.path` に依存しない。**Electron の `webUtils.getPathForFile(file)`**（プリロードで `getPathForFile` として公開）を使う
-- ドロップ後は `copyFileToProject` で `assets/` に取り込み、JSON にはその**絶対パス**を保存
+- ドロップ後は `copyFileToProject` で **`assets/images/`** に取り込み、JSON には**プロジェクトルートからの相対パス**（例 `assets/images/...`）を保存する
+
+## 未使用整理と IPC 名
+
+- UI 上は **`assets/dust/`** へ移動（削除しない）。IPC は歴史的に `move-asset-to-trash` のまま。メイン・文言を変えるときは `projectSlice` / `SidebarLeft` と揃える
 
 ## ログ
 
@@ -46,6 +52,10 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 - **preload の `contextBridge`** にメソッドを追加し、型は `src/renderer/src/env.d.ts`（または同等）で `Window` を拡張する
 - メインで `ipcMain.handle`、レンダラーは `window.electron.xxx` 経由に統一する
 
+## 既存プロジェクトのフォルダ移行
+
+- **`scripts/migrate-assets-layout.mjs`** … `assets/workspace` の解体、`images` / `dust` / `references` への振り分けと `manga.json` のパス書き換え
+
 ## 配布ビルドと rembg 同梱
 
 - **`npm run dist`** … rembg の venv は同梱しない（軽量）。ユーザが rembg を別途入れている必要がある。
@@ -55,4 +65,5 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 ## 参照
 
 - IPC 一覧・保存形式: `.spec/manga-editor.md` の「ファイル・IPC」
+- 定数の単一ソース: レンダラー `utils/assetsLayout.ts`、メイン `main/assetsLayoutRoot.ts`（renderer を main から import しない）
 - 配布コマンドの使い分け: ルートの `.cursorrules`（配布ビルド）

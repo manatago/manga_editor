@@ -1,4 +1,5 @@
 import type { ReferenceCharacter, ReferenceCharacterImage } from '../store/types'
+import { referenceCharacterAssetsSubpath } from './assetsLayout'
 
 export function newReferenceCharacterId(): string {
     return globalThis.crypto?.randomUUID?.() ?? `rc_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
@@ -37,6 +38,5 @@ export function normalizeReferenceCharacters(input: unknown): ReferenceCharacter
 }
 
 export function referenceAssetsSubdir(characterId: string): string {
-    const safe = characterId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
-    return `reference/characters/${safe || 'unknown'}`
+    return referenceCharacterAssetsSubpath(characterId)
 }

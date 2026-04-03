@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, X, Layers } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
-import { BACKGROUND_LIBRARY_ASSETS_SUBDIR } from '../utils/backgroundLibrary'
+import { BACKGROUND_LIBRARY_ASSETS_SUBPATH } from '../utils/backgroundLibrary'
 import { SCREEN_TONE_CATALOG } from '../utils/screenToneCatalog'
 import { showError } from '../utils/dialogs'
 
@@ -122,7 +122,7 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                 const rel = await window.electron.copyFileToProject(
                     currentProjectPath,
                     sourcePath,
-                    BACKGROUND_LIBRARY_ASSETS_SUBDIR
+                    BACKGROUND_LIBRARY_ASSETS_SUBPATH
                 )
                 const base = sourcePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || '背景'
                 addBackgroundLibraryImage(base, rel)

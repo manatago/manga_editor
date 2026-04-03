@@ -780,7 +780,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold disabled:opacity-40"
                         >
                             <Download size={18} />
-                            PNG で保存（assets/composite/）
+                            PNG で保存（assets/images/composite/）
                         </button>
                         <p className="text-[10px] text-zinc-600">
                             ファイル名は保存日時から自動で付きます（例: 20260402_154530_123.png）。

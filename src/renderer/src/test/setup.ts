@@ -13,15 +13,15 @@ const electronBridge = {
   deleteTemplate: vi.fn(),
   showMessage: vi.fn(async () => true),
   confirmMessage: vi.fn(async () => true),
-  copyFileToProject: vi.fn(async () => 'assets/reference/characters/x/test.png'),
+  copyFileToProject: vi.fn(async () => 'assets/references/characters/x/test.png'),
   deleteFile: vi.fn(async () => true),
-  moveAssetToTrash: vi.fn(async () => ({ moved: true as const, relativePath: 'assets/_trash/1_test.png' })),
+  moveAssetToTrash: vi.fn(async () => ({ moved: true as const, relativePath: 'assets/dust/1_test.png' })),
   getAssets: vi.fn(async () => []),
   exportPNG: vi.fn(async () => '/tmp/out.png'),
-  saveCompositePng: vi.fn(async () => ({ relativePath: 'assets/composite/20260101_120000_0.png' })),
+  saveCompositePng: vi.fn(async () => ({ relativePath: 'assets/images/composite/20260101_120000_0.png' })),
   selectFile: vi.fn(async () => null),
   startDragFile: vi.fn(),
-  rembgRemoveBackground: vi.fn(async () => ({ relativePath: 'assets/reference/characters/x/out_nobg.png' })),
+  rembgRemoveBackground: vi.fn(async () => ({ relativePath: 'assets/references/characters/x/out_nobg.png' })),
   // Add other mocks as needed
 }
 

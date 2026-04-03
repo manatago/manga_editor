@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { flushSync } from 'react-dom'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
 import { showError, showInfo } from '../utils/dialogs'
@@ -13,6 +14,18 @@ const waitFrames = async (count: number) => {
 const prepareStageForCapture = async (stage: Konva.Stage | null) => {
     stage?.batchDraw?.()
     // 1フレーム目: React/Konva の変更反映、2フレーム目: レイアウト確定後の描画安定化
+    await waitFrames(2)
+}
+
+/**
+ * ページ切替後、use-image 等の非同期デコードが終わるまで待つ。
+ * 待ちが短いと一括 PNG でコマ画像だけ欠けた状態で toDataURL される（1ページ目は既に表示中で再現しにくい）。
+ */
+const waitForImagesAfterPageSwitch = async (stage: Konva.Stage | null) => {
+    stage?.batchDraw?.()
+    await waitFrames(6)
+    await new Promise<void>((r) => setTimeout(r, 350))
+    stage?.batchDraw?.()
     await waitFrames(2)
 }
 
@@ -53,8 +66,10 @@ export const useExport = () => {
 
         try {
             for (const page of pages) {
-                selectPage(page.id)
-                await prepareStageForCapture(stageRef.current)
+                flushSync(() => {
+                    selectPage(page.id, { skipAutosave: true })
+                })
+                await waitForImagesAfterPageSwitch(stageRef.current)
                 const dataUrl = stageRef.current.toDataURL({
                     pixelRatio: 2
                 })

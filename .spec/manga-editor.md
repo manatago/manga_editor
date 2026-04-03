@@ -9,7 +9,7 @@
 - **種類**: デスクトップ向け漫画編集アプリ（コマ割り・背景画像・吹き出し・貼り素材）
 - **製品名**: `package.json` の `productName` は「漫画野郎」
 - **パッケージ名**: `mangas`
-- **保存形式**: ローカルフォルダに `manga.json`（JSON）＋ `assets/`（画像）＋ `exports/`（PNG 出力）
+- **保存形式**: ローカルフォルダに `manga.json`（JSON）＋ `assets/`（画像の3サブフォルダ構成、下記）＋ `exports/`（PNG 出力）
 
 ---
 
@@ -56,7 +56,8 @@
 |---------|------|
 | `utils/gridUtils.ts` | `snapToGrid(value, page)` — グリッド吸着の単一実装。各コンポーネントはここから import する |
 | `utils/dialogs.ts` | `showError` / `showInfo` / `confirmMessage` — Electron ネイティブダイアログのラッパー |
-| `utils/projectAssets.ts` | アセットパスの相対化・解決ロジック |
+| `utils/projectAssets.ts` | アセットパスの相対化・整理対象外（dust 等）の判定 |
+| `utils/assetsLayout.ts` | `images` / `dust` / `references` のセグメント名・`copyFileToProject` 用サブパス |
 
 ### 3.2 カスタムプロトコル `local-file`
 
@@ -175,7 +176,7 @@
 
 ### 5.3 ドラッグ＆ドロップ
 
-- 画像をドロップするとプロジェクト `assets/` にコピー（ファイル名はサニタイズ＋タイムスタンプ）
+- 画像をドロップするとプロジェクト **`assets/images/`** にコピー（ファイル名はサニタイズ＋タイムスタンプ）
 - ドロップ先が **画像のないコマ** → 背景画像として設定
 - **既に画像があるコマ** または **2枚目以降** → `Material` として追加（多くは `isClipped: true` + `panelId`）
 - コマ外 → クリップなし素材
@@ -210,21 +211,27 @@
 ### 6.1 プロジェクトフォルダ構成（作成時）
 
 - `manga.json`
-- `assets/`
+- `assets/`（**直下にファイルを置かず**、次の3ディレクトリのみ）
+  - **`images/`** … コマ・素材・D&D 取り込み画像、**合成ツール出力**（`images/composite/`）
+  - **`dust/`** … アセット整理で「未使用」と判定されたファイルの**退避先**（削除しない）
+  - **`references/`** … 参照キャラ（`references/characters/…`）、背景ライブラリ（`references/backgrounds/…`）
 - `exports/`
 
 ### 6.1.1 画像パス（manga.json）
 
-- コマ・素材の `imagePath` は **`assets/ファイル名` のようにプロジェクトルートからの相対パス**で保存する（別 Mac やフォルダ移動後も開けるようにするため）。
-- 表示時はプリロードの `resolveAssetPath(projectRoot, imagePath)` で実ファイルの絶対パスに解決してから `local-file` で読み込む。
+- コマ・素材の `imagePath` などは **`assets/images/...` のようにプロジェクトルートからの相対パス**で保存する（別 Mac やフォルダ移動後も開けるようにするため）。
+- 参照・背景ライブラリは **`assets/references/...`**。
+- 表示時はプリロードの `resolveAssetPath(projectRoot, imagePath)` で実ファイルの絶対パスに解決してから `local-file` で読み込む。`resolveAssetPath` は **旧レイアウト**（`assets/workspace/...`、直下 PNG、旧 `_trash` など）も存在すればフォールバックで解決する。
 - 旧データの絶対パスは、プロジェクトを開いたとき `setProjectData` 内で相対パスに正規化される。手元の JSON だけ直す場合は `scripts/convert-manga-json-to-relative-assets.mjs` を使える。
+- フォルダ構成を新形式へ揃える場合は **`scripts/migrate-assets-layout.mjs`**（`assets/workspace` の解体やパス書き換え）。
 
 ### 6.2 メイン IPC（プリロード経由）
 
 - フォルダ選択、プロジェクト作成/読込/保存
 - テンプレート get/save/delete
 - 画像選択、プロジェクトへファイルコピー、PNG 書き出し（base64）
-- アセット一覧、ファイル削除
+- アセット一覧、ファイル削除、**未使用アセットを `assets/dust/` へ移動**（`move-asset-to-trash` IPC 名は互換のためそのまま）
+- 合成 PNG 保存（`assets/images/composite/`）、rembg など
 - `getPathForFile`（Electron `webUtils`）
 - `showMessage` / `confirmMessage`（Electron ダイアログ）
 - `saveProjectSync`（終了直前の同期 flush 用）
@@ -240,8 +247,7 @@
 - `Stage.toDataURL({ pixelRatio: 2 })`
 - 一時的に `isExporting` で Transformer を隠す
 - `exports/<ページ名>.png` に保存（ページの `name`、例 `001.png`）
-- **一括**: 全ページを順に `selectPage` してキャンバス更新後に同様に書き出し、完了後に元の `currentPageId` に戻す
-- 固定 `setTimeout` ではなく、描画フレーム待機（`requestAnimationFrame`）でキャプチャタイミングを安定化している
+- **一括**: 全ページを順に `selectPage` するが、**`use-image` の非同期読み込み待ち**のため `react-dom` の `flushSync` でページ切替を同期的にコミットし、複数フレーム＋短い `setTimeout` のあと `toDataURL` する。ループ中は **`selectPage(..., { skipAutosave: true })`** で毎ページの `saveProject` を省略し、完了後に元のページへ戻して保存する
 
 ---
 

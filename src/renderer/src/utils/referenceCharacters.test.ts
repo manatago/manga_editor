@@ -25,7 +25,7 @@ describe('normalizeReferenceCharacters', () => {
 
 describe('referenceAssetsSubdir', () => {
     it('sanitizes character id segment', () => {
-        expect(referenceAssetsSubdir('abc-12')).toBe('reference/characters/abc-12')
-        expect(referenceAssetsSubdir('../../evil')).toBe('reference/characters/evil')
+        expect(referenceAssetsSubdir('abc-12')).toBe('references/characters/abc-12')
+        expect(referenceAssetsSubdir('../../evil')).toBe('references/characters/evil')
     })
 })

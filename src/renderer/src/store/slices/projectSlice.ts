@@ -335,7 +335,7 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             }
 
             const ok = await confirmMessage(
-                `${unusedAssets.length} 件の未使用ファイルを assets/_trash/ に移動しますか？\n（漫画データから参照されていない画像のみ。完全削除ではありません）`
+                `${unusedAssets.length} 件の未使用ファイルを assets/dust/ に移動しますか？\n（漫画データから参照されていない画像のみ。完全削除ではありません）`
             )
             if (ok) {
                 let moved = 0
@@ -343,7 +343,7 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     const r = await window.electron.moveAssetToTrash(pp, absPath)
                     if (r.moved) moved += 1
                 }
-                await showInfo(`${moved} 件を assets/_trash/ に移動しました。`)
+                await showInfo(`${moved} 件を assets/dust/ に移動しました。`)
             }
         } catch (error) {
             console.error('Store: failed to cleanup assets', error)

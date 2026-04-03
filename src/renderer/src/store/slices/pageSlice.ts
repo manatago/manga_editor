@@ -3,11 +3,16 @@ import type { MangaState } from '../useMangaStore'
 import type { Page, Panel } from '../types'
 import { saveHistory } from '../helpers'
 
+export interface SelectPageOptions {
+    /** 一括エクスポート等でページを素早く切り替えるとき true（毎回の saveProject を省略） */
+    skipAutosave?: boolean
+}
+
 export interface PageSlice {
     pages: Page[]
     currentPageId: string | null
     addPage: (panels?: Omit<Panel, 'id'>[]) => void
-    selectPage: (id: string) => void
+    selectPage: (id: string, options?: SelectPageOptions) => void
     removePage: (id: string) => void
     updatePage: (id: string, updates: Partial<Page>) => void
     movePage: (id: string, direction: 'up' | 'down') => void
@@ -46,10 +51,10 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
         }
     }),
 
-    selectPage: (id) => {
+    selectPage: (id, options) => {
         set({ currentPageId: id, selectedPanelId: null, selectedBubbleId: null, selectedMaterialId: null })
         const state = get()
-        if (state.currentProjectPath) {
+        if (!options?.skipAutosave && state.currentProjectPath) {
             state.saveProject()
         }
     },

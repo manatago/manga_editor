@@ -1,6 +1,6 @@
 import type { BackgroundLibraryImage } from '../store/types'
 
-export const BACKGROUND_LIBRARY_ASSETS_SUBDIR = 'reference/backgrounds'
+export { BACKGROUND_LIBRARY_ASSETS_SUBPATH } from './assetsLayout'
 
 export function newBackgroundLibraryImageId(): string {
     return globalThis.crypto?.randomUUID?.() ?? `bg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`

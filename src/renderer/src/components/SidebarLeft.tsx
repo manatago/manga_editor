@@ -203,7 +203,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                             <div className="pt-4 mt-4 border-t border-zinc-800">
                                 <button
                                     onClick={cleanupAssets}
-                                    title="参照されていない画像を assets/_trash/ に移動します（完全削除しません）"
+                                    title="参照されていない画像を assets/dust/ に移動します（完全削除しません）"
                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-red-900/20 border border-zinc-700 hover:border-red-900/30 transition-all text-zinc-400 hover:text-red-400 group"
                                 >
                                     <Eraser size={18} className="group-hover:animate-pulse" />

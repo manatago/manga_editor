@@ -5,6 +5,7 @@ import * as pathModule from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { runRembgToFile, resolveReferenceRembgPaths, toProjectRelativePath } from './rembgRunner'
+import { ASSETS_DUST_DIR, ASSETS_IMAGES_DIR, ASSETS_REFERENCES_DIR } from './assetsLayoutRoot'
 
 // Add this for renderer logs to terminal
 ipcMain.on('renderer-log', (_e, level, ...args) => {
@@ -98,9 +99,7 @@ app.whenReady().then(() => {
     ipcMain.handle('copy-file-to-project', async (_, { projectPath, sourcePath, assetsSubPath }) => {
         const trimmedRoot = String(projectPath ?? '').trim()
         const sub = sanitizeAssetsSubPath(assetsSubPath)
-        const assetsDir = sub
-            ? pathModule.join(trimmedRoot, 'assets', sub)
-            : pathModule.join(trimmedRoot, 'assets')
+        const assetsDir = pathModule.join(trimmedRoot, 'assets', sub || ASSETS_IMAGES_DIR)
 
         try {
             if (!fs.existsSync(assetsDir)) {
@@ -172,15 +171,19 @@ app.whenReady().then(() => {
             if (!fs.existsSync(projectPath)) {
                 fs.mkdirSync(projectPath, { recursive: true })
             }
-            // Create subdirectories
+            // assets 直下は images / dust / references のみ（ファイル混在なし）
             const assetsDir = pathModule.join(projectPath, 'assets')
+            const imagesDir = pathModule.join(assetsDir, ASSETS_IMAGES_DIR)
+            const dustDir = pathModule.join(assetsDir, ASSETS_DUST_DIR)
+            const referencesDir = pathModule.join(assetsDir, ASSETS_REFERENCES_DIR)
+            const compositeDir = pathModule.join(imagesDir, 'composite')
             const exportsDir = pathModule.join(projectPath, 'exports')
-            const trashDir = pathModule.join(assetsDir, '_trash')
-            const compositeDir = pathModule.join(assetsDir, 'composite')
             if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true })
-            if (!fs.existsSync(exportsDir)) fs.mkdirSync(exportsDir, { recursive: true })
-            if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true })
+            if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true })
+            if (!fs.existsSync(dustDir)) fs.mkdirSync(dustDir, { recursive: true })
+            if (!fs.existsSync(referencesDir)) fs.mkdirSync(referencesDir, { recursive: true })
             if (!fs.existsSync(compositeDir)) fs.mkdirSync(compositeDir, { recursive: true })
+            if (!fs.existsSync(exportsDir)) fs.mkdirSync(exportsDir, { recursive: true })
 
             const configPath = pathModule.join(projectPath, 'manga.json')
             const configData = JSON.stringify({ name, createdAt: new Date().toISOString(), pages: [] }, null, 2)
@@ -324,10 +327,10 @@ app.whenReady().then(() => {
         }
     })
 
-    /** 合成ツール: assets/composite/ に日時ベースのファイル名で PNG 保存 */
+    /** 合成ツール: assets/images/composite/ に日時ベースのファイル名で PNG 保存 */
     ipcMain.handle('save-composite-png', async (_, { projectPath, data }: { projectPath: string; data: string }) => {
         const root = String(projectPath ?? '').trim()
-        const compositeDir = pathModule.join(root, 'assets', 'composite')
+        const compositeDir = pathModule.join(root, 'assets', ASSETS_IMAGES_DIR, 'composite')
         try {
             if (!fs.existsSync(compositeDir)) {
                 fs.mkdirSync(compositeDir, { recursive: true })
@@ -387,7 +390,7 @@ app.whenReady().then(() => {
         }
     })
 
-    /** 未使用アセット整理用: 削除せず assets/_trash/ へ移動 */
+    /** 未使用アセット整理用: 削除せず assets/dust/ へ移動 */
     ipcMain.handle(
         'move-asset-to-trash',
         async (_, payload: { projectPath: string; absoluteFilePath: string }) => {
@@ -408,18 +411,24 @@ app.whenReady().then(() => {
             if (relNorm === '_trash' || relNorm.startsWith('_trash/')) {
                 return { moved: false as const, reason: 'already-trash' as const }
             }
+            if (relNorm === `${ASSETS_DUST_DIR}` || relNorm.startsWith(`${ASSETS_DUST_DIR}/`)) {
+                return { moved: false as const, reason: 'already-trash' as const }
+            }
+            if (relNorm === `workspace/_trash` || relNorm.startsWith(`workspace/_trash/`)) {
+                return { moved: false as const, reason: 'already-trash' as const }
+            }
 
-            const trashDir = pathModule.join(assetsRoot, '_trash')
-            if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true })
+            const dustDir = pathModule.join(assetsRoot, ASSETS_DUST_DIR)
+            if (!fs.existsSync(dustDir)) fs.mkdirSync(dustDir, { recursive: true })
 
             const base = pathModule.basename(src)
             const ext = pathModule.extname(base)
             const stem = pathModule.basename(base, ext)
-            let dest = pathModule.join(trashDir, `${Date.now()}_${stem}${ext}`)
+            let dest = pathModule.join(dustDir, `${Date.now()}_${stem}${ext}`)
             let n = 0
             while (fs.existsSync(dest)) {
                 n += 1
-                dest = pathModule.join(trashDir, `${Date.now()}_${n}_${stem}${ext}`)
+                dest = pathModule.join(dustDir, `${Date.now()}_${n}_${stem}${ext}`)
             }
 
             try {
@@ -430,7 +439,7 @@ app.whenReady().then(() => {
             }
 
             const relOut = pathModule.relative(root, dest).split(pathModule.sep).join('/')
-            console.log('Main: moved unused asset to trash', relOut)
+            console.log('Main: moved unused asset to dust', relOut)
             return { moved: true as const, relativePath: relOut }
         }
     )

@@ -10,7 +10,7 @@ declare global {
             saveTemplate: (template: { name: string; panels: any[] }) => Promise<any[]>
             deleteTemplate: (id: string) => Promise<any[]>
             exportPNG: (path: string, name: string, data: string) => Promise<string>
-            /** 合成ツール用: assets/composite/ に日時ファイル名で保存 */
+            /** 合成ツール用: assets/images/composite/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
             selectFile: () => Promise<string | null>
             copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) => Promise<string>
@@ -22,7 +22,7 @@ declare global {
             ) => Promise<{ relativePath: string }>
             getAssets: (projectPath: string) => Promise<string[]>
             deleteFile: (path: string) => Promise<boolean>
-            /** 未使用整理用: assets 内ファイルを assets/_trash/ へ移動（削除しない） */
+            /** 未使用整理用: assets 内ファイルを assets/dust/ へ移動（削除しない） */
             moveAssetToTrash: (
                 projectPath: string,
                 absoluteFilePath: string
