@@ -1,16 +1,39 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import type { Panel } from '../types'
 import { useMangaStore } from '../useMangaStore'
+
+function minimalPanel(id: string, overrides: Partial<Panel> = {}): Panel {
+    return {
+        id,
+        type: 'rect',
+        x: 0,
+        y: 0,
+        width: 80,
+        height: 60,
+        slant: 0,
+        offsetB: 0,
+        offsetC: 0,
+        offsetD: 0,
+        strokeWidth: 1,
+        strokeColor: '#000000',
+        ...overrides
+    }
+}
 
 describe('useMangaStore', () => {
     beforeEach(() => {
-        // Reset store state before each test
-        const state = useMangaStore.getState()
         useMangaStore.setState({
             pages: [],
             currentPageId: null,
             currentProjectPath: null,
             referenceCharacters: [],
-            backgroundLibrary: []
+            backgroundLibrary: [],
+            templates: [],
+            past: [],
+            future: [],
+            selectedPanelId: null,
+            selectedBubbleId: null,
+            selectedMaterialId: null
         })
     })
 
@@ -102,6 +125,61 @@ describe('useMangaStore', () => {
         useMangaStore.getState().redo()
         state = useMangaStore.getState()
         expect(state.pages[0].panels.length).toBe(1)
+    })
+
+    it('removePanel should remove panel and clear selection when it was selected', () => {
+        const panel = minimalPanel('panel-a')
+        useMangaStore.setState({
+            pages: [
+                {
+                    id: 'page-1',
+                    name: '001',
+                    panels: [panel],
+                    bubbles: [],
+                    materials: [],
+                    backgroundColor: '#fff',
+                    backgroundOpacity: 1
+                }
+            ],
+            currentPageId: 'page-1',
+            selectedPanelId: 'panel-a',
+            past: [],
+            future: []
+        })
+
+        useMangaStore.getState().removePanel('panel-a')
+        const state = useMangaStore.getState()
+        expect(state.pages[0].panels).toHaveLength(0)
+        expect(state.selectedPanelId).toBeNull()
+        expect(state.past.length).toBe(1)
+    })
+
+    it('removePanel then undo should restore the panel', () => {
+        const panel = minimalPanel('panel-keep')
+        useMangaStore.setState({
+            pages: [
+                {
+                    id: 'page-1',
+                    name: '001',
+                    panels: [panel],
+                    bubbles: [],
+                    materials: [],
+                    backgroundColor: '#fff',
+                    backgroundOpacity: 1
+                }
+            ],
+            currentPageId: 'page-1',
+            past: [],
+            future: []
+        })
+
+        useMangaStore.getState().removePanel('panel-keep')
+        expect(useMangaStore.getState().pages[0].panels).toHaveLength(0)
+
+        useMangaStore.getState().undo()
+        const restored = useMangaStore.getState()
+        expect(restored.pages[0].panels).toHaveLength(1)
+        expect(restored.pages[0].panels[0].id).toBe('panel-keep')
     })
 
     it('removeBubble should delete selected bubble', () => {
