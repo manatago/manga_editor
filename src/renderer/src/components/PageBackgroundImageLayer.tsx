@@ -32,7 +32,7 @@ export const PageBackgroundImageLayer: React.FC<PageBackgroundImageLayerProps> =
         return abs ? window.electron.pathToUrl(abs) : undefined
     }, [page?.backgroundImagePath, projectPath])
 
-    const [img, status] = useImage(imageUrl, 'anonymous')
+    const [img, status] = useImage(imageUrl ?? '', 'anonymous')
 
     if (!imageUrl || status === 'failed') return null
     if (!img) return null

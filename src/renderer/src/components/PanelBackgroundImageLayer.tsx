@@ -25,7 +25,7 @@ export const PanelBackgroundImageLayer: React.FC<PanelBackgroundImageLayerProps>
         return abs ? window.electron.pathToUrl(abs) : undefined
     }, [panel.backgroundImagePath, projectPath])
 
-    const [img, status] = useImage(imageUrl, 'anonymous')
+    const [img, status] = useImage(imageUrl ?? '', 'anonymous')
 
     if (!imageUrl || status === 'failed') return null
     if (!img) return null
