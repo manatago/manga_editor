@@ -9,8 +9,6 @@ export interface ClipItem {
     rotation?: number;
 }
 
-// ... existing imports ...
-
 /**
  * Checks if a point (x, y) is inside a polygon defined by points [x1, y1, x2, y2, ...]
  * Ray casting algorithm
