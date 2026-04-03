@@ -46,16 +46,27 @@ function run(cmd, args, opts = {}) {
     execFileSync(cmd, args, { stdio: 'inherit', cwd: root, ...opts })
 }
 
+// macOS: 既定 venv は python3.11 → /Library/Frameworks/... への symlink になり、
+// electron-builder 後の codesign --verify --strict が「bundle 外への symlink」で失敗する。
+// --copies で実行ファイルを venv 内に複製する（DMG 同梱・署名用）。
 if (process.platform === 'win32') {
-    run('py', ['-3', '-m', 'venv', venv])
+    run('py', ['-3', '-m', 'venv', '--copies', venv])
     const pip = path.join(venv, 'Scripts', 'pip.exe')
     run(pip, ['install', '-U', 'pip', 'wheel'])
-    run(pip, ['install', 'rembg'])
+    run(pip, ['install', 'rembg[cpu]'])
 } else {
-    run('python3', ['-m', 'venv', venv])
+    run('python3', ['-m', 'venv', '--copies', venv])
     const pip = path.join(venv, 'bin', 'pip')
     run(pip, ['install', '-U', 'pip', 'wheel'])
-    run(pip, ['install', 'rembg'])
+    run(pip, ['install', 'rembg[cpu]'])
 }
+
+const invokeSrc = path.join(root, 'resources', 'bundled-rembg', 'invoke-rembg.py')
+const invokeDst = path.join(targetDir, 'invoke-rembg.py')
+if (!fs.existsSync(invokeSrc)) {
+    console.error(`[bundle-rembg] 見つかりません: ${invokeSrc}`)
+    process.exit(1)
+}
+fs.copyFileSync(invokeSrc, invokeDst)
 
 console.log(`[bundle-rembg] 完了: ${targetDir}/venv（isnet-anime 等は初回実行時にキャッシュされます）`)
