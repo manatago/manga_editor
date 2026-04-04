@@ -45,6 +45,8 @@ export interface Panel {
     focusRadius?: number
     fadeStrength?: number
     isGrayscale?: boolean
+    /** グレースケール時の明るさ調整（Konva Brighten。-0.5 ほど暗く、+0.5 ほど明るく） */
+    grayscaleBrightness?: number
     imageFlipX?: boolean
     backgroundColor?: string
     backgroundOpacity?: number
@@ -117,6 +119,8 @@ export interface Material {
     isClipped: boolean
     panelId?: string
     isGrayscale?: boolean
+    /** グレースケール時の明るさ調整（Konva Brighten。-0.5 ほど暗く、+0.5 ほど明るく） */
+    grayscaleBrightness?: number
     whiteAlphaThreshold?: number
 }
 

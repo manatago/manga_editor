@@ -361,6 +361,31 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                         />
                     </div>
                 )}
+                {panel.imagePath && panel.isGrayscale && (
+                    <div className="mt-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between mb-2">
+                            <label className="text-[10px] text-zinc-500 uppercase">グレーの明るさ</label>
+                            <span className="text-[10px] text-blue-500 font-mono">
+                                {Math.round((panel.grayscaleBrightness ?? 0) * 100)}
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min="-50"
+                            max="50"
+                            value={Math.round(Math.max(-50, Math.min(50, (panel.grayscaleBrightness ?? 0) * 100)))}
+                            onChange={(e) =>
+                                updatePanel(panel.id, {
+                                    grayscaleBrightness: parseInt(e.target.value, 10) / 100
+                                })
+                            }
+                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
+                            左で濃く（暗く）、右で薄く（明るく）。グレースケールはコマ選択中に Shift＋画像上のツールからオンにできます。
+                        </p>
+                    </div>
+                )}
                 <div>
                     <h4 className="text-xs font-bold text-zinc-200 tracking-wide mb-3">フェードアウト</h4>
                     <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">

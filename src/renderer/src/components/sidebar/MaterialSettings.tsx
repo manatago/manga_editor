@@ -65,7 +65,7 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
                     />
                 </div>
 
-                <div className="pt-2 border-t border-zinc-800">
+                <div className="pt-2 border-t border-zinc-800 space-y-3">
                     <button
                         onClick={() => updateMaterial(material.id, { isGrayscale: !material.isGrayscale })}
                         className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${material.isGrayscale ? 'bg-zinc-100 border-zinc-200 text-zinc-900' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
@@ -73,6 +73,31 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
                         <span>グレースケール</span>
                         <div className={`w-2 h-2 rounded-full ${material.isGrayscale ? 'bg-zinc-900' : 'bg-zinc-700'} `} />
                     </button>
+                    {material.isGrayscale && (
+                        <div>
+                            <div className="flex justify-between mb-2">
+                                <label className="text-xs text-zinc-400">グレーの明るさ</label>
+                                <span className="text-xs text-blue-500 font-mono">
+                                    {Math.round((material.grayscaleBrightness ?? 0) * 100)}
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="-50"
+                                max="50"
+                                value={Math.round(
+                                    Math.max(-50, Math.min(50, (material.grayscaleBrightness ?? 0) * 100))
+                                )}
+                                onChange={(e) =>
+                                    updateMaterial(material.id, {
+                                        grayscaleBrightness: parseInt(e.target.value, 10) / 100
+                                    })
+                                }
+                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                            <p className="text-[10px] text-zinc-500 mt-1">左で濃く、右で薄く。</p>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="pt-2 border-t border-zinc-800">

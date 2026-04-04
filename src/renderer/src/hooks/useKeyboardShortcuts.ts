@@ -47,7 +47,8 @@ export const useKeyboardShortcuts = () => {
                             imageScale: undefined,
                             imageRotation: undefined,
                             imageFlipX: undefined,
-                            isGrayscale: false
+                            isGrayscale: false,
+                            grayscaleBrightness: 0
                         });
                     } else {
                         // If no image, remove the panel itself

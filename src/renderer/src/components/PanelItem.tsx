@@ -325,7 +325,18 @@ export const PanelItem: React.FC<{
                 lineRef.current.cache()
             }
         }
-    }, [panel.isGrayscale, panel.blurRadius, image, panel.imageFlipX, panel.imageScale, panel.imageRotation, panel.imageX, panel.imageY, panel.imagePath])
+    }, [
+        panel.isGrayscale,
+        panel.grayscaleBrightness,
+        panel.blurRadius,
+        image,
+        panel.imageFlipX,
+        panel.imageScale,
+        panel.imageRotation,
+        panel.imageX,
+        panel.imageY,
+        panel.imagePath
+    ])
 
     useEffect(() => {
         const onKeyDown = (evt: KeyboardEvent) => {
@@ -688,9 +699,10 @@ export const PanelItem: React.FC<{
                                 fillPatternRotation={panel.imageRotation ?? 0}
                                 fillPatternRepeat="no-repeat"
                                 filters={[
-                                    ...(panel.isGrayscale ? [Konva.Filters.Grayscale] : []),
+                                    ...(panel.isGrayscale ? [Konva.Filters.Grayscale, Konva.Filters.Brighten] : []),
                                     ...((panel.blurRadius ?? 0) > 0 ? [Konva.Filters.Blur] : [])
                                 ]}
+                                brightness={panel.isGrayscale ? (panel.grayscaleBrightness ?? 0) : 0}
                                 blurRadius={panel.blurRadius ?? 0}
                             />
                         )}

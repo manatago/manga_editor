@@ -50,7 +50,7 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
                 imageRef.current.clearCache()
             }
         }
-    }, [material.isGrayscale, image])
+    }, [material.isGrayscale, material.grayscaleBrightness, image])
 
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         if (e.target !== e.currentTarget) return
@@ -138,7 +138,10 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
                 height={material.height}
                 opacity={material.opacity ?? 1}
                 listening={renderPass === 'interaction'}
-                filters={material.isGrayscale ? [Konva.Filters.Grayscale] : []}
+                filters={
+                    material.isGrayscale ? [Konva.Filters.Grayscale, Konva.Filters.Brighten] : []
+                }
+                brightness={material.isGrayscale ? (material.grayscaleBrightness ?? 0) : 0}
             />
         </Group>
     )

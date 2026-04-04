@@ -97,6 +97,10 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     focusRadius: panel.focusRadius ?? 50,
                     fadeStrength: panel.fadeStrength ?? 0.4,
                     isGrayscale: panel.isGrayscale ?? false,
+                    grayscaleBrightness:
+                        typeof panel.grayscaleBrightness === 'number' && !Number.isNaN(panel.grayscaleBrightness)
+                            ? Math.max(-0.55, Math.min(0.55, panel.grayscaleBrightness))
+                            : 0,
                     imageFlipX: panel.imageFlipX ?? false,
                     blurRadius: panel.blurRadius ?? 0,
                     hasRainEffect: panel.hasRainEffect ?? false,
@@ -129,6 +133,10 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                 opacity: mat.opacity ?? 1,
                 isClipped: mat.isClipped ?? false,
                 isGrayscale: mat.isGrayscale ?? false,
+                grayscaleBrightness:
+                    typeof mat.grayscaleBrightness === 'number' && !Number.isNaN(mat.grayscaleBrightness)
+                        ? Math.max(-0.55, Math.min(0.55, mat.grayscaleBrightness))
+                        : 0,
                 imagePath:
                     projectPathForAssets && mat.imagePath
                         ? toRelativeAssetPath(projectPathForAssets, mat.imagePath) ?? mat.imagePath
@@ -246,7 +254,16 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             const template = {
                 name,
                 panels: page.panels.map(({
-                    id, imagePath, imageX, imageY, imageScale, imageRotation, imageFlipX, isGrayscale, ...rest
+                    id,
+                    imagePath,
+                    imageX,
+                    imageY,
+                    imageScale,
+                    imageRotation,
+                    imageFlipX,
+                    isGrayscale,
+                    grayscaleBrightness,
+                    ...rest
                 }) => ({ ...rest }))
             }
             console.log('Store: sending template to main', template)
