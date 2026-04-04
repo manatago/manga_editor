@@ -13,6 +13,9 @@ import { snapToGrid } from '../utils/gridUtils'
 
 const PANEL_MIN_SIZE = 10
 
+/** Electron 旧挙動などで File に生パスが付くことがある */
+type FileWithNativePath = File & { path?: string }
+
 /**
  * ドロップ時の素材サイズ計算用。EXIF Orientation 付き JPEG はピクセルが横長でも「見た目」は縦になる。
  * `Image.width` だけだとアスペクトがずれ、Konva の矩形に引き伸ばされて縦長だけ潰れて見える。
@@ -133,7 +136,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
             }
             
             if (!nativePath) {
-                nativePath = (imageFile as any).path
+                nativePath = (imageFile as FileWithNativePath).path
             }
 
             if (nativePath && window.electron && currentProjectPath) {

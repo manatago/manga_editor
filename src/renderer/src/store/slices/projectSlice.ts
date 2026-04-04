@@ -99,7 +99,7 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     isGrayscale: panel.isGrayscale ?? false,
                     grayscaleBrightness:
                         typeof panel.grayscaleBrightness === 'number' && !Number.isNaN(panel.grayscaleBrightness)
-                            ? Math.max(-0.55, Math.min(0.55, panel.grayscaleBrightness))
+                            ? Math.max(-0.5, Math.min(0.5, panel.grayscaleBrightness))
                             : 0,
                     imageFlipX: panel.imageFlipX ?? false,
                     blurRadius: panel.blurRadius ?? 0,
@@ -135,7 +135,7 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                 isGrayscale: mat.isGrayscale ?? false,
                 grayscaleBrightness:
                     typeof mat.grayscaleBrightness === 'number' && !Number.isNaN(mat.grayscaleBrightness)
-                        ? Math.max(-0.55, Math.min(0.55, mat.grayscaleBrightness))
+                        ? Math.max(-0.5, Math.min(0.5, mat.grayscaleBrightness))
                         : 0,
                 imagePath:
                     projectPathForAssets && mat.imagePath
