@@ -35,3 +35,5 @@ yarn-error.log*
 
 # rembg 同梱用 Python venv（ラッパーのみコミット、venv は npm run bundle-rembg で生成）
 resources/bundled-rembg/*/venv/
+# invoke-rembg.py の正は resources/bundled-rembg/invoke-rembg.py（bundle-rembg が各 OS フォルダへコピー）
+resources/bundled-rembg/*/invoke-rembg.py

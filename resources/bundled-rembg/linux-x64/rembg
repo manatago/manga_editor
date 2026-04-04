@@ -2,8 +2,11 @@
 # 同梱 venv 内の rembg を起動する。venv は npm run bundle-rembg で生成（git には含めない）。
 set -e
 HERE="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
-if [ ! -x "$HERE/venv/bin/rembg" ]; then
-    echo "漫画野郎: 同梱 rembg の venv がありません。npm run bundle-rembg を実行してからパッケージしてください。" >&2
-    exit 127
+if [ -x "$HERE/venv/bin/python3" ] && [ -f "$HERE/venv/bin/rembg" ]; then
+    exec "$HERE/venv/bin/python3" "$HERE/venv/bin/rembg" "$@"
 fi
-exec "$HERE/venv/bin/rembg" "$@"
+if [ -x "$HERE/venv/bin/python3.11" ] && [ -f "$HERE/venv/bin/rembg" ]; then
+    exec "$HERE/venv/bin/python3.11" "$HERE/venv/bin/rembg" "$@"
+fi
+echo "漫画野郎: 同梱 rembg の venv がありません。npm run bundle-rembg を実行してからパッケージしてください。" >&2
+exit 127

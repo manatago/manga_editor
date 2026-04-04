@@ -13,6 +13,40 @@ import { snapToGrid } from '../utils/gridUtils'
 
 const PANEL_MIN_SIZE = 10
 
+/**
+ * ドロップ時の素材サイズ計算用。EXIF Orientation 付き JPEG はピクセルが横長でも「見た目」は縦になる。
+ * `Image.width` だけだとアスペクトがずれ、Konva の矩形に引き伸ばされて縦長だけ潰れて見える。
+ */
+async function getOrientedImagePixelSize(file: File, fallback = 200): Promise<{ w: number; h: number }> {
+    try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+        const w = bitmap.width
+        const h = bitmap.height
+        bitmap.close()
+        if (w > 0 && h > 0) {
+            return { w, h }
+        }
+    } catch {
+        /* HEIC 等で createImageBitmap が失敗する場合あり */
+    }
+    try {
+        const url = URL.createObjectURL(file)
+        const img = new Image()
+        img.decoding = 'async'
+        img.src = url
+        await new Promise<void>((resolve) => {
+            img.onload = () => resolve()
+            img.onerror = () => resolve()
+        })
+        const w = img.naturalWidth || img.width || fallback
+        const h = img.naturalHeight || img.height || fallback
+        URL.revokeObjectURL(url)
+        return { w, h }
+    } catch {
+        return { w: fallback, h: fallback }
+    }
+}
+
 // --- Main Canvas Component ---
 
 const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef }) => {
@@ -79,6 +113,9 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
         const stage = stageRef.current
         if (!stage) return
 
+        // HTML5 の drop は Stage の pointer イベントを通らない。Konva と同じ式で論理座標にする
+        // （setPointersPositions が content の scaleX/Y も踏まえる。ずれるとクリップ素材の位置・ヒットが壊れる）
+        stage.setPointersPositions(e.nativeEvent)
         const pointerPos = stage.getPointerPosition()
         if (!pointerPos) return
         const files = Array.from(e.dataTransfer.files)
@@ -101,20 +138,12 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
 
             if (nativePath && window.electron && currentProjectPath) {
                 try {
+                    const { w: nw, h: nh } = await getOrientedImagePixelSize(imageFile)
                     const projectLocalPath = await window.electron.copyFileToProject(currentProjectPath, nativePath)
-                    
-                    // Determine natural dimensions to preserve aspect ratio
-                    const img = new Image()
-                    const imageUrl = window.electron.pathToUrl(projectLocalPath)
-                    img.src = imageUrl
-                    await new Promise((resolve) => {
-                        img.onload = resolve
-                        img.onerror = resolve
-                    })
 
                     const maxDim = 200
-                    let w = img.width || maxDim
-                    let h = img.height || maxDim
+                    let w = nw || maxDim
+                    let h = nh || maxDim
                     const ratio = w / h
                     if (w > h) {
                         w = maxDim
@@ -138,10 +167,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                         targetPanel = panelsUnderPointer[panelsUnderPointer.length - 1] // Topmost panel
                     }
 
-                    // Improve position calculation using the stage's absolute transform
-                    const stageBox = stage.container().getBoundingClientRect()
-                    const x = (e.clientX - stageBox.left)
-                    const y = (e.clientY - stageBox.top)
+                    const x = pointerPos.x - w / 2
+                    const y = pointerPos.y - h / 2
 
                     if (targetPanel && !targetPanel.imagePath) {
                         // First image on empty panel: Set as background
@@ -156,8 +183,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                         // Subsequent image or dropped on panel with background: Create Material (clipped)
                         addMaterial({
                             imagePath: projectLocalPath,
-                            x: x - w / 2,
-                            y: y - h / 2,
+                            x,
+                            y,
                             width: w,
                             height: h,
                             isClipped: true,
@@ -167,8 +194,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                         // Dropped on empty canvas: Create Material (unclipped)
                         addMaterial({
                             imagePath: projectLocalPath,
-                            x: x - w / 2,
-                            y: y - h / 2,
+                            x,
+                            y,
                             width: w,
                             height: h,
                             isClipped: false
