@@ -92,6 +92,7 @@
 - 位置・サイズ: `x`, `y`, `width`, `height`, `rotation`, `strokeWidth`, `strokeColor`
 - 斜め・台形用: `slant`, `offsetB`, `offsetC`, `offsetD`
 - **背景画像**: `imagePath`, `imageX`, `imageY`, `imageScale`, `imageRotation`, `imageFlipX`
+- **トーン**: `isGrayscale`、**`grayscaleBrightness`**（-0.5〜0.5、Konva **Brighten**。右パネル「画面効果」でグレースケール中のみスライダー。Shift オーバーレイのグレートグルと併用）
 - **効果**: フェードアウト（8方向 + クリア）、集中線、ぼかし、雨エフェクト（密度・不透明度）など
 - **パネル背景**: 単色・グラデーション（ページと同様の概念がパネルにも存在）
 
@@ -113,7 +114,7 @@
 
 - 画像パス、位置・サイズ、回転、不透明度
 - **`isClipped` + `panelId`**: コマ内クリップ
-- `isGrayscale`、白飛び除去（Alpha Threshold）など UI あり
+- `isGrayscale`、**`grayscaleBrightness`**（-0.5〜0.5、素材設定でグレー中のみスライダー）、白飛び除去（Alpha Threshold）など UI あり
 
 ### 4.6 選択状態
 
@@ -144,7 +145,7 @@
 
 - `PageTemplate`: `{ id, name, panels: Omit<Panel,'id'>[] }`
 - **保存場所**: `app.getPath('userData')/templates.json`（プロジェクト外）
-- テンプレート保存時は **画像関連フィールドを除いた**パネル情報のみ保存
+- テンプレート保存時は **画像関連フィールドを除いた**パネル情報のみ保存（`isGrayscale` / `grayscaleBrightness` 等も除外）
 
 ---
 
@@ -162,7 +163,7 @@
 - コマ形状（アイコン + 日本語ラベル）、形状調整（斜め/台形時のみ）
 - コマ回転（スライダー）、前後関係（最前面/最背面/前へ/後ろへ）
 - 枠線（色・太さ）、サイズ（幅・高さ）、画像アップロード、背景（色/不透明度/グラデーション）
-- 画面効果として、ぼかし・フェードアウト・集中線・雨を1セクションに統合
+- 画面効果として、ぼかし・**グレースケール中の明るさスライダー**・フェードアウト・集中線・雨を1セクションに統合
 
 ### 5.2 キャンバス描画順（概要）
 
@@ -176,7 +177,9 @@
 
 ### 5.3 ドラッグ＆ドロップ
 
-- 画像をドロップするとプロジェクト **`assets/images/`** にコピー（ファイル名はサニタイズ＋タイムスタンプ）
+- 画像をドロップするとプロジェクト **`assets/images/`** にコピー（ファイル名はサニタイズ＋タイムスタンプ）。ネイティブパスは **`getPathForFile`** を優先し、無い場合のみ `File & { path?: string }` の `path` を参照
+- **座標**: HTML5 の `drop` は Konva の pointer 更新を通らないため、**`stage.setPointersPositions(e.nativeEvent)`** のあと **`getPointerPosition()`** でドロップ位置とパネル命中を決める（手計算の `clientX - rect` だけだと表示スケールとずれる）
+- **縦横比**: 取り込み前のサイズは **`createImageBitmap(file, { imageOrientation: 'from-image' })`** の幅・高さから `maxDim` に収める（EXIF 縦持ち JPEG のピクセルが横長でも見た目の縦横比を維持）。失敗時は `Image` + `naturalWidth` / `naturalHeight` にフォールバック
 - ドロップ先が **画像のないコマ** → 背景画像として設定
 - **既に画像があるコマ** または **2枚目以降** → `Material` として追加（多くは `isClipped: true` + `panelId`）
 - コマ外 → クリップなし素材
@@ -191,7 +194,7 @@
 
 ### 5.4 キーボードショートカット（入力欄フォーカス時は無効）
 
-- `Backspace` / `Delete`: 選択中コマに画像があれば画像クリア、なければコマ削除；吹き出し・素材は削除
+- `Backspace` / `Delete`: 選択中コマに画像があれば画像クリア（`isGrayscale` / `grayscaleBrightness` もリセット）、なければコマ削除；吹き出し・素材は削除
 - `Cmd/Ctrl+S`: 保存
 - `Cmd/Ctrl+C` / `V`: 吹き出しのコピー/ペースト
 - `Shift` + ドラッグ（吹き出し選択中）: **吹き出し自体は動かさず**、テキストのオフセット（`textOffsetX` / `textOffsetY`）を更新する（ドラッグ中は `undoable: false`、確定時のみ `undoable: true`）
@@ -254,6 +257,7 @@
 ## 7. 互換性・読み込み
 
 - `setProjectData` で旧データ（`points` 由来の width/height など）を補完
+- **`grayscaleBrightness`** は読み込み時 **±0.5 にクランプ**（UI スライダーと一致）
 - ページ名は読み込み後に **連番で正規化**
 
 ---
@@ -261,20 +265,23 @@
 ## 8. ビルド・配布
 
 - `electron-builder` で macOS は **dmg** ターゲット（`appId`: `com.electron.manga` など）
+- **`build.publish`: `null`** … CI 検出時の暗黙 GitHub publish を止め、`GH_TOKEN` 未設定でのビルド失敗を防ぐ（リリース公開時は別途 `publish` やトークンを明示）
 
 ### 8.1 rembg 同梱（`dist:with-rembg`）
 
-`scripts/bundle-rembg.mjs` が `resources/bundled-rembg/<platform>-<arch>/venv/` を生成し、`electron-builder` の `extraResources` で `Resources/rembg/` に同梱する。
+`scripts/bundle-rembg.mjs` が `resources/bundled-rembg/<platform>-<arch>/venv/` を生成し、**`invoke-rembg.py`** を各アーキフォルダにコピーしたうえで、`electron-builder` の `extraResources` で `Resources/rembg/` に同梱する。
 
 **重要な制約（過去のバグから）**
 
 | 禁止 / 注意 | 理由 |
 |------------|------|
 | `pip install rembg[cli]` は**不要** | `typer`/`click`/`gradio` など巨大な CLI 依存が引き込まれ、同梱 venv に含まれない場合にエラー |
-| `pip install rembg` は **`rembg[cpu]`** にする | onnxruntime（推論エンジン）が入らず起動直後に `No onnxruntime backend found` で落ちる |
-| `rembg.cli.main` 経由でのCLI呼び出し**禁止** | CLI extras なしでは `import` 時点で失敗する |
-| `invoke-rembg.py` は `rembg.remove()` / `new_session()` を**直接呼ぶ** | CLI を経由しないため `rembg[cpu]` だけで動く |
-| `spawn` の `cwd` は必ず **`os.tmpdir()`** に固定 | 指定しないとプロジェクトルートの `coverage/`（vitest 出力）を Python が `coverage` モジュールと誤認し numba が壊れる |
+| `pip install` は **`rembg[cpu]`** | onnxruntime（推論エンジン）が入らず `No onnxruntime backend found` で落ちる |
+| macOS/Linux の venv は **`--copies`** | 既定の symlink が bundle 外の Python を指し、`codesign --verify --strict` が「bundle 外への symlink」で失敗することがある |
+| `rembg.cli` 経由**禁止** | CLI extras なしでは失敗しうる |
+| `invoke-rembg.py` は `rembg.remove()` / `new_session()` を**直接呼ぶ** | `rembg[cpu]` のみで動かす |
+| メインの `rembgRunner` は **`venv/bin/python` + `invoke-rembg.py`** を優先 | `venv/bin/rembg` の shebang はビルド機の絶対パスになり、.app 同梱後に壊れやすい |
+| `spawn` の `cwd` は必ず **`os.tmpdir()`** | プロジェクトルートの `coverage/`（vitest）を Python が誤 import し numba が壊れるのを防ぐ |
 
 **エラーメッセージの読み方**
 
@@ -317,4 +324,4 @@ VENV="/Applications/漫画野郎.app/Contents/Resources/rembg/venv"
 
 ---
 
-*最終更新: リポジトリの現行コードに基づく*
+*最終更新: リポジトリの現行コードに基づく（素材 D&D 座標・EXIF、グレー明るさ、rembg 同梱・publish 方針を反映）*

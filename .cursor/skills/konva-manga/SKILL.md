@@ -77,6 +77,18 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 - `isExporting` が true のときは **インタラクション層（Transformer 含む）を描画しない**。エクスポート用の変更ではこの分岐を壊さない
 - **グリッド線・スナップガイドも `!isExporting` でガードすること**。ガードを外すとエクスポートした PNG にグリッドが焼き込まれる
 
+## キャンバスへの HTML5 ドロップ（`Canvas.tsx`）
+
+- `onDrop` は Konva の pointer イベントを通らない。**必ず** `stage.setPointersPositions(e.nativeEvent)` のあと `stage.getPointerPosition()` で論理座標を取る（`clientX - getBoundingClientRect().left` だけだと Stage の `scaleX/scaleY` とずれ、クリップ素材の位置・ヒットが壊れる）。
+- ドロップ時の幅・高さは、EXIF 付き JPEG 対策で **`createImageBitmap(file, { imageOrientation: 'from-image' })`** のピクセル寸法から縦横比を決める（`Image.width` だけだと縦長が潰れて見えることがある）。失敗時は `URL.createObjectURL` + `naturalWidth` へフォールバック。
+- Electron 旧挙動の `File.path` は `(file as File & { path?: string }).path` で型付けし、`any` を避ける。
+
+## グレースケールと明るさ（Brighten）
+
+- グレースケール ON 時は **`filters={[Konva.Filters.Grayscale, Konva.Filters.Brighten]}`** の順（先に灰度化し、その後に加算の明るさ）。
+- `brightness` は Konva の **Brighten** 用属性（負で暗く・正で明るい）。`isGrayscale` が false のときは Brighten を `filters` に入れない（`brightness` は 0 でよい）。
+- `fillPatternImage` の `Line` や `Image` で `cache()` する場合、`grayscaleBrightness` 変更でもキャッシュが更新されるよう **`useEffect` の依存配列に含める**。
+
 ## 参照
 
 - 仕様のキャンバス構成: `.spec/manga-editor.md` の「画面・操作」

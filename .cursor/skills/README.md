@@ -8,7 +8,7 @@ Cursor のエージェントが、本リポジトリで作業するときに参�
 |--------|----------------|
 | **konva-manga** | `Canvas.tsx`、`PanelItem` / `BubbleItem` / `MaterialItem`、Konva の `Layer` / `Group` / `Transformer` を触る |
 | **zustand-manga** | `useMangaStore`、ページ・コマ・吹き出し・素材の追加・更新・Undo |
-| **electron-manga** | `main` / `preload`、画像パス、`local-file`、ファイルコピー・D&D |
+| **electron-manga** | `main` / `preload`、画像パス、`local-file`、ファイルコピー・D&D、rembg 同梱・`dist` |
 
 ## 追加・更新のしかた
 

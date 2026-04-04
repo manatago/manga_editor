@@ -66,8 +66,9 @@ src/renderer/src/store/
 
 ## テンプレート・プロジェクト保存
 
-- `saveAsTemplate` は `imagePath` 等を**除外**してパネル形状だけ保存する
+- `saveAsTemplate` は `imagePath` 等を**除外**してパネル形状だけ保存する（**`grayscaleBrightness`** も画像トーン用のためテンプレートから除外）
 - `setProjectData` は旧データ向けの**正規化**が入っている。フィールド追加時はここも検討
+- 例: **`grayscaleBrightness`** は読み込み時 **±0.5 にクランプ**（UI スライダー ±50 と一致。手編集 JSON もこの範囲に収める）
 
 ## 新しいスライスを追加するとき
 

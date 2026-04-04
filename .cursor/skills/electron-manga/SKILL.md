@@ -31,7 +31,9 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 ## ドラッグ＆ドロップ
 
 - ブラウザの `File.path` に依存しない。**Electron の `webUtils.getPathForFile(file)`**（プリロードで `getPathForFile` として公開）を使う
+- フォールバックで `path` が付く環境があるため、型は **`File & { path?: string }`** を使い `any` にしない
 - ドロップ後は `copyFileToProject` で **`assets/images/`** に取り込み、JSON には**プロジェクトルートからの相対パス**（例 `assets/images/...`）を保存する
+- キャンバス上のドロップ位置はレンダラー側で **Konva `setPointersPositions` と `getPointerPosition()`** を使う（座標系の詳細は **konva-manga** スキル）
 
 ## 未使用整理と IPC 名
 
@@ -64,25 +66,22 @@ description: 漫画野郎の Electron メイン・プリロード・画像パス
 
 ### rembg 同梱の実装ルール（破ると配布版で動かない）
 
-**`scripts/bundle-rembg.mjs` で `pip install` するパッケージ**
+**`scripts/bundle-rembg.mjs`**
 
-```
-rembg[cpu]   # ← [cli] を付けない。typer/click/gradio が引き込まれ venv が肥大化し、
-             #   かつ同梱漏れ時に "CLI dependencies are not installed" で即クラッシュする
-```
+- `pip install rembg[cpu]`（`[cli]` は付けない。typer/click/gradio 肥大化と「CLI dependencies are not installed」回避）
+- macOS/Linux の venv は **`python -m venv --copies`**。既定の symlink だと `venv/bin/python` が bundle 外の絶対パスを指し、`codesign --verify --strict` が失敗することがある
+- 完了時に **`resources/bundled-rembg/invoke-rembg.py`** を各 `*-arch` フォルダへコピー（正はリポジトリ直下の同一ファイル。`resources/bundled-rembg/*/invoke-rembg.py` は `.gitignore`）
 
-**`resources/bundled-rembg/invoke-rembg.py` の実装方針**
+**`resources/bundled-rembg/invoke-rembg.py`**
 
-- `from rembg.cli import main` は**使わない**（CLI extras 必須になるため）
-- `rembg.remove()` / `rembg.new_session()` を直接呼ぶ
+- `rembg.cli` は**使わない**（CLI extras 必須になるため）
+- `rembg.new_session()` / `rembg.remove()` を直接呼ぶ
 - 引数形式: `invoke-rembg.py i -m <model> <input.png> <output.png>`
 
-**`rembgRunner.ts` の `runSpawn` の `cwd`**
+**`rembgRunner.ts`（メインプロセス）**
 
-```typescript
-cwd: os.tmpdir()   // 必須。省略するとプロジェクトルートの coverage/（vitest出力）を
-                   // Python が coverage モジュールと誤認し numba がクラッシュする
-```
+- 同梱時は **`venv` の `python` に `invoke-rembg.py` を渡して実行**する。`venv/bin/rembg` の shebang はビルド機の絶対パスになり、.app 移動後に壊れやすい
+- `spawn` の **`cwd` は `os.tmpdir()`**（省略するとプロジェクト直下の `coverage/`（vitest 出力）を Python が `coverage` モジュールと誤認し numba がクラッシュする）
 
 **エラー `コマンドが見つかりません: python` が出たら**
 
@@ -100,6 +99,11 @@ VENV="/Applications/漫画野郎.app/Contents/Resources/rembg/venv"
 - onnxruntime 未インストール → `rembg[cpu]` で pip install
 - CLI 依存不足 → `invoke-rembg.py` が `rembg.cli` を使っていないか確認
 - numba クラッシュ → `cwd: os.tmpdir()` が抜けていないか確認
+- codesign 失敗（bundle 外への symlink）→ venv を `--copies` で作り直す
+
+### electron-builder と GitHub 公開
+
+- `package.json` の `build.publish` は **`null`**（CI 検出で暗黙 publish が走り `GH_TOKEN` 未設定で失敗するのを防ぐ）。リリース公開するときは明示的に `publish` / 環境変数を設定する
 
 ## 参照
 
