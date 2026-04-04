@@ -35,12 +35,18 @@ export const findTargetPanel = (x: number, y: number, panels: Panel[]): Panel | 
     const reversedPanels = [...panels].reverse()
     for (const panel of reversedPanels) {
         const points = getPanelPoints(panel)
-        // Transform local panel points to stage coordinates
+        const panelRad = ((panel.rotation || 0) * Math.PI) / 180
+        const cosPR = Math.cos(panelRad)
+        const sinPR = Math.sin(panelRad)
+        // Transform local panel points to stage coordinates (with panel rotation)
         const stagePoints = []
         for (let i = 0; i < points.length; i += 2) {
-            stagePoints.push(points[i] + panel.x, points[i + 1] + panel.y)
+            stagePoints.push(
+                panel.x + points[i] * cosPR - points[i + 1] * sinPR,
+                panel.y + points[i] * sinPR + points[i + 1] * cosPR
+            )
         }
-        
+
         if (isPointInPolygon(x, y, stagePoints)) {
             return panel
         }
@@ -61,19 +67,24 @@ export const getClippedPoints = (
         if (panel) {
             const pts = getPanelPoints(panel)
             const clipPoints = []
-            const rad = ((item.rotation || 0) * Math.PI) / 180
-            const cos = Math.cos(-rad)
-            const sin = Math.sin(-rad)
+            // Panel rotation: local → stage
+            const panelRad = ((panel.rotation || 0) * Math.PI) / 180
+            const cosPR = Math.cos(panelRad)
+            const sinPR = Math.sin(panelRad)
+            // Item rotation: stage → item local (inverse rotation)
+            const itemRad = ((item.rotation || 0) * Math.PI) / 180
+            const cosIR = Math.cos(-itemRad)
+            const sinIR = Math.sin(-itemRad)
 
             for (let i = 0; i < pts.length; i += 2) {
-                const dx = pts[i] + panel.x - item.x
-                const dy = pts[i + 1] + panel.y - item.y
-                
-                // Rotate point back into item's local coordinate system
-                const lx = dx * cos - dy * sin
-                const ly = dx * sin + dy * cos
-                
-                clipPoints.push(lx, ly)
+                // 1. Panel-local → stage (apply panel rotation)
+                const stageX = panel.x + pts[i] * cosPR - pts[i + 1] * sinPR
+                const stageY = panel.y + pts[i] * sinPR + pts[i + 1] * cosPR
+                // 2. Stage → item-relative
+                const dx = stageX - item.x
+                const dy = stageY - item.y
+                // 3. Item-relative → item local (undo item rotation)
+                clipPoints.push(dx * cosIR - dy * sinIR, dx * sinIR + dy * cosIR)
             }
             return clipPoints
         }

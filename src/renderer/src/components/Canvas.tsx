@@ -6,7 +6,6 @@ import { useMangaStore, Panel, Bubble } from '../store/useMangaStore'
 import { PanelItem } from './PanelItem'
 import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
 import { MaterialItem } from './MaterialItem'
-import { getPanelPoints } from './utils/drawPaths'
 import { getClippedPoints } from './utils/geometry'
 import { PageBackgroundImageLayer } from './PageBackgroundImageLayer'
 import { snapToGrid } from '../utils/gridUtils'
@@ -559,12 +558,10 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                                         if (b.isClipped && b.panelId) {
                                             const panel = panels.find(p => p.id === b.panelId)
                                             if (panel) {
-                                                const pts = getPanelPoints(panel)
-                                                clipPoints = []
-                                                for (let i = 0; i < pts.length; i += 2) {
-                                                    clipPoints.push(pts[i] + panel.x - b.x)
-                                                    clipPoints.push(pts[i + 1] + panel.y - b.y)
-                                                }
+                                                clipPoints = getClippedPoints(
+                                                    { isClipped: true, panelId: b.panelId, x: b.x, y: b.y, rotation: b.rotation },
+                                                    panels
+                                                )
                                             }
                                         }
                                         return <BubbleItem key={`interaction-${b.id}`} id={`interaction-${b.id}`} bubble={b} isSelected={selectedBubbleId === b.id} onSelect={setSelectedBubble} onUpdate={updateBubble} renderPass="interaction" clipPoints={clipPoints} panels={panels} interactionLocked={isBubbleInteractionLocked} isShiftPressed={isShiftPressed} />
