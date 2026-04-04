@@ -175,6 +175,22 @@
 
 **吹き出しクラスター**: 同種・同色など近い条件でグループ化し、フォント等をマスターに合わせる（重なり判定あり）。
 
+### 5.2.1 コマ内クリップ（`isClipped`）の座標変換
+
+`isClipped: true` の吹き出し・素材は **`clipFunc`** によってコマ形状に切り取られる。クリップ座標の計算は `components/utils/geometry.ts` の `getClippedPoints` に一元化されている。
+
+変換ステップ（3 段階）:
+1. **パネルローカル → ステージ**: パネルの回転を適用（`panel.rotation`）
+2. **ステージ → アイテム相対**: アイテムの位置 `(item.x, item.y)` を引く
+3. **アイテム相対 → アイテムローカル**: アイテムの回転を逆適用（`-item.rotation`）
+
+Konva の `clipFunc` はそのノードのローカル座標系で動作するため、上記の変換でパネルとアイテムが**それぞれ回転していても**正しくクリップされる。
+
+#### やりがちなバグ
+
+- `getVisualClusters`（`Canvas.tsx`）でクリップ座標を計算するとき、`rotation` を `0` にハードコードすると吹き出しが回転している場合にクリップがズレる。**必ず `rotation: b.rotation || 0` を渡すこと**。
+- 素材（`MaterialItem`）も同様に `getClippedPoints` を使う。`ClipItem` 型は `{ isClipped, panelId, x, y, rotation? }` で統一されている。
+
 ### 5.3 ドラッグ＆ドロップ
 
 - 画像をドロップするとプロジェクト **`assets/images/`** にコピー（ファイル名はサニタイズ＋タイムスタンプ）。ネイティブパスは **`getPathForFile`** を優先し、無い場合のみ `File & { path?: string }` の `path` を参照

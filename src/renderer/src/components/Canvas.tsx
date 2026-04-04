@@ -283,7 +283,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                     panelId: b.panelId,
                     x: b.x,
                     y: b.y,
-                    rotation: 0
+                    rotation: b.rotation || 0
                 }, panels)
                 return {
                     ...b,

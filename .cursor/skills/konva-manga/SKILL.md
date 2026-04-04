@@ -83,6 +83,13 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 - ドロップ時の幅・高さは、EXIF 付き JPEG 対策で **`createImageBitmap(file, { imageOrientation: 'from-image' })`** のピクセル寸法から縦横比を決める（`Image.width` だけだと縦長が潰れて見えることがある）。失敗時は `URL.createObjectURL` + `naturalWidth` へフォールバック。
 - Electron 旧挙動の `File.path` は `(file as File & { path?: string }).path` で型付けし、`any` を避ける。
 
+## コマ内クリップ（isClipped）の座標変換
+
+- クリップ座標の計算は **`components/utils/geometry.ts` の `getClippedPoints`** に一元化されている。
+- 変換は 3 段階: ① パネルローカル → ステージ（パネル回転適用） → ② ステージ → アイテム相対（位置を引く） → ③ アイテム相対 → アイテムローカル（アイテム回転を逆適用）。
+- `clipFunc` はノードのローカル座標系で動作するため、パネルとアイテムが**それぞれ回転していても**この変換で正しくクリップされる。
+- **よくあるバグ**: `getVisualClusters`（`Canvas.tsx`）で `rotation: 0` をハードコードすると、吹き出しが回転しているときにクリップがズレる。**必ず `rotation: b.rotation || 0` を渡すこと**。
+
 ## グレースケールと明るさ（Brighten）
 
 - グレースケール ON 時は **`filters={[Konva.Filters.Grayscale, Konva.Filters.Brighten]}`** の順（先に灰度化し、その後に加算の明るさ）。
