@@ -79,6 +79,7 @@ if (process.contextIsolated) {
             saveTemplate: (template: unknown) => ipcRenderer.invoke('save-template', template),
             deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
             exportPNG: (path: string, name: string, data: string) => ipcRenderer.invoke('export-png', { path, name, data }),
+            exportText: (path: string, data: string) => ipcRenderer.invoke('export-text', { path, data }),
             saveCompositePng: (projectPath: string, data: string) =>
                 ipcRenderer.invoke('save-composite-png', { projectPath, data }),
             selectFile: () => ipcRenderer.invoke('select-file'),
@@ -120,6 +121,7 @@ if (process.contextIsolated) {
         saveTemplate: (template) => ipcRenderer.invoke('save-template', template),
         deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
         exportPNG: (path, name, data) => ipcRenderer.invoke('export-png', { path, name, data }),
+        exportText: (path, data) => ipcRenderer.invoke('export-text', { path, data }),
         saveCompositePng: (projectPath, data) =>
             ipcRenderer.invoke('save-composite-png', { projectPath, data }),
         selectFile: () => ipcRenderer.invoke('select-file'),

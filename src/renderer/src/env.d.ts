@@ -12,6 +12,7 @@ declare global {
             saveTemplate: (template: { name: string; panels: unknown[] }) => Promise<PageTemplate[]>
             deleteTemplate: (id: string) => Promise<PageTemplate[]>
             exportPNG: (path: string, name: string, data: string) => Promise<string>
+            exportText: (path: string, data: string) => Promise<string>
             /** 合成ツール用: assets/images/composite/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
             selectFile: () => Promise<string | null>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
@@ -10,6 +10,7 @@ import { confirmMessage } from '../utils/dialogs'
 interface SidebarLeftProps {
     onExportPNG: () => void;
     onExportAllPagesPNG: () => void;
+    onExportText: () => void;
     onOpenTemplateModal: () => void;
     handleCreateNew: () => void;
     handleOpenProject: () => void;
@@ -26,6 +27,7 @@ interface SidebarLeftProps {
 const SidebarLeft: React.FC<SidebarLeftProps> = ({
     onExportPNG,
     onExportAllPagesPNG,
+    onExportText,
     onOpenTemplateModal,
     handleCreateNew,
     handleOpenProject,
@@ -104,6 +106,14 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                             >
                                 <Download size={18} />
                                 <span>全ページ一括 PNG</span>
+                            </button>
+                            <button
+                                onClick={onExportText}
+                                disabled={pages.length === 0}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <FileText size={18} />
+                                <span>セリフ一覧 TXT</span>
                             </button>
                             <button
                                 type="button"

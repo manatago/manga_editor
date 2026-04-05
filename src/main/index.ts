@@ -316,6 +316,23 @@ app.whenReady().then(() => {
         }
     })
 
+    ipcMain.handle('export-text', async (_, { path, data }: { path: string; data: string }) => {
+        const trimmedPath = path.trim()
+        const exportDir = pathModule.join(trimmedPath, 'exports')
+        try {
+            if (!fs.existsSync(exportDir)) {
+                fs.mkdirSync(exportDir, { recursive: true })
+            }
+            const filePath = pathModule.join(exportDir, 'script.txt')
+            fs.writeFileSync(filePath, data, 'utf8')
+            console.log('Main: text exported to', filePath)
+            return filePath
+        } catch (error) {
+            console.error('Main: failed to export text:', error)
+            throw error
+        }
+    })
+
     ipcMain.handle('export-png', async (_, { path, name, data }) => {
         const trimmedPath = path.trim()
         const exportDir = pathModule.join(trimmedPath, 'exports')

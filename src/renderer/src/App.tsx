@@ -53,7 +53,7 @@ function App(): React.JSX.Element {
     // Custom Hooks
     useKeyboardShortcuts()
     const { handleCreateNew, handleOpenProject, handleUseTemplate, handleSaveAsTemplate } = useProjectActions()
-    const { stageRef, handleExportPNG, handleExportAllPagesPNG } = useExport()
+    const { stageRef, handleExportPNG, handleExportAllPagesPNG, handleExportText } = useExport()
 
     // Local UI State
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
@@ -202,6 +202,7 @@ function App(): React.JSX.Element {
                     <SidebarLeft
                         onExportPNG={handleExportPNG}
                         onExportAllPagesPNG={handleExportAllPagesPNG}
+                        onExportText={handleExportText}
                         onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
                         handleCreateNew={handleCreateNew}
                         handleOpenProject={handleOpenProject}

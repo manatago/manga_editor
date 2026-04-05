@@ -90,9 +90,51 @@ export const useExport = () => {
         }
     }
 
+    const handleExportText = async () => {
+        const { pages, currentProjectPath } = useMangaStore.getState()
+        if (!currentProjectPath) return
+
+        const lines: string[] = []
+        for (const page of pages) {
+            const bubbles = page.bubbles.filter((b) => b.text?.trim())
+            if (bubbles.length === 0) continue
+
+            // 上から下、左から右の順に並べる
+            const sorted = [...bubbles].sort((a, b) => {
+                const yDiff = a.y - b.y
+                if (Math.abs(yDiff) > 30) return yDiff
+                return a.x - b.x
+            })
+
+            lines.push(`P${page.name}`)
+            lines.push('')
+            for (const bubble of sorted) {
+                lines.push(bubble.text)
+            }
+            lines.push('')
+        }
+
+        if (lines.length === 0) {
+            await showInfo('エクスポートするセリフがありません')
+            return
+        }
+
+        const content = lines.join('\n')
+        try {
+            if (window.electron) {
+                const filePath = await window.electron.exportText(currentProjectPath, content)
+                await showInfo(`セリフをエクスポートしました\n${filePath}`)
+            }
+        } catch (error) {
+            console.error('useExport: text export failed', error)
+            await showError('テキストエクスポートに失敗しました')
+        }
+    }
+
     return {
         stageRef,
         handleExportPNG,
-        handleExportAllPagesPNG
+        handleExportAllPagesPNG,
+        handleExportText
     }
 }
