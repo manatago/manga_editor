@@ -101,6 +101,7 @@
 - **種類**: `rounded` | `jagged` | `rect` | `flash` | `shout` | `square-jagged` | `megaphone` | `rect-double`
 - テキスト、フォント（サイズ・ファミリー・色・太さ）、縦書き/横書き、行間
 - 背景・枠・不透明度、変形・しっぽ・回転など多数のプロパティ
+- **`flash`（ウニ）の背景色**: `drawFlashPath` は `moveTo/lineTo` のみで閉じたパスを持たないため通常の `fill` は使えない。代わりに楕円 Shape をラジアルグラジエントで描画し、中心から外縁へ `backgroundColor → transparent` にフェードアウト（全方位）させる。クラスター描画の mask パスでは黒一色の楕円を描く。
 - **`isClipped` + `panelId`**: コマ内にクリップして表示するか／フレーム外に重ねるか
 - **テキスト描画（追加仕様）**:
   - **文字の相対オフセット**: `textOffsetX` / `textOffsetY` で、吹き出し内のテキスト位置を微調整できる

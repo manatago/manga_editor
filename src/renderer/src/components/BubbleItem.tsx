@@ -231,10 +231,50 @@ export const BubbleItem: React.FC<{
                         }} 
                     />
                 )
-            case 'flash':
+            case 'flash': {
+                const hexColor = actualBackgroundColor || '#ffffff'
+                const cr = parseInt(hexColor.slice(1, 3), 16)
+                const cg = parseInt(hexColor.slice(3, 5), 16)
+                const cb = parseInt(hexColor.slice(5, 7), 16)
+                const bgAlpha = isMask ? 1 : actualBackgroundOpacity
+                const endRadius = Math.max(bubble.width, bubble.height) / 2 * 0.9
+                const colorStops = isMask
+                    ? [0, 'black', 1, 'black']
+                    : [0, `rgba(${cr},${cg},${cb},${bgAlpha})`, 0.55, `rgba(${cr},${cg},${cb},${bgAlpha})`, 1, `rgba(${cr},${cg},${cb},0)`]
                 return (
-                    <Shape {...commonProps} fill={undefined} sceneFunc={(c, s) => runDrawConfig(c, s, drawFlashPath)} />
+                    <>
+                        {shouldRenderFills && (
+                            <Shape
+                                width={bubble.width}
+                                height={bubble.height}
+                                opacity={isMask ? 1 : passOpacity}
+                                perfectDrawEnabled={false}
+                                fillRadialGradientStartPoint={{ x: bubble.width / 2, y: bubble.height / 2 }}
+                                fillRadialGradientEndPoint={{ x: bubble.width / 2, y: bubble.height / 2 }}
+                                fillRadialGradientStartRadius={0}
+                                fillRadialGradientEndRadius={endRadius}
+                                fillRadialGradientColorStops={colorStops}
+                                sceneFunc={(ctx, shape) => {
+                                    const w = shape.width(), h = shape.height()
+                                    ctx.beginPath()
+                                    for (let i = 0; i <= 64; i++) {
+                                        const angle = (i / 64) * Math.PI * 2
+                                        const px = w / 2 + Math.cos(angle) * w / 2
+                                        const py = h / 2 + Math.sin(angle) * h / 2
+                                        if (i === 0) ctx.moveTo(px, py)
+                                        else ctx.lineTo(px, py)
+                                    }
+                                    ctx.closePath()
+                                    ctx.fillShape(shape)
+                                }}
+                            />
+                        )}
+                        {shouldRenderStrokes && (
+                            <Shape {...commonProps} fill={undefined} sceneFunc={(c, s) => runDrawConfig(c, s, drawFlashPath)} />
+                        )}
+                    </>
                 )
+            }
             case 'rounded':
             default:
                 return (

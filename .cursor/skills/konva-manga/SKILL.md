@@ -83,6 +83,25 @@ React-Konva は、`Group` / `Layer` などの子要素の**間に入る空白・
 - ドロップ時の幅・高さは、EXIF 付き JPEG 対策で **`createImageBitmap(file, { imageOrientation: 'from-image' })`** のピクセル寸法から縦横比を決める（`Image.width` だけだと縦長が潰れて見えることがある）。失敗時は `URL.createObjectURL` + `naturalWidth` へフォールバック。
 - Electron 旧挙動の `File.path` は `(file as File & { path?: string }).path` で型付けし、`any` を避ける。
 
+## flash（ウニ）吹き出しの背景色
+
+`drawFlashPath` は `moveTo/lineTo` のみで閉じたパスを持たないため、通常の `fill` prop は無効（描画されない）。
+
+### 実装パターン
+
+```jsx
+case 'flash': {
+    // shouldRenderFills のとき: 楕円 + ラジアルグラジェントで背景
+    // shouldRenderStrokes のとき: flash 線
+    // 両方のとき: 両方重ねる
+}
+```
+
+- **背景楕円**: `sceneFunc` で 64 点の多角形近似楕円を描き `ctx.fillShape(shape)` で塗る
+- **グラジェント**: Konva の `fillRadialGradientColorStops` を使う。`endRadius = Math.max(w, h) / 2 * 0.9`、color stops `[0, solid, 0.55, solid, 1, transparent]` で中心側を確保しつつ外縁でフェード
+- **mask パス（クラスター）**: `isMask` のとき `colorStops = [0, 'black', 1, 'black']` で楕円全体を黒く塗りつぶす
+- `<Shape>` と `<Shape>` を `<>...</>` Fragment で返す（Konva Group 直下に複数 Shape を置いて OK）
+
 ## コマ内クリップ（isClipped）の座標変換
 
 - クリップ座標の計算は **`components/utils/geometry.ts` の `getClippedPoints`** に一元化されている。
