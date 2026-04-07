@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
-import type { PageTemplate, MangaProjectData, Page } from '../types'
+import type { PageTemplate, MangaProjectData, Page, FadeDirection } from '../types'
 import { toRelativeAssetPath, physicalFileToRelative, isAssetTrashRelativePath } from '../../utils/projectAssets'
 import { normalizeReferenceCharacters } from '../../utils/referenceCharacters'
 import { normalizeBackgroundLibrary } from '../../utils/backgroundLibrary'
@@ -89,6 +89,10 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     imageScale: panel.imageScale ?? 1,
                     imageRotation: panel.imageRotation ?? 0,
                     fadeDirection: panel.fadeDirection || 'none',
+                    fadeDirections: panel.fadeDirections
+                        ?? (panel.fadeDirection && panel.fadeDirection !== 'none'
+                            ? [panel.fadeDirection as FadeDirection]
+                            : []),
                     hasFocusLines: panel.hasFocusLines || false,
                     focusCenterX: panel.focusCenterX ?? 0.5,
                     focusCenterY: panel.focusCenterY ?? 0.5,

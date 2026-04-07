@@ -17,27 +17,22 @@ const PANEL_TYPE_OPTIONS = [
 ] as const
 
 interface DirectionButtonProps {
-    dir: FadeDirection
+    dir: Exclude<FadeDirection, 'none'>
     icon: React.ReactNode
-    current: FadeDirection | undefined
-    onSelect: (dir: FadeDirection) => void
+    active: boolean
+    onToggle: () => void
 }
 
-const DirectionButton: React.FC<DirectionButtonProps> = ({ dir, icon, current, onSelect }) => (
+const DIR_LABELS: Record<Exclude<FadeDirection, 'none'>, string> = {
+    'top': '上', 'bottom': '下', 'left': '左', 'right': '右',
+    'top-left': '左上', 'top-right': '右上', 'bottom-left': '左下', 'bottom-right': '右下'
+}
+
+const DirectionButton: React.FC<DirectionButtonProps> = ({ dir, icon, active, onToggle }) => (
     <button
-        onClick={() => onSelect(dir)}
-        title={
-            dir === 'none' ? 'クリア' :
-            dir === 'top' ? '上' :
-            dir === 'top-right' ? '右上' :
-            dir === 'right' ? '右' :
-            dir === 'bottom-right' ? '右下' :
-            dir === 'bottom' ? '下' :
-            dir === 'bottom-left' ? '左下' :
-            dir === 'left' ? '左' :
-            '左上'
-        }
-        className={`w-6 h-6 flex items-center justify-center rounded border transition-all ${current === dir ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+        onClick={onToggle}
+        title={DIR_LABELS[dir]}
+        className={`w-6 h-6 flex items-center justify-center rounded border transition-all ${active ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
     >
         {icon}
     </button>
@@ -387,29 +382,51 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                     </div>
                 )}
                 <div>
-                    <h4 className="text-xs font-bold text-zinc-200 tracking-wide mb-3">フェードアウト</h4>
-                    <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">
-                        <DirectionButton dir="top-left" icon={<ArrowUpLeft size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="top" icon={<ArrowUp size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="top-right" icon={<ArrowUpRight size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="left" icon={<ArrowLeft size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="none" icon={<CircleX size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="right" icon={<ArrowRight size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="bottom-left" icon={<ArrowDownLeft size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="bottom" icon={<ArrowDown size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                        <DirectionButton dir="bottom-right" icon={<ArrowDownRight size={14} />} current={panel.fadeDirection} onSelect={(dir) => updatePanel(panel.id, { fadeDirection: dir })} />
-                    </div>
+                    <h4 className="text-xs font-bold text-zinc-200 tracking-wide mb-3">フェードアウト（複数選択可）</h4>
+                    {(() => {
+                        const activeDirs: FadeDirection[] = panel.fadeDirections && panel.fadeDirections.length > 0
+                            ? panel.fadeDirections.filter(d => d !== 'none')
+                            : panel.fadeDirection && panel.fadeDirection !== 'none'
+                            ? [panel.fadeDirection]
+                            : []
+                        const toggle = (dir: Exclude<FadeDirection, 'none'>) => {
+                            const next = activeDirs.includes(dir)
+                                ? activeDirs.filter(d => d !== dir)
+                                : [...activeDirs, dir]
+                            updatePanel(panel.id, { fadeDirections: next, fadeDirection: next[0] ?? 'none' })
+                        }
+                        return (
+                            <>
+                                <div className="grid grid-cols-3 gap-1.5 w-fit mx-auto">
+                                    <DirectionButton dir="top-left" icon={<ArrowUpLeft size={14} />} active={activeDirs.includes('top-left')} onToggle={() => toggle('top-left')} />
+                                    <DirectionButton dir="top" icon={<ArrowUp size={14} />} active={activeDirs.includes('top')} onToggle={() => toggle('top')} />
+                                    <DirectionButton dir="top-right" icon={<ArrowUpRight size={14} />} active={activeDirs.includes('top-right')} onToggle={() => toggle('top-right')} />
+                                    <DirectionButton dir="left" icon={<ArrowLeft size={14} />} active={activeDirs.includes('left')} onToggle={() => toggle('left')} />
+                                    <button
+                                        onClick={() => updatePanel(panel.id, { fadeDirections: [], fadeDirection: 'none' })}
+                                        title="クリア"
+                                        className="w-6 h-6 flex items-center justify-center rounded border border-zinc-700 bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-all"
+                                    >
+                                        <CircleX size={14} />
+                                    </button>
+                                    <DirectionButton dir="right" icon={<ArrowRight size={14} />} active={activeDirs.includes('right')} onToggle={() => toggle('right')} />
+                                    <DirectionButton dir="bottom-left" icon={<ArrowDownLeft size={14} />} active={activeDirs.includes('bottom-left')} onToggle={() => toggle('bottom-left')} />
+                                    <DirectionButton dir="bottom" icon={<ArrowDown size={14} />} active={activeDirs.includes('bottom')} onToggle={() => toggle('bottom')} />
+                                    <DirectionButton dir="bottom-right" icon={<ArrowDownRight size={14} />} active={activeDirs.includes('bottom-right')} onToggle={() => toggle('bottom-right')} />
+                                </div>
+                                {activeDirs.length > 0 && (
+                                    <div className="animate-in fade-in zoom-in-95 duration-200 mt-3">
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-[10px] text-zinc-500 uppercase">フェードの強さ</label>
+                                            <span className="text-[10px] text-blue-500 font-mono">{Math.round((panel.fadeStrength ?? 0.4) * 100)}%</span>
+                                        </div>
+                                        <input type="range" min="10" max="100" value={(panel.fadeStrength ?? 0.4) * 100} onChange={(e) => updatePanel(panel.id, { fadeStrength: parseInt(e.target.value) / 100 })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    </div>
+                                )}
+                            </>
+                        )
+                    })()}
                 </div>
-
-                {panel.fadeDirection && panel.fadeDirection !== 'none' && (
-                    <div className="animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between mb-2">
-                            <label className="text-[10px] text-zinc-500 uppercase">フェードの強さ</label>
-                            <span className="text-[10px] text-blue-500 font-mono">{Math.round((panel.fadeStrength ?? 0.4) * 100)}%</span>
-                        </div>
-                        <input type="range" min="10" max="100" value={(panel.fadeStrength ?? 0.4) * 100} onChange={(e) => updatePanel(panel.id, { fadeStrength: parseInt(e.target.value) / 100 })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                    </div>
-                )}
 
                 <div className="pt-2 space-y-4">
                     <div>

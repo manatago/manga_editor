@@ -36,6 +36,7 @@ export interface Panel {
     imageScale?: number
     imageRotation?: number
     fadeDirection?: FadeDirection
+    fadeDirections?: FadeDirection[]
     hasFocusLines?: boolean
     focusCenterX?: number
     focusCenterY?: number
