@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Stage, Layer, Image as KonvaImage, Transformer, Rect } from 'react-konva'
 import useImage from 'use-image'
 import Konva from 'konva'
-import { X, ImagePlus, Download, RotateCcw, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
+import { X, ImagePlus, Download, RotateCcw, FlipHorizontal, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { showError, showInfo } from '../utils/dialogs'
 import { useMangaStore } from '../store/useMangaStore'
 import type { ReferenceCharacter } from '../store/types'
@@ -505,6 +505,22 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         })
     }, [pushUndo])
 
+    const flipHorizontal = useCallback((instanceId: string) => {
+        pushUndo()
+        setCharInstances((prev) =>
+            prev.map((c) =>
+                c.instanceId === instanceId
+                    ? { ...c, transform: { ...c.transform, scaleX: -c.transform.scaleX } }
+                    : c
+            )
+        )
+    }, [pushUndo])
+
+    const flipBgHorizontal = useCallback(() => {
+        pushUndo()
+        setBgT((prev) => ({ ...prev, scaleX: -prev.scaleX }))
+    }, [pushUndo])
+
     const updateCharTransform = useCallback((instanceId: string, t: LayerTransform) => {
         setCharInstances((prev) => prev.map((c) => (c.instanceId === instanceId ? { ...c, transform: t } : c)))
     }, [])
@@ -750,6 +766,14 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                                             </button>
                                             <button
                                                 type="button"
+                                                className={`p-1 hover:text-sky-300 ${c.transform.scaleX < 0 ? 'text-sky-400' : 'text-zinc-500'}`}
+                                                title="左右反転"
+                                                onClick={() => flipHorizontal(c.instanceId)}
+                                            >
+                                                <FlipHorizontal size={14} />
+                                            </button>
+                                            <button
+                                                type="button"
                                                 className="p-1 text-zinc-500 hover:text-red-400"
                                                 title="削除"
                                                 onClick={() => removeCharacter(c.instanceId)}
@@ -763,14 +787,25 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                         ) : null}
 
                         {bgImg ? (
-                            <button
-                                type="button"
-                                onClick={resetBgFit}
-                                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-zinc-800/80 text-xs text-zinc-300 border border-zinc-700"
-                            >
-                                <RotateCcw size={14} />
-                                背景をキャンバスに合わせ
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={resetBgFit}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-zinc-800/80 text-xs text-zinc-300 border border-zinc-700"
+                                >
+                                    <RotateCcw size={14} />
+                                    キャンバスに合わせ
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={flipBgHorizontal}
+                                    title="背景を左右反転"
+                                    className={`px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5 ${bgT.scaleX < 0 ? 'bg-sky-900/40 border-sky-600 text-sky-300' : 'bg-zinc-800/80 border-zinc-700 text-zinc-300'}`}
+                                >
+                                    <FlipHorizontal size={14} />
+                                    反転
+                                </button>
+                            </div>
                         ) : null}
 
                         <button
