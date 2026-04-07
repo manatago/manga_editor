@@ -6,6 +6,7 @@ import { useMangaStore, Panel, Bubble } from '../store/useMangaStore'
 import { PanelItem } from './PanelItem'
 import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
 import { MaterialItem } from './MaterialItem'
+import { MosaicItem } from './effects/MosaicItem'
 import { getClippedPoints } from './utils/geometry'
 import { PageBackgroundImageLayer } from './PageBackgroundImageLayer'
 import { snapToGrid } from '../utils/gridUtils'
@@ -67,7 +68,14 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
         setSelectedMaterial,
         addMaterial,
         updateMaterial,
-        isExporting
+        isExporting,
+        mosaicType,
+        mosaicVisible,
+        isMosaicMode,
+        selectedMosaicId,
+        addMosaic,
+        removeMosaic,
+        setSelectedMosaicId
     } = useMangaStore()
     const materialTransformerRef = useRef<any>(null)
     const transformerRef = useRef<Konva.Transformer>(null)
@@ -79,6 +87,9 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
     const panels = currentPage?.panels || []
     const bubbles = currentPage?.bubbles || []
     const [isShiftPressed, setIsShiftPressed] = useState(false)
+    const [mosaicDrawing, setMosaicDrawing] = useState(false)
+    const [mosaicStart, setMosaicStart] = useState<{ x: number; y: number } | null>(null)
+    const [mosaicCurrent, setMosaicCurrent] = useState<{ x: number; y: number } | null>(null)
     const selectedPanel = panels.find((p) => p.id === selectedPanelId)
     // Shift はパネル背景画像の編集にも使うが、吹き出し選択中の Shift 操作は許可したい
     const isBubbleInteractionLocked = !!(isShiftPressed && selectedPanel?.imagePath && !selectedBubbleId)
@@ -86,6 +97,14 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
     useEffect(() => {
         const onKeyDown = (evt: KeyboardEvent) => {
             if (evt.key === 'Shift') setIsShiftPressed(true)
+            if (evt.key === 'Backspace' || evt.key === 'Delete') {
+                const { isMosaicMode: mode, selectedMosaicId: mid } = useMangaStore.getState()
+                if (mode && mid) {
+                    evt.preventDefault()
+                    useMangaStore.getState().removeMosaic(mid)
+                    useMangaStore.getState().setSelectedMosaicId(null)
+                }
+            }
         }
         const onKeyUp = (evt: KeyboardEvent) => {
             if (evt.key === 'Shift') setIsShiftPressed(false)
@@ -102,12 +121,49 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
     }, [])
 
     const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+        if (isMosaicMode) return
         if (e.target === e.target.getStage()) {
             setSelectedPanel(null)
             setSelectedBubble(null)
             setSelectedMaterial(null)
             return
         }
+    }
+
+    const handleMosaicMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        if (!isMosaicMode) return
+        const stage = stageRef.current
+        if (!stage) return
+        // Only start drawing when clicking on stage background (not on a mosaic item)
+        if (e.target !== stage) return
+        const pos = stage.getPointerPosition()
+        if (!pos) return
+        setSelectedMosaicId(null)
+        setMosaicDrawing(true)
+        setMosaicStart(pos)
+        setMosaicCurrent(pos)
+    }
+
+    const handleMosaicMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        if (!mosaicDrawing) return
+        const stage = stageRef.current
+        if (!stage) return
+        const pos = stage.getPointerPosition()
+        if (pos) setMosaicCurrent(pos)
+    }
+
+    const handleMosaicMouseUp = () => {
+        if (!mosaicDrawing || !mosaicStart || !mosaicCurrent) return
+        setMosaicDrawing(false)
+        const x = Math.min(mosaicStart.x, mosaicCurrent.x)
+        const y = Math.min(mosaicStart.y, mosaicCurrent.y)
+        const w = Math.abs(mosaicCurrent.x - mosaicStart.x)
+        const h = Math.abs(mosaicCurrent.y - mosaicStart.y)
+        if (w > 10 && h > 10) {
+            addMosaic({ x, y, width: w, height: h })
+        }
+        setMosaicStart(null)
+        setMosaicCurrent(null)
     }
 
     const handleDrop = async (e: React.DragEvent) => {
@@ -380,6 +436,10 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                     height={canvasHeight}
                     onClick={handleStageClick}
                     onTap={handleStageClick}
+                    onMouseDown={isMosaicMode ? handleMosaicMouseDown : undefined}
+                    onMouseMove={isMosaicMode ? handleMosaicMouseMove : undefined}
+                    onMouseUp={isMosaicMode ? handleMosaicMouseUp : undefined}
+                    style={{ cursor: isMosaicMode ? 'crosshair' : undefined }}
                 >
                     <Layer>
                         {/* 1. Background Layer */}
@@ -528,14 +588,45 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                             ))}
                         </Group>
 
+                        {/* 6. Mosaic Layer */}
+                        {mosaicVisible && (currentPage?.mosaics || []).length > 0 && (
+                            <Group>
+                                {(currentPage?.mosaics || []).map((region) => (
+                                    <MosaicItem
+                                        key={region.id}
+                                        region={region}
+                                        mosaicType={mosaicType}
+                                        isSelected={selectedMosaicId === region.id}
+                                        onSelect={(id) => {
+                                            if (isMosaicMode) setSelectedMosaicId(id)
+                                        }}
+                                        isExporting={isExporting}
+                                    />
+                                ))}
+                            </Group>
+                        )}
+
+                        {/* 7. Mosaic rubber-band preview */}
+                        {mosaicDrawing && mosaicStart && mosaicCurrent && (
+                            <Rect
+                                x={Math.min(mosaicStart.x, mosaicCurrent.x)}
+                                y={Math.min(mosaicStart.y, mosaicCurrent.y)}
+                                width={Math.abs(mosaicCurrent.x - mosaicStart.x)}
+                                height={Math.abs(mosaicCurrent.y - mosaicStart.y)}
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dash={[6, 4]}
+                                fill="rgba(59,130,246,0.08)"
+                                listening={false}
+                            />
+                        )}
+
                         {showGrid && !isExporting && snapGuides.length > 0 && (
                             <Group listening={false}>{snapGuides}</Group>
                         )}
- 
-                        {/* 8. Interaction Layer (Hidden during export) */}
 
-                        {/* 8. Interaction Layer (Hidden during export) */}
-                        {!isExporting && (
+                        {/* 8. Interaction Layer (Hidden during export and in mosaic mode) */}
+                        {!isExporting && !isMosaicMode && (
                             <Group>
                                 {/* 8.1 Base Interaction Nodes */ }
                                 <Group>

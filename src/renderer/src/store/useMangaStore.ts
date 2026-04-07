@@ -10,6 +10,7 @@ import {
     createBackgroundLibrarySlice,
     type BackgroundLibrarySlice
 } from './slices/backgroundLibrarySlice'
+import { createMosaicSlice, type MosaicSlice } from './slices/mosaicSlice'
 
 // Re-export all domain types so existing imports from this file continue to work
 export type {
@@ -17,6 +18,8 @@ export type {
     FadeDirection,
     GradientType,
     BubbleType,
+    MosaicType,
+    MosaicRegion,
     Panel,
     Bubble,
     Material,
@@ -37,7 +40,8 @@ export type MangaState =
     MaterialSlice &
     ProjectSlice &
     ReferenceSlice &
-    BackgroundLibrarySlice
+    BackgroundLibrarySlice &
+    MosaicSlice
 
 export const useMangaStore = create<MangaState>()((...a) => ({
     ...createHistorySlice(...a),
@@ -47,5 +51,6 @@ export const useMangaStore = create<MangaState>()((...a) => ({
     ...createMaterialSlice(...a),
     ...createProjectSlice(...a),
     ...createReferenceSlice(...a),
-    ...createBackgroundLibrarySlice(...a)
+    ...createBackgroundLibrarySlice(...a),
+    ...createMosaicSlice(...a)
 }))

@@ -1,5 +1,15 @@
 export type PanelType = 'rect' | 'slanted' | 'trapezoid-h' | 'trapezoid-v' | 'pentagon' | 'hexagon' | 'circle'
 
+export type MosaicType = 'pixel-4' | 'pixel-12' | 'frosted' | 'white-blur' | 'none'
+
+export interface MosaicRegion {
+    id: string
+    x: number
+    y: number
+    width: number
+    height: number
+}
+
 export type FadeDirection =
     | 'none'
     | 'top'
@@ -135,6 +145,7 @@ export interface Page {
     panels: Panel[]
     bubbles: Bubble[]
     materials: Material[]
+    mosaics?: MosaicRegion[]
     backgroundColor?: string
     backgroundOpacity?: number
     bgGradientType?: GradientType

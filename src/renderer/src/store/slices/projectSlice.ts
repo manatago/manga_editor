@@ -132,6 +132,13 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                             : undefined
                 }
             }),
+            mosaics: (page.mosaics || []).map((m) => ({
+                id: m.id,
+                x: m.x ?? 0,
+                y: m.y ?? 0,
+                width: Math.max(1, m.width ?? 0),
+                height: Math.max(1, m.height ?? 0)
+            })),
             materials: (page.materials || []).map((mat) => ({
                 ...mat,
                 opacity: mat.opacity ?? 1,

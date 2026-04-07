@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
 import { useMangaStore } from '../store/useMangaStore'
-import type { Page, Panel } from '../store/types'
+import type { Page, Panel, MosaicType } from '../store/types'
 import { confirmMessage } from '../utils/dialogs'
 
 interface SidebarLeftProps {
@@ -48,7 +48,13 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         movePage,
         removePage,
         saveAsTemplate, // Not used in this component, but part of the store destructuring
-        cleanupAssets
+        cleanupAssets,
+        mosaicType,
+        mosaicVisible,
+        isMosaicMode,
+        setMosaicType,
+        setMosaicVisible,
+        setIsMosaicMode
     } = useMangaStore()
 
     const [referenceModalOpen, setReferenceModalOpen] = useState(false)
@@ -139,6 +145,60 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                 <ImagePlus size={18} />
                                 <span>背景＋人物の合成</span>
                             </button>
+
+                            {/* Mosaic controls */}
+                            <div className="pt-2 border-t border-zinc-800 space-y-2">
+                                <div className="flex items-center justify-between px-1">
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">モザイク</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMosaicVisible(!mosaicVisible)}
+                                        className="p-1 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
+                                        title={mosaicVisible ? '非表示にする' : '表示する'}
+                                    >
+                                        {mosaicVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                    </button>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMosaicMode(!isMosaicMode)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors font-bold text-sm ${
+                                        isMosaicMode
+                                            ? 'bg-blue-600/30 border-blue-500/50 text-blue-200'
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700'
+                                    }`}
+                                >
+                                    <Pencil size={16} />
+                                    <span>{isMosaicMode ? '描画中…（クリックで終了）' : 'モザイク描画モード'}</span>
+                                </button>
+                                {/* Type selector */}
+                                <div className="grid grid-cols-5 gap-1">
+                                    {(['pixel-4', 'pixel-12', 'frosted', 'white-blur', 'none'] as MosaicType[]).map((t) => {
+                                        const labels: Record<MosaicType, string> = {
+                                            'pixel-4': 'px4',
+                                            'pixel-12': 'px12',
+                                            'frosted': '曇',
+                                            'white-blur': '白',
+                                            'none': '無'
+                                        }
+                                        return (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => setMosaicType(t)}
+                                                className={`py-1 rounded text-[10px] font-bold border transition-colors ${
+                                                    mosaicType === t
+                                                        ? 'bg-blue-600 border-blue-500 text-white'
+                                                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                                                }`}
+                                                title={t}
+                                            >
+                                                {labels[t]}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="space-y-1">
