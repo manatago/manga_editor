@@ -163,8 +163,8 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                     off.height = physH
                     const octx = off.getContext('2d')!
 
-                    if (mosaicType === 'pixel-4' || mosaicType === 'pixel-12') {
-                        const blockSize = mosaicType === 'pixel-4' ? 4 : 12
+                    if (mosaicType === 'pixel-12') {
+                        const blockSize = 12
                         const physBlock = Math.max(1, Math.round(blockSize * dpr))
 
                         // 既に描画済みのキャンバスから下地ピクセルをサンプリング
@@ -183,7 +183,7 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                             octx.fillRect(0, 0, physW, physH)
                         }
                     } else if (mosaicType === 'frosted') {
-                        // 曇りガラス：下地をぼかして白みを加える
+                        // すりガラス：下地を強くぼかし、薄い白みを加える
                         let srcData: ImageData | null = null
                         try {
                             srcData = rawCtx.getImageData(physX, physY, physW, physH)
@@ -192,14 +192,14 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                         }
 
                         if (srcData) {
-                            const blurPad = Math.max(20, Math.round(14 * dpr))
+                            const blurAmt = Math.max(12, Math.round(20 * dpr))
+                            const blurPad = blurAmt * 2
                             const tmp = document.createElement('canvas')
                             tmp.width = physW + blurPad * 2
                             tmp.height = physH + blurPad * 2
                             const tc = tmp.getContext('2d')!
                             tc.putImageData(srcData, blurPad, blurPad)
 
-                            const blurAmt = Math.max(6, Math.round(10 * dpr))
                             octx.filter = `blur(${blurAmt}px)`
                             octx.drawImage(tmp, -blurPad, -blurPad)
                             octx.filter = 'none'
@@ -207,8 +207,8 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                             octx.fillStyle = 'rgba(200,215,230,1)'
                             octx.fillRect(0, 0, physW, physH)
                         }
-                        // 白みを重ねてより「曇りガラス」らしくする
-                        octx.fillStyle = 'rgba(255,255,255,0.68)'
+                        // 薄い白みでガラス感を出す（ぼかし下地が透けて見える程度）
+                        octx.fillStyle = 'rgba(255,255,255,0.22)'
                         octx.fillRect(0, 0, physW, physH)
                     } else if (mosaicType === 'white-blur') {
                         octx.fillStyle = '#ffffff'

@@ -172,10 +172,9 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     <span>{isMosaicMode ? '描画中…（クリックで終了）' : 'モザイク描画モード'}</span>
                                 </button>
                                 {/* Type selector */}
-                                <div className="grid grid-cols-5 gap-1">
-                                    {(['pixel-4', 'pixel-12', 'frosted', 'white-blur', 'none'] as MosaicType[]).map((t) => {
+                                <div className="grid grid-cols-4 gap-1">
+                                    {(['pixel-12', 'frosted', 'white-blur', 'none'] as MosaicType[]).map((t) => {
                                         const labels: Record<MosaicType, string> = {
-                                            'pixel-4': 'px4',
                                             'pixel-12': 'px12',
                                             'frosted': '曇',
                                             'white-blur': '白',

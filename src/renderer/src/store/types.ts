@@ -1,6 +1,6 @@
 export type PanelType = 'rect' | 'slanted' | 'trapezoid-h' | 'trapezoid-v' | 'pentagon' | 'hexagon' | 'circle'
 
-export type MosaicType = 'pixel-4' | 'pixel-12' | 'frosted' | 'white-blur' | 'none'
+export type MosaicType = 'pixel-12' | 'frosted' | 'white-blur' | 'none'
 
 export interface MosaicRegion {
     id: string
