@@ -3,37 +3,40 @@ import { Group, Shape, Rect } from 'react-konva'
 import type { MosaicRegion, MosaicType } from '../../store/types'
 
 /**
- * ソフトな楕円形アルファマスクを生成する。
- * 鮮明な楕円を描いてから CSS blur でぼかすことでコーナーが消えて楕円形に見える。
- * feather は物理ピクセル単位。
+ * 楕円形アルファマスクを生成する。
+ *
+ * 「大きい σ のガウシアンでぼかす」と角が残る（Φ(-d/σ) が大きい）。
+ * 正解は「内接楕円をそのまま描いて、小さい σ でタイトにぼかす」こと。
+ * d/σ ≈ 3〜4 になるため Φ(-3.5) ≈ 0.02% → 角がほぼ消える。
+ *
+ * physW/physH は物理ピクセル単位。
  */
-function createEllipseMask(physW: number, physH: number, feather: number): HTMLCanvasElement {
-    const pad = Math.ceil(feather) * 2
+function createEllipseMask(physW: number, physH: number): HTMLCanvasElement {
+    // σ = 短辺の 6%（最低 5px）。小さいほど急峻な falloff で角が消えやすい。
+    const σ = Math.max(5, Math.min(physW, physH) * 0.06)
+    // ぼかしが枠外に逃げないよう 4σ の余白を確保する
+    const pad = Math.ceil(σ) * 4
 
-    // ぼかしが枠外に逃げないよう余白付きキャンバスに楕円を描く
     const padded = document.createElement('canvas')
     padded.width = physW + pad * 2
     padded.height = physH + pad * 2
     const pc = padded.getContext('2d')!
 
-    const inset = feather * 0.35
+    // 完全内接楕円（内側オフセットなし）を白く塗る
     pc.fillStyle = '#ffffff'
     pc.beginPath()
     pc.ellipse(
-        padded.width / 2,
-        padded.height / 2,
-        Math.max(1, physW / 2 - inset),
-        Math.max(1, physH / 2 - inset),
+        padded.width / 2, padded.height / 2,
+        physW / 2, physH / 2,
         0, 0, Math.PI * 2
     )
     pc.fill()
 
-    // 余白分ずらして描くことで blur が端まで適切にフェードアウトする
     const result = document.createElement('canvas')
     result.width = physW
     result.height = physH
     const rc = result.getContext('2d')!
-    rc.filter = `blur(${feather}px)`
+    rc.filter = `blur(${σ}px)`
     rc.drawImage(padded, -pad, -pad)
 
     return result
@@ -54,7 +57,6 @@ function applyPixelate(
 ): HTMLCanvasElement {
     const out = new ImageData(physW, physH)
 
-    // グローバルグリッドの開始オフセット（負値で左上方向にはみ出して揃える）
     const offX = physX % physBlock
     const offY = physY % physBlock
 
@@ -148,9 +150,9 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                     // 現在の変換行列から物理ピクセル座標を取得
                     // Konva は layer に scale(dpr, dpr) + group に translate(x, y) を適用している
                     const t = rawCtx.getTransform()
-                    const dpr = t.a                          // scaleX = devicePixelRatio
-                    const physX = Math.round(t.e)            // = x * dpr
-                    const physY = Math.round(t.f)            // = y * dpr
+                    const dpr = t.a                    // scaleX = devicePixelRatio
+                    const physX = Math.round(t.e)      // = x * dpr
+                    const physY = Math.round(t.f)      // = y * dpr
                     const physW = Math.round(w * dpr)
                     const physH = Math.round(h * dpr)
 
@@ -177,7 +179,6 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                             const pixelated = applyPixelate(srcData, physW, physH, physBlock, physX, physY)
                             octx.drawImage(pixelated, 0, 0)
                         } else {
-                            // フォールバック：グレー塗りつぶし
                             octx.fillStyle = 'rgba(140,140,140,0.95)'
                             octx.fillRect(0, 0, physW, physH)
                         }
@@ -191,16 +192,14 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                         }
 
                         if (srcData) {
-                            const blurPad = Math.max(20, Math.round(12 * dpr))
-                            const tmpW = physW + blurPad * 2
-                            const tmpH = physH + blurPad * 2
+                            const blurPad = Math.max(20, Math.round(14 * dpr))
                             const tmp = document.createElement('canvas')
-                            tmp.width = tmpW
-                            tmp.height = tmpH
+                            tmp.width = physW + blurPad * 2
+                            tmp.height = physH + blurPad * 2
                             const tc = tmp.getContext('2d')!
                             tc.putImageData(srcData, blurPad, blurPad)
 
-                            const blurAmt = Math.max(4, Math.round(8 * dpr))
+                            const blurAmt = Math.max(6, Math.round(10 * dpr))
                             octx.filter = `blur(${blurAmt}px)`
                             octx.drawImage(tmp, -blurPad, -blurPad)
                             octx.filter = 'none'
@@ -208,24 +207,21 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                             octx.fillStyle = 'rgba(200,215,230,1)'
                             octx.fillRect(0, 0, physW, physH)
                         }
-
-                        // 白みを重ねる
-                        octx.fillStyle = 'rgba(255,255,255,0.50)'
+                        // 白みを重ねてより「曇りガラス」らしくする
+                        octx.fillStyle = 'rgba(255,255,255,0.68)'
                         octx.fillRect(0, 0, physW, physH)
                     } else if (mosaicType === 'white-blur') {
                         octx.fillStyle = '#ffffff'
                         octx.fillRect(0, 0, physW, physH)
                     }
 
-                    // 楕円形にぼかしたアルファマスクを適用
-                    // feather は短辺の 30% 程度（最低 10px物理）でコーナーがほぼ消える
-                    const feather = Math.max(10 * dpr, Math.min(physW, physH) * 0.30)
-                    const mask = createEllipseMask(physW, physH, feather)
+                    // 楕円形アルファマスクを適用（小σ → コーナーがほぼ消える）
+                    const mask = createEllipseMask(physW, physH)
                     octx.globalCompositeOperation = 'destination-in'
                     octx.drawImage(mask, 0, 0)
                     octx.globalCompositeOperation = 'source-over'
 
-                    // メインキャンバスに描画（ローカル座標 0,0 → 変換後の正しい位置へ）
+                    // メインキャンバスに描画（ローカル座標 (0,0) → 変換後の正しい位置へ）
                     rawCtx.drawImage(off, 0, 0, w, h)
                 }}
             />
