@@ -2,96 +2,104 @@ import React from 'react'
 import { Group, Shape, Rect } from 'react-konva'
 import type { MosaicRegion, MosaicType } from '../../store/types'
 
-const FEATHER = 14
-
 /**
- * Gradient-based feathered alpha mask (no CSS filter dependency).
- * Creates a canvas where center = opaque white, edges fade to transparent.
+ * ソフトな楕円形アルファマスクを生成する。
+ * 鮮明な楕円を描いてから CSS blur でぼかすことでコーナーが消えて楕円形に見える。
+ * feather は物理ピクセル単位。
  */
-function createFeatheredMask(w: number, h: number, feather: number): HTMLCanvasElement {
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, w)
-    canvas.height = Math.max(1, h)
-    const ctx = canvas.getContext('2d')!
+function createEllipseMask(physW: number, physH: number, feather: number): HTMLCanvasElement {
+    const pad = Math.ceil(feather) * 2
 
-    const f = Math.min(feather, w / 2 - 1, h / 2 - 1)
+    // ぼかしが枠外に逃げないよう余白付きキャンバスに楕円を描く
+    const padded = document.createElement('canvas')
+    padded.width = physW + pad * 2
+    padded.height = physH + pad * 2
+    const pc = padded.getContext('2d')!
 
-    // Center solid region
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(f, f, w - 2 * f, h - 2 * f)
+    const inset = feather * 0.35
+    pc.fillStyle = '#ffffff'
+    pc.beginPath()
+    pc.ellipse(
+        padded.width / 2,
+        padded.height / 2,
+        Math.max(1, physW / 2 - inset),
+        Math.max(1, physH / 2 - inset),
+        0, 0, Math.PI * 2
+    )
+    pc.fill()
 
-    // Top edge
-    const top = ctx.createLinearGradient(0, 0, 0, f)
-    top.addColorStop(0, 'rgba(255,255,255,0)')
-    top.addColorStop(1, 'rgba(255,255,255,1)')
-    ctx.fillStyle = top
-    ctx.fillRect(f, 0, w - 2 * f, f)
+    // 余白分ずらして描くことで blur が端まで適切にフェードアウトする
+    const result = document.createElement('canvas')
+    result.width = physW
+    result.height = physH
+    const rc = result.getContext('2d')!
+    rc.filter = `blur(${feather}px)`
+    rc.drawImage(padded, -pad, -pad)
 
-    // Bottom edge
-    const bot = ctx.createLinearGradient(0, h - f, 0, h)
-    bot.addColorStop(0, 'rgba(255,255,255,1)')
-    bot.addColorStop(1, 'rgba(255,255,255,0)')
-    ctx.fillStyle = bot
-    ctx.fillRect(f, h - f, w - 2 * f, f)
-
-    // Left edge
-    const left = ctx.createLinearGradient(0, 0, f, 0)
-    left.addColorStop(0, 'rgba(255,255,255,0)')
-    left.addColorStop(1, 'rgba(255,255,255,1)')
-    ctx.fillStyle = left
-    ctx.fillRect(0, f, f, h - 2 * f)
-
-    // Right edge
-    const right = ctx.createLinearGradient(w - f, 0, w, 0)
-    right.addColorStop(0, 'rgba(255,255,255,1)')
-    right.addColorStop(1, 'rgba(255,255,255,0)')
-    ctx.fillStyle = right
-    ctx.fillRect(w - f, f, f, h - 2 * f)
-
-    // Corners (radial)
-    const cornerDefs = [
-        { cx: f, cy: f, rx: 0, ry: 0, rw: f, rh: f },
-        { cx: w - f, cy: f, rx: w - f, ry: 0, rw: f, rh: f },
-        { cx: f, cy: h - f, rx: 0, ry: h - f, rw: f, rh: f },
-        { cx: w - f, cy: h - f, rx: w - f, ry: h - f, rw: f, rh: f }
-    ]
-    for (const c of cornerDefs) {
-        const grad = ctx.createRadialGradient(c.cx, c.cy, 0, c.cx, c.cy, f)
-        grad.addColorStop(0, 'rgba(255,255,255,1)')
-        grad.addColorStop(1, 'rgba(255,255,255,0)')
-        ctx.save()
-        ctx.beginPath()
-        ctx.rect(c.rx, c.ry, f, f)
-        ctx.clip()
-        ctx.fillStyle = grad
-        ctx.fillRect(c.rx, c.ry, f, f)
-        ctx.restore()
-    }
-
-    return canvas
+    return result
 }
 
-function drawPixelPattern(
-    ctx: CanvasRenderingContext2D,
-    w: number,
-    h: number,
-    blockSize: number,
-    globalX: number,
-    globalY: number
-) {
-    // Global grid alignment: offset so adjacent regions share grid lines
-    const offX = ((globalX % blockSize) + blockSize) % blockSize
-    const offY = ((globalY % blockSize) + blockSize) % blockSize
+/**
+ * ピクセルモザイク：各ブロック内のピクセルの平均色を計算して塗りつぶす。
+ * グローバルグリッド整合: physX/physY を基準にオフセットし、
+ * 隣接領域がブロック境界でシームレスにつながる。
+ */
+function applyPixelate(
+    srcData: ImageData,
+    physW: number,
+    physH: number,
+    physBlock: number,
+    physX: number,
+    physY: number
+): HTMLCanvasElement {
+    const out = new ImageData(physW, physH)
 
-    for (let gy = -offY; gy < h; gy += blockSize) {
-        for (let gx = -offX; gx < w; gx += blockSize) {
-            const col = Math.floor((gx + offX) / blockSize)
-            const row = Math.floor((gy + offY) / blockSize)
-            const shade = (col + row) % 2 === 0 ? 190 : 155
-            ctx.fillStyle = `rgb(${shade},${shade},${shade})`
-            ctx.fillRect(gx, gy, blockSize, blockSize)
+    // グローバルグリッドの開始オフセット（負値で左上方向にはみ出して揃える）
+    const offX = physX % physBlock
+    const offY = physY % physBlock
+
+    for (let by = -offY; by < physH; by += physBlock) {
+        for (let bx = -offX; bx < physW; bx += physBlock) {
+            let r = 0, g = 0, b = 0, a = 0, count = 0
+            const pyMin = Math.max(0, by)
+            const pyMax = Math.min(physH, by + physBlock)
+            const pxMin = Math.max(0, bx)
+            const pxMax = Math.min(physW, bx + physBlock)
+
+            for (let py = pyMin; py < pyMax; py++) {
+                for (let px = pxMin; px < pxMax; px++) {
+                    const idx = (py * physW + px) * 4
+                    r += srcData.data[idx]
+                    g += srcData.data[idx + 1]
+                    b += srcData.data[idx + 2]
+                    a += srcData.data[idx + 3]
+                    count++
+                }
+            }
+            if (count === 0) continue
+
+            const ar = Math.round(r / count)
+            const ag = Math.round(g / count)
+            const ab = Math.round(b / count)
+            const aa = Math.round(a / count)
+
+            for (let py = pyMin; py < pyMax; py++) {
+                for (let px = pxMin; px < pxMax; px++) {
+                    const idx = (py * physW + px) * 4
+                    out.data[idx]     = ar
+                    out.data[idx + 1] = ag
+                    out.data[idx + 2] = ab
+                    out.data[idx + 3] = aa
+                }
+            }
         }
     }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = physW
+    canvas.height = physH
+    canvas.getContext('2d')!.putImageData(out, 0, 0)
+    return canvas
 }
 
 interface MosaicItemProps {
@@ -112,17 +120,12 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
     const { x, y, width: w, height: h } = region
 
     if (mosaicType === 'none') {
-        // Invisible in export; show a dashed outline in editor
         if (isExporting) return null
         return (
             <Rect
-                x={x}
-                y={y}
-                width={w}
-                height={h}
+                x={x} y={y} width={w} height={h}
                 stroke={isSelected ? '#3b82f6' : '#64748b'}
-                strokeWidth={1}
-                dash={[5, 4]}
+                strokeWidth={1} dash={[5, 4]}
                 fill="rgba(100,120,255,0.05)"
                 listening={true}
                 onClick={() => onSelect(region.id)}
@@ -133,49 +136,103 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
 
     return (
         <Group x={x} y={y}>
-            {/* Visual effect */}
+            {/* 視覚エフェクト */}
             <Shape
                 width={w}
                 height={h}
                 listening={false}
                 perfectDrawEnabled={false}
-                sceneFunc={(ctx, shape) => {
+                sceneFunc={(ctx) => {
                     const rawCtx = (ctx as any)._context as CanvasRenderingContext2D
-                    const sw = shape.width()
-                    const sh = shape.height()
 
-                    // Create pattern on offscreen canvas
+                    // 現在の変換行列から物理ピクセル座標を取得
+                    // Konva は layer に scale(dpr, dpr) + group に translate(x, y) を適用している
+                    const t = rawCtx.getTransform()
+                    const dpr = t.a                          // scaleX = devicePixelRatio
+                    const physX = Math.round(t.e)            // = x * dpr
+                    const physY = Math.round(t.f)            // = y * dpr
+                    const physW = Math.round(w * dpr)
+                    const physH = Math.round(h * dpr)
+
+                    if (physW <= 0 || physH <= 0) return
+
                     const off = document.createElement('canvas')
-                    off.width = Math.max(1, sw)
-                    off.height = Math.max(1, sh)
+                    off.width = physW
+                    off.height = physH
                     const octx = off.getContext('2d')!
 
-                    if (mosaicType === 'pixel-4') {
-                        drawPixelPattern(octx, sw, sh, 4, x, y)
-                    } else if (mosaicType === 'pixel-12') {
-                        drawPixelPattern(octx, sw, sh, 12, x, y)
+                    if (mosaicType === 'pixel-4' || mosaicType === 'pixel-12') {
+                        const blockSize = mosaicType === 'pixel-4' ? 4 : 12
+                        const physBlock = Math.max(1, Math.round(blockSize * dpr))
+
+                        // 既に描画済みのキャンバスから下地ピクセルをサンプリング
+                        let srcData: ImageData | null = null
+                        try {
+                            srcData = rawCtx.getImageData(physX, physY, physW, physH)
+                        } catch {
+                            // CORS等で失敗した場合はフォールバック
+                        }
+
+                        if (srcData) {
+                            const pixelated = applyPixelate(srcData, physW, physH, physBlock, physX, physY)
+                            octx.drawImage(pixelated, 0, 0)
+                        } else {
+                            // フォールバック：グレー塗りつぶし
+                            octx.fillStyle = 'rgba(140,140,140,0.95)'
+                            octx.fillRect(0, 0, physW, physH)
+                        }
                     } else if (mosaicType === 'frosted') {
-                        octx.fillStyle = 'rgba(210, 225, 240, 0.92)'
-                        octx.fillRect(0, 0, sw, sh)
+                        // 曇りガラス：下地をぼかして白みを加える
+                        let srcData: ImageData | null = null
+                        try {
+                            srcData = rawCtx.getImageData(physX, physY, physW, physH)
+                        } catch {
+                            // fallthrough
+                        }
+
+                        if (srcData) {
+                            const blurPad = Math.max(20, Math.round(12 * dpr))
+                            const tmpW = physW + blurPad * 2
+                            const tmpH = physH + blurPad * 2
+                            const tmp = document.createElement('canvas')
+                            tmp.width = tmpW
+                            tmp.height = tmpH
+                            const tc = tmp.getContext('2d')!
+                            tc.putImageData(srcData, blurPad, blurPad)
+
+                            const blurAmt = Math.max(4, Math.round(8 * dpr))
+                            octx.filter = `blur(${blurAmt}px)`
+                            octx.drawImage(tmp, -blurPad, -blurPad)
+                            octx.filter = 'none'
+                        } else {
+                            octx.fillStyle = 'rgba(200,215,230,1)'
+                            octx.fillRect(0, 0, physW, physH)
+                        }
+
+                        // 白みを重ねる
+                        octx.fillStyle = 'rgba(255,255,255,0.50)'
+                        octx.fillRect(0, 0, physW, physH)
                     } else if (mosaicType === 'white-blur') {
                         octx.fillStyle = '#ffffff'
-                        octx.fillRect(0, 0, sw, sh)
+                        octx.fillRect(0, 0, physW, physH)
                     }
 
-                    // Apply feathered alpha mask
-                    const mask = createFeatheredMask(sw, sh, FEATHER)
+                    // 楕円形にぼかしたアルファマスクを適用
+                    // feather は短辺の 30% 程度（最低 10px物理）でコーナーがほぼ消える
+                    const feather = Math.max(10 * dpr, Math.min(physW, physH) * 0.30)
+                    const mask = createEllipseMask(physW, physH, feather)
                     octx.globalCompositeOperation = 'destination-in'
                     octx.drawImage(mask, 0, 0)
                     octx.globalCompositeOperation = 'source-over'
 
-                    rawCtx.drawImage(off, 0, 0)
+                    // メインキャンバスに描画（ローカル座標 0,0 → 変換後の正しい位置へ）
+                    rawCtx.drawImage(off, 0, 0, w, h)
                 }}
             />
-            {/* Interaction handle (editor only) */}
+            {/* インタラクション用透明レイヤー（エクスポート時は非表示）*/}
             {!isExporting && (
                 <Rect
-                    width={w}
-                    height={h}
+                    width={w} height={h}
                     fill="transparent"
                     stroke={isSelected ? '#3b82f6' : 'transparent'}
                     strokeWidth={isSelected ? 2 : 0}
