@@ -107,6 +107,7 @@ function applyPixelate(
 interface MosaicItemProps {
     region: MosaicRegion
     isSelected: boolean
+    isMosaicMode: boolean
     onSelect: (id: string) => void
     isExporting: boolean
 }
@@ -114,6 +115,7 @@ interface MosaicItemProps {
 export const MosaicItem: React.FC<MosaicItemProps> = ({
     region,
     isSelected,
+    isMosaicMode,
     onSelect,
     isExporting
 }) => {
@@ -127,7 +129,7 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                 stroke={isSelected ? '#3b82f6' : '#64748b'}
                 strokeWidth={1} dash={[5, 4]}
                 fill="rgba(100,120,255,0.05)"
-                listening={true}
+                listening={isMosaicMode}
                 onClick={() => onSelect(region.id)}
                 onTap={() => onSelect(region.id)}
             />
@@ -231,7 +233,7 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                     stroke={isSelected ? '#3b82f6' : 'transparent'}
                     strokeWidth={isSelected ? 2 : 0}
                     dash={isSelected ? [6, 3] : undefined}
-                    listening={true}
+                    listening={isMosaicMode}
                     onClick={() => onSelect(region.id)}
                     onTap={() => onSelect(region.id)}
                 />

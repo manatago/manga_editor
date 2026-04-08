@@ -588,43 +588,11 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                             ))}
                         </Group>
 
-                        {/* 6. Mosaic Layer */}
-                        {mosaicVisible && (currentPage?.mosaics || []).length > 0 && (
-                            <Group>
-                                {(currentPage?.mosaics || []).map((region) => (
-                                    <MosaicItem
-                                        key={region.id}
-                                        region={region}
-                                        isSelected={selectedMosaicId === region.id}
-                                        onSelect={(id) => {
-                                            if (isMosaicMode) setSelectedMosaicId(id)
-                                        }}
-                                        isExporting={isExporting}
-                                    />
-                                ))}
-                            </Group>
-                        )}
-
-                        {/* 7. Mosaic rubber-band preview */}
-                        {mosaicDrawing && mosaicStart && mosaicCurrent && (
-                            <Rect
-                                x={Math.min(mosaicStart.x, mosaicCurrent.x)}
-                                y={Math.min(mosaicStart.y, mosaicCurrent.y)}
-                                width={Math.abs(mosaicCurrent.x - mosaicStart.x)}
-                                height={Math.abs(mosaicCurrent.y - mosaicStart.y)}
-                                stroke="#3b82f6"
-                                strokeWidth={2}
-                                dash={[6, 4]}
-                                fill="rgba(59,130,246,0.08)"
-                                listening={false}
-                            />
-                        )}
-
                         {showGrid && !isExporting && snapGuides.length > 0 && (
                             <Group listening={false}>{snapGuides}</Group>
                         )}
 
-                        {/* 8. Interaction Layer (Hidden during export and in mosaic mode) */}
+                        {/* 6. Interaction Layer (Hidden during export and in mosaic mode) */}
                         {!isExporting && !isMosaicMode && (
                             <Group>
                                 {/* 8.1 Base Interaction Nodes */ }
@@ -758,6 +726,39 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                                     visible={!!selectedMaterialId}
                                 />
                             </Group>
+                        )}
+
+                        {/* 7. Mosaic Layer (最上位に描画。sceneFunc の getImageData は panels を正しく読む) */}
+                        {mosaicVisible && (currentPage?.mosaics || []).length > 0 && (
+                            <Group>
+                                {(currentPage?.mosaics || []).map((region) => (
+                                    <MosaicItem
+                                        key={region.id}
+                                        region={region}
+                                        isSelected={selectedMosaicId === region.id}
+                                        isMosaicMode={isMosaicMode}
+                                        onSelect={(id) => {
+                                            if (isMosaicMode) setSelectedMosaicId(id)
+                                        }}
+                                        isExporting={isExporting}
+                                    />
+                                ))}
+                            </Group>
+                        )}
+
+                        {/* 8. Mosaic rubber-band preview */}
+                        {mosaicDrawing && mosaicStart && mosaicCurrent && (
+                            <Rect
+                                x={Math.min(mosaicStart.x, mosaicCurrent.x)}
+                                y={Math.min(mosaicStart.y, mosaicCurrent.y)}
+                                width={Math.abs(mosaicCurrent.x - mosaicStart.x)}
+                                height={Math.abs(mosaicCurrent.y - mosaicStart.y)}
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dash={[6, 4]}
+                                fill="rgba(59,130,246,0.08)"
+                                listening={false}
+                            />
                         )}
                     </Layer>
                 </Stage>
