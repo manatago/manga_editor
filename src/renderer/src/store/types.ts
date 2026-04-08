@@ -8,6 +8,7 @@ export interface MosaicRegion {
     y: number
     width: number
     height: number
+    type: MosaicType
 }
 
 export type FadeDirection =

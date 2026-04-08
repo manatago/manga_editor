@@ -10,6 +10,7 @@ export interface MosaicSlice {
     selectedMosaicId: string | null
     addMosaic: (region: Omit<MosaicRegion, 'id'>) => void
     removeMosaic: (mosaicId: string) => void
+    updateMosaicType: (mosaicId: string, type: MosaicType) => void
     setMosaicType: (type: MosaicType) => void
     setMosaicVisible: (visible: boolean) => void
     setIsMosaicMode: (mode: boolean) => void
@@ -47,6 +48,19 @@ export const createMosaicSlice: StateCreator<MangaState, [], [], MosaicSlice> = 
             pages: state.pages.map((p) =>
                 p.id === state.currentPageId
                     ? { ...p, mosaics: (p.mosaics || []).filter((m) => m.id !== mosaicId) }
+                    : p
+            )
+        })
+    },
+
+    updateMosaicType: (mosaicId, type) => {
+        const state = get()
+        if (!state.currentPageId) return
+        set({
+            ...saveHistory(state),
+            pages: state.pages.map((p) =>
+                p.id === state.currentPageId
+                    ? { ...p, mosaics: (p.mosaics || []).map((m) => m.id === mosaicId ? { ...m, type } : m) }
                     : p
             )
         })

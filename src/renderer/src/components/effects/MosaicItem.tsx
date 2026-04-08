@@ -1,6 +1,6 @@
 import React from 'react'
 import { Group, Shape, Rect } from 'react-konva'
-import type { MosaicRegion, MosaicType } from '../../store/types'
+import type { MosaicRegion } from '../../store/types'
 
 /**
  * 楕円形アルファマスクを生成する。
@@ -106,7 +106,6 @@ function applyPixelate(
 
 interface MosaicItemProps {
     region: MosaicRegion
-    mosaicType: MosaicType
     isSelected: boolean
     onSelect: (id: string) => void
     isExporting: boolean
@@ -114,12 +113,11 @@ interface MosaicItemProps {
 
 export const MosaicItem: React.FC<MosaicItemProps> = ({
     region,
-    mosaicType,
     isSelected,
     onSelect,
     isExporting
 }) => {
-    const { x, y, width: w, height: h } = region
+    const { x, y, width: w, height: h, type: mosaicType } = region
 
     if (mosaicType === 'none') {
         if (isExporting) return null

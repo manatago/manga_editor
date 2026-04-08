@@ -52,10 +52,16 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         mosaicType,
         mosaicVisible,
         isMosaicMode,
+        selectedMosaicId,
         setMosaicType,
         setMosaicVisible,
-        setIsMosaicMode
+        setIsMosaicMode,
+        updateMosaicType
     } = useMangaStore()
+
+    const currentPage = pages.find((p) => p.id === currentPageId)
+    const selectedMosaic = currentPage?.mosaics?.find((m) => m.id === selectedMosaicId)
+    const activeType = selectedMosaic ? selectedMosaic.type : mosaicType
 
     const [referenceModalOpen, setReferenceModalOpen] = useState(false)
     const [backgroundLibraryOpen, setBackgroundLibraryOpen] = useState(false)
@@ -172,6 +178,9 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     <span>{isMosaicMode ? '描画中…（クリックで終了）' : 'モザイク描画モード'}</span>
                                 </button>
                                 {/* Type selector */}
+                                {selectedMosaic && (
+                                    <div className="text-[10px] text-zinc-500 px-1">選択中の領域のタイプ</div>
+                                )}
                                 <div className="grid grid-cols-4 gap-1">
                                     {(['pixel-12', 'frosted', 'white-blur', 'none'] as MosaicType[]).map((t) => {
                                         const labels: Record<MosaicType, string> = {
@@ -184,9 +193,15 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                             <button
                                                 key={t}
                                                 type="button"
-                                                onClick={() => setMosaicType(t)}
+                                                onClick={() => {
+                                                    if (selectedMosaic) {
+                                                        updateMosaicType(selectedMosaic.id, t)
+                                                    } else {
+                                                        setMosaicType(t)
+                                                    }
+                                                }}
                                                 className={`py-1 rounded text-[10px] font-bold border transition-colors ${
-                                                    mosaicType === t
+                                                    activeType === t
                                                         ? 'bg-blue-600 border-blue-500 text-white'
                                                         : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
                                                 }`}

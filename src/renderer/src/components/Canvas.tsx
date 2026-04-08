@@ -160,7 +160,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
         const w = Math.abs(mosaicCurrent.x - mosaicStart.x)
         const h = Math.abs(mosaicCurrent.y - mosaicStart.y)
         if (w > 10 && h > 10) {
-            addMosaic({ x, y, width: w, height: h })
+            addMosaic({ x, y, width: w, height: h, type: mosaicType })
         }
         setMosaicStart(null)
         setMosaicCurrent(null)
@@ -595,7 +595,6 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage> }> = ({ stageRef
                                     <MosaicItem
                                         key={region.id}
                                         region={region}
-                                        mosaicType={mosaicType}
                                         isSelected={selectedMosaicId === region.id}
                                         onSelect={(id) => {
                                             if (isMosaicMode) setSelectedMosaicId(id)
