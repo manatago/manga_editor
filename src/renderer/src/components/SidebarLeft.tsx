@@ -47,7 +47,6 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         addPage,
         movePage,
         removePage,
-        saveAsTemplate, // Not used in this component, but part of the store destructuring
         cleanupAssets,
         mosaicType,
         mosaicVisible,
