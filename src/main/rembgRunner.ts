@@ -15,7 +15,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { app } from 'electron'
 
-const DEFAULT_MODEL = 'isnet-anime'
+const DEFAULT_MODEL = 'birefnet-portrait'
 const REMBG_TIMEOUT_MS = 10 * 60 * 1000
 
 /**
