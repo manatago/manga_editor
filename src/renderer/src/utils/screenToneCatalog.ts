@@ -326,6 +326,14 @@ export function isBuiltinBackgroundPath(path: string | undefined): boolean {
     return !!path && path.startsWith('builtin://')
 }
 
+export function isCustomTonePath(path: string | undefined): boolean {
+    return !!path && path.startsWith('custom-tone://')
+}
+
+export function getCustomToneId(path: string): string {
+    return path.slice('custom-tone://'.length)
+}
+
 export function parseBuiltinToneId(path: string): string | null {
     if (!path.startsWith('builtin://')) return null
     return path.slice('builtin://'.length) || null

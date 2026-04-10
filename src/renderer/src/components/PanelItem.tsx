@@ -11,6 +11,7 @@ import { FocusLines } from './effects/FocusLines'
 import { RainEffect } from './effects/RainEffect'
 import { PanelStrokes } from './PanelStrokes'
 import { PanelBackgroundImageLayer } from './PanelBackgroundImageLayer'
+import { PanelForegroundToneLayer } from './PanelForegroundToneLayer'
 import { showError } from '../utils/dialogs'
 
 const FocusAdjustmentHandle: React.FC<{
@@ -706,6 +707,9 @@ export const PanelItem: React.FC<{
                                 blurRadius={panel.blurRadius ?? 0}
                             />
                         )}
+                        {panel.fgTonePath ? (
+                            <PanelForegroundToneLayer panel={panel} projectPath={currentProjectPath} />
+                        ) : null}
                     </Group>
                 )
             })()}

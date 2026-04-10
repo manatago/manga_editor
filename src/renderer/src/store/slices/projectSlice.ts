@@ -117,7 +117,7 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     backgroundImagePath: (() => {
                         const bp = panel.backgroundImagePath
                         if (!bp) return undefined
-                        if (bp.startsWith('builtin://')) return bp
+                        if (bp.startsWith('builtin://') || bp.startsWith('custom-tone://')) return bp
                         return projectPathForAssets
                             ? toRelativeAssetPath(projectPathForAssets, bp) ?? bp
                             : bp
@@ -129,6 +129,34 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     backgroundImageFit:
                         panel.backgroundImageFit === 'stretch' || panel.backgroundImageFit === 'tile'
                             ? panel.backgroundImageFit
+                            : undefined,
+                    backgroundImageScale:
+                        typeof panel.backgroundImageScale === 'number'
+                            ? Math.max(0.1, Math.min(10, panel.backgroundImageScale))
+                            : undefined,
+                    backgroundImageRotation:
+                        typeof panel.backgroundImageRotation === 'number'
+                            ? panel.backgroundImageRotation
+                            : undefined,
+                    fgTonePath: (() => {
+                        const fp = panel.fgTonePath
+                        if (!fp) return undefined
+                        if (fp.startsWith('builtin://') || fp.startsWith('custom-tone://')) return fp
+                        return projectPathForAssets
+                            ? toRelativeAssetPath(projectPathForAssets, fp) ?? fp
+                            : fp
+                    })(),
+                    fgToneOpacity:
+                        panel.fgToneOpacity != null
+                            ? Math.max(0, Math.min(1, panel.fgToneOpacity))
+                            : undefined,
+                    fgToneScale:
+                        typeof panel.fgToneScale === 'number'
+                            ? Math.max(0.1, Math.min(10, panel.fgToneScale))
+                            : undefined,
+                    fgToneRotation:
+                        typeof panel.fgToneRotation === 'number'
+                            ? panel.fgToneRotation
                             : undefined
                 }
             }),

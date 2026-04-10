@@ -30,6 +30,11 @@ declare global {
                 baseName: string,
                 data: string
             ) => Promise<{ relativePath: string }>
+            /** アプリ全体のカスタムトーン一覧（userData/custom-tones/） */
+            getCustomTones: () => Promise<{ id: string; name: string; absolutePath: string }[]>
+            addCustomTone: (sourcePath: string, name: string) => Promise<{ id: string; name: string; absolutePath: string }>
+            deleteCustomTone: (id: string) => Promise<void>
+            resolveCustomTone: (id: string) => Promise<string | null>
             getAssets: (projectPath: string) => Promise<string[]>
             deleteFile: (path: string) => Promise<boolean>
             /** 未使用整理用: assets 内ファイルを assets/dust/ へ移動（削除しない） */

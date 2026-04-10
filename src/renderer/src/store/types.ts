@@ -74,6 +74,19 @@ export interface Panel {
     backgroundImagePath?: string
     backgroundImageOpacity?: number
     backgroundImageFit?: PageBackgroundImageFit
+    backgroundImageScale?: number
+    backgroundImageRotation?: number
+    /** コマ内の人物画像の前面に重ねるトーン */
+    fgTonePath?: string
+    fgToneOpacity?: number
+    fgToneScale?: number
+    fgToneRotation?: number
+}
+
+/** アプリ全体（userData）に登録したカスタムスクリーントーン。custom-tone://{id} で参照 */
+export interface CustomToneEntry {
+    id: string
+    name: string
 }
 
 export type BubbleType = 'rounded' | 'jagged' | 'rect' | 'flash' | 'shout' | 'square-jagged' | 'megaphone' | 'rect-double'

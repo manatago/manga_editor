@@ -42,6 +42,7 @@ function App(): React.JSX.Element {
         setSelectedBubble,
         setSelectedMaterial,
         loadTemplates,
+        loadCustomTones,
         isExporting,
         isSaving,
         lastSavedAt,
@@ -123,6 +124,7 @@ function App(): React.JSX.Element {
     // Initial load
     useEffect(() => {
         loadTemplates()
+        loadCustomTones()
     }, [])
 
     // Auto-save logic

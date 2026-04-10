@@ -90,6 +90,11 @@ if (process.contextIsolated) {
                 ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
             saveWandPng: (projectPath: string, assetsSubPath: string, baseName: string, data: string) =>
                 ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
+            getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
+            addCustomTone: (sourcePath: string, name: string) =>
+                ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
+            deleteCustomTone: (id: string) => ipcRenderer.invoke('delete-custom-tone', { id }),
+            resolveCustomTone: (id: string) => ipcRenderer.invoke('resolve-custom-tone', { id }),
             getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
             deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
             moveAssetToTrash: (projectPath: string, absoluteFilePath: string) =>
@@ -134,6 +139,11 @@ if (process.contextIsolated) {
             ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
         saveWandPng: (projectPath, assetsSubPath, baseName, data) =>
             ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
+        getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
+        addCustomTone: (sourcePath, name) =>
+            ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
+        deleteCustomTone: (id) => ipcRenderer.invoke('delete-custom-tone', { id }),
+        resolveCustomTone: (id) => ipcRenderer.invoke('resolve-custom-tone', { id }),
         getAssets: (projectPath) => ipcRenderer.invoke('get-assets', projectPath),
         deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
         moveAssetToTrash: (projectPath, absoluteFilePath) =>

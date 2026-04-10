@@ -11,6 +11,7 @@ import {
     type BackgroundLibrarySlice
 } from './slices/backgroundLibrarySlice'
 import { createMosaicSlice, type MosaicSlice } from './slices/mosaicSlice'
+import { createCustomTonesSlice, type CustomTonesSlice } from './slices/customTonesSlice'
 
 // Re-export all domain types so existing imports from this file continue to work
 export type {
@@ -29,7 +30,8 @@ export type {
     ReferenceCharacter,
     ReferenceCharacterImage,
     BackgroundLibraryImage,
-    PageBackgroundImageFit
+    PageBackgroundImageFit,
+    CustomToneEntry
 } from './types'
 
 export type MangaState =
@@ -41,7 +43,8 @@ export type MangaState =
     ProjectSlice &
     ReferenceSlice &
     BackgroundLibrarySlice &
-    MosaicSlice
+    MosaicSlice &
+    CustomTonesSlice
 
 export const useMangaStore = create<MangaState>()((...a) => ({
     ...createHistorySlice(...a),
@@ -52,5 +55,6 @@ export const useMangaStore = create<MangaState>()((...a) => ({
     ...createProjectSlice(...a),
     ...createReferenceSlice(...a),
     ...createBackgroundLibrarySlice(...a),
-    ...createMosaicSlice(...a)
+    ...createMosaicSlice(...a),
+    ...createCustomTonesSlice(...a)
 }))
