@@ -34,6 +34,7 @@ declare global {
             getCustomTones: () => Promise<{ id: string; name: string; absolutePath: string }[]>
             addCustomTone: (sourcePath: string, name: string) => Promise<{ id: string; name: string; absolutePath: string }>
             deleteCustomTone: (id: string) => Promise<void>
+            renameCustomTone: (id: string, name: string) => Promise<void>
             resolveCustomTone: (id: string) => Promise<string | null>
             getAssets: (projectPath: string) => Promise<string[]>
             deleteFile: (path: string) => Promise<boolean>

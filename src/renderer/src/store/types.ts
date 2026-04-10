@@ -76,11 +76,21 @@ export interface Panel {
     backgroundImageFit?: PageBackgroundImageFit
     backgroundImageScale?: number
     backgroundImageRotation?: number
+    backgroundImageBlur?: number
+    backgroundImageOffsetX?: number
+    backgroundImageOffsetY?: number
+    backgroundImageFadeDirections?: FadeDirection[]
+    backgroundImageFadeStrength?: number
     /** コマ内の人物画像の前面に重ねるトーン */
     fgTonePath?: string
     fgToneOpacity?: number
     fgToneScale?: number
     fgToneRotation?: number
+    fgToneBlur?: number
+    fgToneOffsetX?: number
+    fgToneOffsetY?: number
+    fgToneFadeDirections?: FadeDirection[]
+    fgToneFadeStrength?: number
 }
 
 /** アプリ全体（userData）に登録したカスタムスクリーントーン。custom-tone://{id} で参照 */

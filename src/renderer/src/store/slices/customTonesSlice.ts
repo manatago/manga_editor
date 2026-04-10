@@ -9,6 +9,7 @@ export interface CustomTonesSlice {
     loadCustomTones: () => Promise<void>
     addCustomTone: (sourcePath: string, name: string) => Promise<void>
     removeCustomTone: (id: string) => Promise<void>
+    renameCustomTone: (id: string, name: string) => Promise<void>
 }
 
 export const createCustomTonesSlice: StateCreator<MangaState, [], [], CustomTonesSlice> = (set) => ({
@@ -45,5 +46,13 @@ export const createCustomTonesSlice: StateCreator<MangaState, [], [], CustomTone
                 customTonePaths: paths
             }
         })
+    },
+
+    renameCustomTone: async (id, name) => {
+        if (!window.electron) return
+        await window.electron.renameCustomTone(id, name)
+        set((s) => ({
+            customTones: s.customTones.map((t) => t.id === id ? { ...t, name } : t)
+        }))
     }
 })

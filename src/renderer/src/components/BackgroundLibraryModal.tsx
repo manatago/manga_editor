@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, X, Layers } from 'lucide-react'
+import { Plus, Trash2, X, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, CircleX } from 'lucide-react'
+import type { FadeDirection } from '../store/types'
 import { useMangaStore } from '../store/useMangaStore'
 import { BACKGROUND_LIBRARY_ASSETS_SUBPATH } from '../utils/backgroundLibrary'
 import { SCREEN_TONE_CATALOG } from '../utils/screenToneCatalog'
@@ -28,6 +29,7 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
     const customTonePaths = useMangaStore((s) => s.customTonePaths)
     const addCustomTone = useMangaStore((s) => s.addCustomTone)
     const removeCustomTone = useMangaStore((s) => s.removeCustomTone)
+    const renameCustomTone = useMangaStore((s) => s.renameCustomTone)
 
     const [tab, setTab] = useState<LibTab>('tones')
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
@@ -107,12 +109,12 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
         if (!currentPageId) return
         if (applyTarget === 'panel-fg') {
             if (!selectedPanelId) return
-            updatePanel(selectedPanelId, { fgTonePath: undefined, fgToneOpacity: undefined, fgToneScale: undefined, fgToneRotation: undefined })
+            updatePanel(selectedPanelId, { fgTonePath: undefined, fgToneOpacity: undefined, fgToneScale: undefined, fgToneRotation: undefined, fgToneBlur: undefined, fgToneOffsetX: undefined, fgToneOffsetY: undefined, fgToneFadeDirections: [], fgToneFadeStrength: undefined })
             return
         }
         if (applyTarget === 'panel-bg') {
             if (!selectedPanelId) return
-            updatePanel(selectedPanelId, { backgroundImagePath: undefined, backgroundImageFit: undefined, backgroundImageOpacity: undefined, backgroundImageScale: undefined, backgroundImageRotation: undefined })
+            updatePanel(selectedPanelId, { backgroundImagePath: undefined, backgroundImageFit: undefined, backgroundImageOpacity: undefined, backgroundImageScale: undefined, backgroundImageRotation: undefined, backgroundImageBlur: undefined, backgroundImageOffsetX: undefined, backgroundImageOffsetY: undefined, backgroundImageFadeDirections: [], backgroundImageFadeStrength: undefined })
             return
         }
         updatePage(currentPageId, { backgroundImagePath: undefined, backgroundImageFit: undefined, backgroundImageOpacity: undefined })
@@ -205,13 +207,82 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
         }
     }
 
+    const setBlur = (v: number) => {
+        if (!selectedPanelId) return
+        if (applyTarget === 'panel-fg') { updatePanel(selectedPanelId, { fgToneBlur: v }); return }
+        updatePanel(selectedPanelId, { backgroundImageBlur: v })
+    }
+
+    const setOffsetX = (v: number) => {
+        if (!selectedPanelId) return
+        if (applyTarget === 'panel-fg') { updatePanel(selectedPanelId, { fgToneOffsetX: v }); return }
+        updatePanel(selectedPanelId, { backgroundImageOffsetX: v })
+    }
+
+    const setOffsetY = (v: number) => {
+        if (!selectedPanelId) return
+        if (applyTarget === 'panel-fg') { updatePanel(selectedPanelId, { fgToneOffsetY: v }); return }
+        updatePanel(selectedPanelId, { backgroundImageOffsetY: v })
+    }
+
+    const toggleFadeDir = (dir: Exclude<FadeDirection, 'none'>) => {
+        if (!selectedPanelId) return
+        const dirs = (applyTarget === 'panel-fg'
+            ? selectedPanel?.fgToneFadeDirections
+            : selectedPanel?.backgroundImageFadeDirections) ?? []
+        const next = dirs.includes(dir) ? dirs.filter((d) => d !== dir) : [...dirs, dir]
+        if (applyTarget === 'panel-fg') {
+            updatePanel(selectedPanelId, { fgToneFadeDirections: next })
+        } else {
+            updatePanel(selectedPanelId, { backgroundImageFadeDirections: next })
+        }
+    }
+
+    const clearFadeDirs = () => {
+        if (!selectedPanelId) return
+        if (applyTarget === 'panel-fg') {
+            updatePanel(selectedPanelId, { fgToneFadeDirections: [] })
+        } else {
+            updatePanel(selectedPanelId, { backgroundImageFadeDirections: [] })
+        }
+    }
+
+    const setFadeStrength = (v: number) => {
+        if (!selectedPanelId) return
+        if (applyTarget === 'panel-fg') {
+            updatePanel(selectedPanelId, { fgToneFadeStrength: v })
+        } else {
+            updatePanel(selectedPanelId, { backgroundImageFadeStrength: v })
+        }
+    }
+
     if (!isOpen) return null
 
     const isPanelTarget = applyTarget === 'panel-bg' || applyTarget === 'panel-fg'
     const currentOpacity = applyTarget === 'panel-fg' ? fgOpacity : bgOpacity
     const currentScale = applyTarget === 'panel-fg' ? fgScale : bgScale
     const currentRotation = applyTarget === 'panel-fg' ? fgRotation : bgRotation
+    const currentBlur = applyTarget === 'panel-fg'
+        ? (selectedPanel?.fgToneBlur ?? 0)
+        : (selectedPanel?.backgroundImageBlur ?? 0)
+    const currentOffsetX = applyTarget === 'panel-fg'
+        ? (selectedPanel?.fgToneOffsetX ?? 0)
+        : (selectedPanel?.backgroundImageOffsetX ?? 0)
+    const currentOffsetY = applyTarget === 'panel-fg'
+        ? (selectedPanel?.fgToneOffsetY ?? 0)
+        : (selectedPanel?.backgroundImageOffsetY ?? 0)
+    const currentFadeDirections: FadeDirection[] = (applyTarget === 'panel-fg'
+        ? selectedPanel?.fgToneFadeDirections
+        : selectedPanel?.backgroundImageFadeDirections) ?? []
+    const currentFadeStrength = (applyTarget === 'panel-fg'
+        ? selectedPanel?.fgToneFadeStrength
+        : selectedPanel?.backgroundImageFadeStrength) ?? 0.4
     const hasCurrentTone = applyTarget === 'panel-fg' ? hasFgTone : hasBgTone
+
+    // コマが選択されている場合、コマ中心がページの左半分→モーダルを右寄せ、右半分→左寄せ
+    const pageWidth = currentPage?.pageWidth ?? 840
+    const panelCenterX = selectedPanel ? selectedPanel.x + selectedPanel.width / 2 : pageWidth / 2
+    const modalSide = (isPanelTarget && selectedPanel && panelCenterX < pageWidth / 2) ? 'right' : 'left'
 
     const lightboxLayer = lightboxUrl != null ? (
         <div
@@ -229,8 +300,8 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
     return (
         <>
             {lightboxLayer}
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[10001] flex items-center justify-center p-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            <div className={`fixed top-4 bottom-4 ${modalSide === 'right' ? 'right-4' : 'left-4'} w-80 z-[10001]`}>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl h-full overflow-hidden flex flex-col shadow-2xl">
 
                     {/* ヘッダー */}
                     <div className="p-4 border-b border-zinc-800 flex justify-between items-start gap-3 shrink-0">
@@ -296,6 +367,52 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                                             <input type="range" min={0} max={360} step={1} value={currentRotation} onChange={(e) => setRotation(parseFloat(e.target.value))} className="flex-1 accent-sky-500" />
                                             <span className="font-mono w-12 text-right">{Math.round(currentRotation)}°</span>
                                         </label>
+                                        <label className="flex items-center gap-3 text-xs text-zinc-400">
+                                            <span className="shrink-0 w-14">ぼかし</span>
+                                            <input type="range" min={0} max={10} step={0.5} value={currentBlur} onChange={(e) => setBlur(parseFloat(e.target.value))} className="flex-1 accent-sky-500" />
+                                            <span className="font-mono w-12 text-right">{currentBlur.toFixed(1)}</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 text-xs text-zinc-400">
+                                            <span className="shrink-0 w-14">X 移動</span>
+                                            <input type="range" min={-200} max={200} step={1} value={currentOffsetX} onChange={(e) => setOffsetX(parseFloat(e.target.value))} className="flex-1 accent-sky-500" />
+                                            <span className="font-mono w-12 text-right">{Math.round(currentOffsetX)}</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 text-xs text-zinc-400">
+                                            <span className="shrink-0 w-14">Y 移動</span>
+                                            <input type="range" min={-200} max={200} step={1} value={currentOffsetY} onChange={(e) => setOffsetY(parseFloat(e.target.value))} className="flex-1 accent-sky-500" />
+                                            <span className="font-mono w-12 text-right">{Math.round(currentOffsetY)}</span>
+                                        </label>
+                                        {/* フェード方向 */}
+                                        <div className="space-y-2">
+                                            <span className="text-xs text-zinc-500">フェードアウト</span>
+                                            {(() => {
+                                                const activeDirs = currentFadeDirections.filter(d => d !== 'none')
+                                                const btnCls = (dir: Exclude<FadeDirection, 'none'>) =>
+                                                    `w-7 h-7 flex items-center justify-center rounded border transition-all ${activeDirs.includes(dir) ? 'bg-sky-600 border-sky-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'}`
+                                                return (
+                                                    <>
+                                                        <div className="grid grid-cols-3 gap-1 w-fit">
+                                                            <button type="button" onClick={() => toggleFadeDir('top-left')} className={btnCls('top-left')}><ArrowUpLeft size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('top')} className={btnCls('top')}><ArrowUp size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('top-right')} className={btnCls('top-right')}><ArrowUpRight size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('left')} className={btnCls('left')}><ArrowLeft size={13} /></button>
+                                                            <button type="button" onClick={clearFadeDirs} title="クリア" className="w-7 h-7 flex items-center justify-center rounded border border-zinc-700 bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-all"><CircleX size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('right')} className={btnCls('right')}><ArrowRight size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('bottom-left')} className={btnCls('bottom-left')}><ArrowDownLeft size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('bottom')} className={btnCls('bottom')}><ArrowDown size={13} /></button>
+                                                            <button type="button" onClick={() => toggleFadeDir('bottom-right')} className={btnCls('bottom-right')}><ArrowDownRight size={13} /></button>
+                                                        </div>
+                                                        {activeDirs.length > 0 && (
+                                                            <label className="flex items-center gap-3 text-xs text-zinc-400 mt-1">
+                                                                <span className="shrink-0 w-14">強さ</span>
+                                                                <input type="range" min={0.05} max={1} step={0.05} value={currentFadeStrength} onChange={(e) => setFadeStrength(parseFloat(e.target.value))} className="flex-1 accent-sky-500" />
+                                                                <span className="font-mono w-8 text-right">{Math.round(currentFadeStrength * 100)}%</span>
+                                                            </label>
+                                                        )}
+                                                    </>
+                                                )
+                                            })()}
+                                        </div>
                                     </>
                                 )}
                             </>
@@ -365,32 +482,40 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                                 {customTones.length === 0 ? (
                                     <p className="text-zinc-600 text-sm text-center py-8">登録済みのカスタムトーンはありません。</p>
                                 ) : (
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {customTones.map((tone) => {
                                             const abs = customTonePaths[tone.id]
                                             const url = abs ? window.electron.pathToUrl(abs) : ''
                                             return (
-                                                <div key={tone.id} className="relative group rounded-lg border border-zinc-700 overflow-hidden bg-[repeating-conic-gradient(#444_0%_25%,#222_0%_50%)] bg-[length:16px_16px] aspect-square flex flex-col">
+                                                <div key={tone.id} className="rounded-lg border border-zinc-700 overflow-hidden bg-[repeating-conic-gradient(#444_0%_25%,#222_0%_50%)] bg-[length:16px_16px] flex flex-col">
                                                     {url ? (
-                                                        <button type="button" className="flex-1 p-0 border-0 bg-transparent cursor-pointer" onClick={() => setLightboxUrl(url)}>
+                                                        <button type="button" className="aspect-video p-0 border-0 bg-transparent cursor-pointer overflow-hidden" onClick={() => setLightboxUrl(url)}>
                                                             <img src={url} alt="" className="w-full h-full object-cover" />
                                                         </button>
                                                     ) : (
-                                                        <div className="flex-1 flex items-center justify-center text-[10px] text-zinc-500 p-2 text-center">{tone.id}</div>
+                                                        <div className="aspect-video flex items-center justify-center text-[10px] text-zinc-500 p-2 text-center">{tone.id}</div>
                                                     )}
-                                                    <div className="p-1.5 bg-zinc-900/90 border-t border-zinc-700 flex gap-1 items-center">
-                                                        <span className="flex-1 text-[10px] text-zinc-300 truncate">{tone.name}</span>
-                                                        <button
-                                                            type="button"
-                                                            disabled={!currentPageId || (isPanelTarget && !selectedPanel)}
-                                                            onClick={() => applyToTarget(`custom-tone://${tone.id}`, 'tile')}
-                                                            className="text-[10px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-200 hover:bg-sky-800/50 disabled:opacity-40"
-                                                        >
-                                                            適用
-                                                        </button>
-                                                        <button type="button" onClick={() => removeCustomTone(tone.id)} className="p-1 rounded bg-zinc-800 text-zinc-400 hover:text-red-400" title="削除">
-                                                            <Trash2 size={12} />
-                                                        </button>
+                                                    <div className="p-2 bg-zinc-900/90 border-t border-zinc-700 space-y-1.5">
+                                                        <input
+                                                            type="text"
+                                                            value={tone.name}
+                                                            onChange={(e) => renameCustomTone(tone.id, e.target.value)}
+                                                            className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[11px] text-white"
+                                                            placeholder="名前"
+                                                        />
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                type="button"
+                                                                disabled={!currentPageId || (isPanelTarget && !selectedPanel)}
+                                                                onClick={() => applyToTarget(`custom-tone://${tone.id}`, 'tile')}
+                                                                className="flex-1 text-[11px] py-1 rounded bg-sky-900/50 text-sky-200 hover:bg-sky-800/50 disabled:opacity-40"
+                                                            >
+                                                                適用
+                                                            </button>
+                                                            <button type="button" onClick={() => removeCustomTone(tone.id)} className="p-1 rounded bg-zinc-800 text-zinc-400 hover:text-red-400" title="削除">
+                                                                <Trash2 size={12} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )
@@ -417,33 +542,35 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                                 >
                                     画像をここにドロップするか「ファイルから追加」で登録。このプロジェクト専用です。
                                 </div>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     {backgroundLibrary.map((item) => {
-                                        const url = currentProjectPath && window.electron
-                                            ? window.electron.pathToUrl(window.electron.resolveAssetPath(currentProjectPath, item.relativePath))
-                                            : ''
+                                        const abs = currentProjectPath && window.electron
+                                            ? window.electron.resolveAssetPath(currentProjectPath, item.relativePath)
+                                            : null
+                                        const url = abs ? window.electron.pathToUrl(abs) : ''
                                         return (
-                                            <div key={item.id} className="relative group rounded-lg border border-zinc-700 overflow-hidden bg-zinc-800 aspect-square flex flex-col">
+                                            <div key={item.id} className="rounded-lg border border-zinc-700 overflow-hidden bg-zinc-800 flex flex-col">
                                                 {url ? (
-                                                    <button type="button" className="flex-1 min-h-0 p-0 border-0 bg-transparent cursor-pointer" onClick={() => setLightboxUrl(url)}>
+                                                    <button type="button" className="aspect-video p-0 border-0 bg-transparent cursor-pointer overflow-hidden" onClick={() => setLightboxUrl(url)}>
                                                         <img src={url} alt="" className="w-full h-full object-cover" />
                                                     </button>
                                                 ) : (
-                                                    <div className="flex-1 flex items-center p-2 text-[10px] text-zinc-500 break-all">{item.relativePath}</div>
+                                                    <div className="aspect-video flex items-center p-2 text-[10px] text-zinc-500 break-all">{item.relativePath}</div>
                                                 )}
-                                                <div className="p-1.5 bg-zinc-900/90 border-t border-zinc-700 flex flex-col gap-1">
+                                                <div className="p-2 bg-zinc-900/90 border-t border-zinc-700 space-y-1.5">
                                                     <input
                                                         type="text"
                                                         value={item.name}
                                                         onChange={(e) => updateBackgroundLibraryImage(item.id, { name: e.target.value })}
-                                                        className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[10px] text-white"
+                                                        className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[11px] text-white"
+                                                        placeholder="名前"
                                                     />
                                                     <div className="flex gap-1">
                                                         <button
                                                             type="button"
                                                             disabled={!currentPageId || (isPanelTarget && !selectedPanel)}
                                                             onClick={() => applyToTarget(item.relativePath, 'stretch')}
-                                                            className="flex-1 text-[10px] py-1 rounded bg-sky-900/50 text-sky-200 hover:bg-sky-800/50 disabled:opacity-40"
+                                                            className="flex-1 text-[11px] py-1 rounded bg-sky-900/50 text-sky-200 hover:bg-sky-800/50 disabled:opacity-40"
                                                         >
                                                             適用
                                                         </button>

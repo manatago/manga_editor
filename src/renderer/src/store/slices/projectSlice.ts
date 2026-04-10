@@ -138,6 +138,26 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                         typeof panel.backgroundImageRotation === 'number'
                             ? panel.backgroundImageRotation
                             : undefined,
+                    backgroundImageBlur:
+                        typeof panel.backgroundImageBlur === 'number'
+                            ? Math.max(0, Math.min(40, panel.backgroundImageBlur))
+                            : undefined,
+                    backgroundImageOffsetX:
+                        typeof panel.backgroundImageOffsetX === 'number'
+                            ? panel.backgroundImageOffsetX
+                            : undefined,
+                    backgroundImageOffsetY:
+                        typeof panel.backgroundImageOffsetY === 'number'
+                            ? panel.backgroundImageOffsetY
+                            : undefined,
+                    backgroundImageFadeDirections: Array.isArray(panel.backgroundImageFadeDirections)
+                        ? panel.backgroundImageFadeDirections.filter((d) =>
+                            ['top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'].includes(d))
+                        : [],
+                    backgroundImageFadeStrength:
+                        typeof panel.backgroundImageFadeStrength === 'number'
+                            ? Math.max(0, Math.min(1, panel.backgroundImageFadeStrength))
+                            : undefined,
                     fgTonePath: (() => {
                         const fp = panel.fgTonePath
                         if (!fp) return undefined
@@ -157,6 +177,26 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     fgToneRotation:
                         typeof panel.fgToneRotation === 'number'
                             ? panel.fgToneRotation
+                            : undefined,
+                    fgToneBlur:
+                        typeof panel.fgToneBlur === 'number'
+                            ? Math.max(0, Math.min(40, panel.fgToneBlur))
+                            : undefined,
+                    fgToneOffsetX:
+                        typeof panel.fgToneOffsetX === 'number'
+                            ? panel.fgToneOffsetX
+                            : undefined,
+                    fgToneOffsetY:
+                        typeof panel.fgToneOffsetY === 'number'
+                            ? panel.fgToneOffsetY
+                            : undefined,
+                    fgToneFadeDirections: Array.isArray(panel.fgToneFadeDirections)
+                        ? panel.fgToneFadeDirections.filter((d) =>
+                            ['top','bottom','left','right','top-left','top-right','bottom-left','bottom-right'].includes(d))
+                        : [],
+                    fgToneFadeStrength:
+                        typeof panel.fgToneFadeStrength === 'number'
+                            ? Math.max(0, Math.min(1, panel.fgToneFadeStrength))
                             : undefined
                 }
             }),

@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Rect, Image as KonvaImage } from 'react-konva'
-import useImage from 'use-image'
 import type { Panel } from '../store/types'
-import { getScreenToneDataUrl, isBuiltinBackgroundPath, isCustomTonePath, getCustomToneId } from '../utils/screenToneCatalog'
-import { useMangaStore } from '../store/useMangaStore'
+import { isBuiltinBackgroundPath, isCustomTonePath } from '../utils/screenToneCatalog'
+import { useTonePattern } from '../hooks/useTonePattern'
+import { ToneFadeOverlay } from './effects/ToneFadeOverlay'
 
 interface PanelBackgroundImageLayerProps {
     panel: Panel
@@ -14,60 +14,56 @@ interface PanelBackgroundImageLayerProps {
  * コマの単色・グラデ下地の上、人物画像の下に重ねるスクリーントーン／背景画像。
  */
 export const PanelBackgroundImageLayer: React.FC<PanelBackgroundImageLayerProps> = ({ panel, projectPath }) => {
-    const customTonePaths = useMangaStore((s) => s.customTonePaths)
+    const blur = panel.backgroundImageBlur ?? 0
+    const { patternCanvas, ready } = useTonePattern(panel.backgroundImagePath, projectPath, blur)
 
-    const imageUrl = useMemo(() => {
-        const p = panel.backgroundImagePath
-        if (!p) return undefined
-        if (isBuiltinBackgroundPath(p)) {
-            const id = p.slice('builtin://'.length)
-            return getScreenToneDataUrl(id)
-        }
-        if (isCustomTonePath(p)) {
-            const id = getCustomToneId(p)
-            const abs = customTonePaths[id]
-            return abs ? window.electron.pathToUrl(abs) : undefined
-        }
-        if (!projectPath || !window.electron) return undefined
-        const abs = window.electron.resolveAssetPath(projectPath, p)
-        return abs ? window.electron.pathToUrl(abs) : undefined
-    }, [panel.backgroundImagePath, projectPath, customTonePaths])
-
-    const [img, status] = useImage(imageUrl ?? '', 'anonymous')
-
-    if (!imageUrl || status === 'failed') return null
-    if (!img) return null
+    if (!ready || !patternCanvas) return null
 
     const w = panel.width
     const h = panel.height
     const opacity = panel.backgroundImageOpacity ?? 1
     const scale = panel.backgroundImageScale ?? 1
     const rotation = panel.backgroundImageRotation ?? 0
+    const offsetX = panel.backgroundImageOffsetX ?? 0
+    const offsetY = panel.backgroundImageOffsetY ?? 0
+    const fadeDirections = panel.backgroundImageFadeDirections ?? []
+    const fadeStrength = panel.backgroundImageFadeStrength ?? 0.4
+    const bgColor = panel.backgroundColor || '#ffffff'
+    const path = panel.backgroundImagePath!
     const fit =
         panel.backgroundImageFit ??
-        (panel.backgroundImagePath && (isBuiltinBackgroundPath(panel.backgroundImagePath) || isCustomTonePath(panel.backgroundImagePath))
-            ? 'tile'
-            : 'stretch')
-
-    if (fit === 'tile') {
-        return (
-            <Rect
-                x={0}
-                y={0}
-                width={w}
-                height={h}
-                fillPatternImage={img}
-                fillPatternRepeat="repeat"
-                fillPatternScaleX={scale}
-                fillPatternScaleY={scale}
-                fillPatternRotation={rotation}
-                opacity={opacity}
-                listening={false}
-            />
-        )
-    }
+        (isBuiltinBackgroundPath(path) || isCustomTonePath(path) ? 'tile' : 'stretch')
 
     return (
-        <KonvaImage image={img} x={0} y={0} width={w} height={h} opacity={opacity} listening={false} />
+        <>
+            {fit === 'tile' ? (
+                <Rect
+                    x={0}
+                    y={0}
+                    width={w}
+                    height={h}
+                    fillPatternImage={patternCanvas as unknown as HTMLImageElement}
+                    fillPatternRepeat="repeat"
+                    fillPatternScaleX={scale}
+                    fillPatternScaleY={scale}
+                    fillPatternRotation={rotation}
+                    fillPatternOffsetX={offsetX}
+                    fillPatternOffsetY={offsetY}
+                    opacity={opacity}
+                    listening={false}
+                />
+            ) : (
+                <KonvaImage
+                    image={patternCanvas as unknown as HTMLImageElement}
+                    x={0}
+                    y={0}
+                    width={w}
+                    height={h}
+                    opacity={opacity}
+                    listening={false}
+                />
+            )}
+            <ToneFadeOverlay width={w} height={h} fadeDirections={fadeDirections} fadeStrength={fadeStrength} backgroundColor={bgColor} />
+        </>
     )
 }

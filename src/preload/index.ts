@@ -94,6 +94,7 @@ if (process.contextIsolated) {
             addCustomTone: (sourcePath: string, name: string) =>
                 ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
             deleteCustomTone: (id: string) => ipcRenderer.invoke('delete-custom-tone', { id }),
+            renameCustomTone: (id: string, name: string) => ipcRenderer.invoke('rename-custom-tone', { id, name }),
             resolveCustomTone: (id: string) => ipcRenderer.invoke('resolve-custom-tone', { id }),
             getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
             deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
@@ -143,6 +144,7 @@ if (process.contextIsolated) {
         addCustomTone: (sourcePath, name) =>
             ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
         deleteCustomTone: (id) => ipcRenderer.invoke('delete-custom-tone', { id }),
+        renameCustomTone: (id, name) => ipcRenderer.invoke('rename-custom-tone', { id, name }),
         resolveCustomTone: (id) => ipcRenderer.invoke('resolve-custom-tone', { id }),
         getAssets: (projectPath) => ipcRenderer.invoke('get-assets', projectPath),
         deleteFile: (path) => ipcRenderer.invoke('delete-file', path),

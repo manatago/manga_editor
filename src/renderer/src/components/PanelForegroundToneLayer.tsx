@@ -1,9 +1,8 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Rect } from 'react-konva'
-import useImage from 'use-image'
 import type { Panel } from '../store/types'
-import { getScreenToneDataUrl, isBuiltinBackgroundPath, isCustomTonePath, getCustomToneId } from '../utils/screenToneCatalog'
-import { useMangaStore } from '../store/useMangaStore'
+import { useTonePattern } from '../hooks/useTonePattern'
+import { ToneFadeOverlay } from './effects/ToneFadeOverlay'
 
 interface PanelForegroundToneLayerProps {
     panel: Panel
@@ -11,51 +10,43 @@ interface PanelForegroundToneLayerProps {
 }
 
 /**
- * コマの人物画像の前面（上）に重ねるトーン。
- * builtin:// / custom-tone:// / assets 相対パスをサポート。常に tile モード。
+ * コマの人物画像の前面（上）に重ねるトーン。常に tile モード。
  */
 export const PanelForegroundToneLayer: React.FC<PanelForegroundToneLayerProps> = ({ panel, projectPath }) => {
-    const customTonePaths = useMangaStore((s) => s.customTonePaths)
+    const blur = panel.fgToneBlur ?? 0
+    const { patternCanvas, ready } = useTonePattern(panel.fgTonePath, projectPath, blur)
 
-    const imageUrl = useMemo(() => {
-        const p = panel.fgTonePath
-        if (!p) return undefined
-        if (isBuiltinBackgroundPath(p)) {
-            const id = p.slice('builtin://'.length)
-            return getScreenToneDataUrl(id)
-        }
-        if (isCustomTonePath(p)) {
-            const id = getCustomToneId(p)
-            const abs = customTonePaths[id]
-            return abs ? window.electron.pathToUrl(abs) : undefined
-        }
-        if (!projectPath || !window.electron) return undefined
-        const abs = window.electron.resolveAssetPath(projectPath, p)
-        return abs ? window.electron.pathToUrl(abs) : undefined
-    }, [panel.fgTonePath, projectPath, customTonePaths])
+    if (!ready || !patternCanvas) return null
 
-    const [img, status] = useImage(imageUrl ?? '', 'anonymous')
-
-    if (!imageUrl || status === 'failed') return null
-    if (!img) return null
-
+    const w = panel.width
+    const h = panel.height
     const scale = panel.fgToneScale ?? 1
     const rotation = panel.fgToneRotation ?? 0
     const opacity = panel.fgToneOpacity ?? 1
+    const offsetX = panel.fgToneOffsetX ?? 0
+    const offsetY = panel.fgToneOffsetY ?? 0
+    const fadeDirections = panel.fgToneFadeDirections ?? []
+    const fadeStrength = panel.fgToneFadeStrength ?? 0.4
+    const bgColor = panel.backgroundColor || '#ffffff'
 
     return (
-        <Rect
-            x={0}
-            y={0}
-            width={panel.width}
-            height={panel.height}
-            fillPatternImage={img}
-            fillPatternRepeat="repeat"
-            fillPatternScaleX={scale}
-            fillPatternScaleY={scale}
-            fillPatternRotation={rotation}
-            opacity={opacity}
-            listening={false}
-        />
+        <>
+            <Rect
+                x={0}
+                y={0}
+                width={w}
+                height={h}
+                fillPatternImage={patternCanvas as unknown as HTMLImageElement}
+                fillPatternRepeat="repeat"
+                fillPatternScaleX={scale}
+                fillPatternScaleY={scale}
+                fillPatternRotation={rotation}
+                fillPatternOffsetX={offsetX}
+                fillPatternOffsetY={offsetY}
+                opacity={opacity}
+                listening={false}
+            />
+            <ToneFadeOverlay width={w} height={h} fadeDirections={fadeDirections} fadeStrength={fadeStrength} backgroundColor={bgColor} />
+        </>
     )
 }

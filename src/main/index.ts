@@ -448,6 +448,13 @@ app.whenReady().then(() => {
         writeCustomTonesCatalog(readCustomTonesCatalog().filter((e) => e.id !== id))
     })
 
+    ipcMain.handle('rename-custom-tone', async (_, { id, name }: { id: string; name: string }) => {
+        const catalog = readCustomTonesCatalog().map((e) =>
+            e.id === id ? { ...e, name: String(name || 'トーン').trim().slice(0, 80) } : e
+        )
+        writeCustomTonesCatalog(catalog)
+    })
+
     ipcMain.handle('resolve-custom-tone', async (_, { id }: { id: string }) => {
         const p = pathModule.join(customTonesDir(), `${id}.png`)
         return fs.existsSync(p) ? p : null

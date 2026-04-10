@@ -49,8 +49,9 @@
 | `store/slices/bubbleSlice.ts` | selectedBubbleId / clipboard / bubbleLastStyleByType / 吹き出し CRUD |
 | `store/slices/materialSlice.ts` | selectedMaterialId / 素材 CRUD |
 | `store/slices/projectSlice.ts` | 保存・読込・テンプレート・アセット整理・エクスポート状態 |
+| `store/slices/customTonesSlice.ts` | カスタムトーン一覧 / パス解決 / CRUD（`loadCustomTones` / `addCustomTone` / `removeCustomTone` / `renameCustomTone`） |
 
-### 3.5 共有ユーティリティ
+### 3.5 共有ユーティリティ・フック
 
 | ファイル | 内容 |
 |---------|------|
@@ -58,6 +59,9 @@
 | `utils/dialogs.ts` | `showError` / `showInfo` / `confirmMessage` — Electron ネイティブダイアログのラッパー |
 | `utils/projectAssets.ts` | アセットパスの相対化・整理対象外（dust 等）の判定 |
 | `utils/assetsLayout.ts` | `images` / `dust` / `references` のセグメント名・`copyFileToProject` 用サブパス |
+| `utils/screenToneCatalog.ts` | 内蔵トーンカタログ、`builtin://` / `custom-tone://` スキームのヘルパー |
+| `hooks/useTonePattern.ts` | トーンパスを URL 解決 → ぼかし済み `HTMLCanvasElement` に変換する共通フック。`PanelBackgroundImageLayer` / `PanelForegroundToneLayer` で共用 |
+| `components/effects/fadeUtils.ts` | `getGradientPoints` / `toTransparent` — `FadeOverlay` と `ToneFadeOverlay` が共用するグラジェント計算ユーティリティ |
 
 ### 3.2 カスタムプロトコル `local-file`
 
@@ -92,9 +96,24 @@
 - 位置・サイズ: `x`, `y`, `width`, `height`, `rotation`, `strokeWidth`, `strokeColor`
 - 斜め・台形用: `slant`, `offsetB`, `offsetC`, `offsetD`
 - **背景画像**: `imagePath`, `imageX`, `imageY`, `imageScale`, `imageRotation`, `imageFlipX`
-- **トーン**: `isGrayscale`、**`grayscaleBrightness`**（-0.5〜0.5、Konva **Brighten**。右パネル「画面効果」でグレースケール中のみスライダー。Shift オーバーレイのグレートグルと併用）
-- **効果**: フェードアウト（8方向 + クリア）、集中線、ぼかし、雨エフェクト（密度・不透明度）など
+- **グレースケール**: `isGrayscale`、`grayscaleBrightness`（-0.5〜0.5、Konva Brighten）
+- **効果**: フェードアウト（8方向複数選択 + 強さ）、集中線、ぼかし、雨エフェクト（密度・不透明度）など
 - **パネル背景**: 単色・グラデーション（ページと同様の概念がパネルにも存在）
+- **背景トーン** (`panel-bg`): `backgroundImagePath`（`builtin://` / `custom-tone://` / 相対パス）、`backgroundImageFit`（tile | stretch）、`backgroundImageOpacity`、`backgroundImageScale`、`backgroundImageRotation`、`backgroundImageBlur`、`backgroundImageOffsetX/Y`、`backgroundImageFadeDirections`（8方向複数）、`backgroundImageFadeStrength`
+- **前面トーン** (`panel-fg`): `fgTonePath`（常に tile）、`fgToneOpacity`、`fgToneScale`、`fgToneRotation`、`fgToneBlur`、`fgToneOffsetX/Y`、`fgToneFadeDirections`（8方向複数）、`fgToneFadeStrength`
+
+#### トーン描画の仕組み
+
+- ぼかしは **CSS filter（`ctx.filter = 'blur(Xpx)'`）で canvas に事前描画**し、Konva の `cache()` + Filters を使わない（fillPattern + Konva Blur は白くなるバグがあるため）
+- フェードは `ToneFadeOverlay`（`Rect` + `fillLinearGradientColorStops`）をパターン Rect の直後に重ねる。終端色は `toTransparent(bgColor)` で同色アルファ0にし、補間時の黒ずみを回避
+- URL 解決 + canvas 生成は `hooks/useTonePattern` に一元化
+
+#### カスタムトーン（アプリ全体共有）
+
+- `app.getPath('userData')/custom-tones/` に PNG + `catalog.json` を保存
+- URI スキーム `custom-tone://{id}` で参照（`builtin://` と並列）
+- IPC: `get-custom-tones` / `add-custom-tone` / `delete-custom-tone` / `rename-custom-tone`
+- Zustand スライス: `customTonesSlice`（`customTones`, `customTonePaths`, CRUD アクション）
 
 ### 4.4 吹き出し (`Bubble`)
 
@@ -203,11 +222,26 @@ Konva の `clipFunc` はそのノードのローカル座標系で動作する�
 
 ### 5.3.1 背景画像の Shift オーバーレイ編集
 
-- コマ選択中に `Shift` 押下で、コマ上に画像編集タブを表示
+- コマ選択中に `Shift` 押下で、コマ上に画像編集タブを表示（コマ内側・上端 y=8px に固定）
 - モード: `移動`（既存挙動）, `拡大縮小`（上ドラッグで拡大/下で縮小）, `回転`（右ドラッグで右回転/左で左回転）
 - 追加トグル: `グレースケール`, `左右反転`
-- 上端でタブが画面外に出る場合はコマ下に表示
-- スクロール可能な編集エリアの**見えている範囲**に収まるよう、タブ位置を上下・左右に自動調整する（他コマより手前に描画し、下のコマにクリックが奪われないようにする）
+
+### 5.3.2 背景ライブラリ / トーンモーダル
+
+- ツールバーのボタンから開く。選択中コマの中心 X が**ページ左半分**なら右端、右半分なら左端に固定（`w-80` 縦伸び）でキャンバスを隠さずリアルタイム確認可能
+- 3タブ構成:
+  - **内蔵トーン**: 組み込みスクリーントーンを小グリッドで一覧。クリックで即時適用
+  - **カスタムトーン**: アプリ全体共有の透過 PNG トーン。ドロップ or ファイル選択で登録、名前編集・削除可能
+  - **マイ画像**: プロジェクト固有の背景画像ライブラリ。ドロップ or ファイル選択、名前編集・削除可能
+- 適用先: **ページ全体** / **コマ背景（画像の下）** / **コマ前面（画像の上）** をラジオで選択
+- コマ適用時のスライダー: 不透明度 / スケール / 回転 / ぼかし（max 10、0.5 刻み）/ X 移動 / Y 移動
+- フェードアウト: 3×3 グリッドの方向ボタン（8方向複数選択、中央クリアボタン）＋強さスライダー
+
+### 5.3.3 参照キャラクターモーダル
+
+- キャラクター管理（名前・ポジティブ/ネガティブプロンプト・参照画像群）
+- 画像サムネイルに **はさみアイコン**（マジックワンドエディタを開く）と **画像挿入アイコン**（コマ選択中のみ有効）を表示
+- **マジックワンドエディタ**: 拡大縮小可能なフルスクリーン Canvas エディタ。クリックでフラッドフィル透過（BFS、許容差 0〜150）、Ctrl+Z/Cmd+Z アンドゥ（最大 30 ステップ）、透過を市松模様で可視化、保存で `{basename}_wand.png` として出力
 
 ### 5.4 キーボードショートカット（入力欄フォーカス時は無効）
 
@@ -321,7 +355,9 @@ VENV="/Applications/漫画野郎.app/Contents/Resources/rembg/venv"
 
 - Zustand でスプレッド更新する際、**キーの重複**に注意（`.cursorrules` の記載）
 - レンダラー変更後はインポート・型を確認し、**白画面**を避ける
-- `PanelItem` のエフェクト系実装は分割済み（`components/effects/FadeOverlay.tsx`、`components/effects/FocusLines.tsx`、`components/effects/RainEffect.tsx`、`components/PanelStrokes.tsx`）
+- `PanelItem` のエフェクト系実装は分割済み（`components/effects/FadeOverlay.tsx`、`components/effects/FocusLines.tsx`、`components/effects/RainEffect.tsx`、`components/effects/ToneFadeOverlay.tsx`、`components/PanelStrokes.tsx`）
+- トーンレイヤー（`PanelBackgroundImageLayer` / `PanelForegroundToneLayer`）の URL 解決・ぼかしは `hooks/useTonePattern` に一元化。各コンポーネントにローカル実装しない
+- `getGradientPoints` / `toTransparent` は `components/effects/fadeUtils.ts` に一元化。`FadeOverlay` と `ToneFadeOverlay` で共用
 - グリッド吸着ロジックは `utils/gridUtils.ts` の `snapToGrid` を共通利用する
 - `npx tsc --noEmit` で型エラーゼロを維持し、`vitest` で `gridUtils` / `useMangaStore` の基本テストを回す
 - **グリッドスナップは `utils/gridUtils.ts` の `snapToGrid` を使う**。各コンポーネントにローカル実装しない
@@ -341,4 +377,4 @@ VENV="/Applications/漫画野郎.app/Contents/Resources/rembg/venv"
 
 ---
 
-*最終更新: リポジトリの現行コードに基づく（素材 D&D 座標・EXIF、グレー明るさ、rembg 同梱・publish 方針を反映）*
+*最終更新: カスタムトーン・前面トーン・マジックワンドエディタ・背景ライブラリモーダル改善（サイドパネル化・ぼかし/移動/フェード）を反映*
