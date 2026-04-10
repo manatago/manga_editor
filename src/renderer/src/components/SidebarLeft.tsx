@@ -65,6 +65,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     const [referenceModalOpen, setReferenceModalOpen] = useState(false)
     const [backgroundLibraryOpen, setBackgroundLibraryOpen] = useState(false)
     const [compositorOpen, setCompositorOpen] = useState(false)
+    const [toolsOpen, setToolsOpen] = useState(false)
 
     return (
         <div className="h-full flex flex-col min-h-0 bg-zinc-900">
@@ -101,58 +102,72 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <button
-                                onClick={onExportPNG}
-                                disabled={!currentPageId}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 transition-colors text-emerald-400 hover:text-emerald-300 font-bold group disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Download size={18} />
-                                <span className="text-sm">PNG出力（現在ページ）</span>
-                            </button>
-                            <button
-                                onClick={onExportAllPagesPNG}
-                                disabled={!currentPageId || pages.length === 0}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Download size={18} />
-                                <span>全ページ一括 PNG</span>
-                            </button>
-                            <button
-                                onClick={onExportText}
-                                disabled={pages.length === 0}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <FileText size={18} />
-                                <span>セリフ一覧 TXT</span>
-                            </button>
+                        {/* ツールメニュー（トグル） */}
+                        <div>
                             <button
                                 type="button"
-                                onClick={() => setReferenceModalOpen(true)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-violet-950/40 hover:bg-violet-900/40 border border-violet-800/40 transition-colors text-violet-200 hover:text-violet-100 font-bold text-sm"
+                                onClick={() => setToolsOpen((v) => !v)}
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-sm font-bold"
                             >
-                                <Users size={18} />
-                                <span>参照キャラクター</span>
+                                <span>ツール</span>
+                                <ChevronDown size={15} className={`transition-transform duration-200 ${toolsOpen ? 'rotate-180' : ''}`} />
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => setBackgroundLibraryOpen(true)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-sky-950/40 hover:bg-sky-900/40 border border-sky-800/40 transition-colors text-sky-200 hover:text-sky-100 font-bold text-sm"
-                            >
-                                <Layers size={18} />
-                                <span>背景ライブラリ</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setCompositorOpen(true)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-pink-950/40 hover:bg-pink-900/40 border border-pink-900/40 transition-colors text-pink-100 hover:text-pink-50 font-bold text-sm"
-                            >
-                                <ImagePlus size={18} />
-                                <span>背景＋人物の合成</span>
-                            </button>
+                            {toolsOpen && (
+                                <div className="mt-2 space-y-1.5 px-1">
+                                    <button
+                                        onClick={onExportPNG}
+                                        disabled={!currentPageId}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 transition-colors text-emerald-400 hover:text-emerald-300 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Download size={15} />
+                                        <span>PNG出力（現在ページ）</span>
+                                    </button>
+                                    <button
+                                        onClick={onExportAllPagesPNG}
+                                        disabled={!currentPageId || pages.length === 0}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Download size={15} />
+                                        <span>全ページ一括 PNG</span>
+                                    </button>
+                                    <button
+                                        onClick={onExportText}
+                                        disabled={pages.length === 0}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <FileText size={15} />
+                                        <span>セリフ一覧 TXT</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setReferenceModalOpen(true)}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-violet-950/40 hover:bg-violet-900/40 border border-violet-800/40 transition-colors text-violet-200 hover:text-violet-100 text-xs font-bold"
+                                    >
+                                        <Users size={15} />
+                                        <span>参照キャラクター</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBackgroundLibraryOpen(true)}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-sky-950/40 hover:bg-sky-900/40 border border-sky-800/40 transition-colors text-sky-200 hover:text-sky-100 text-xs font-bold"
+                                    >
+                                        <Layers size={15} />
+                                        <span>背景ライブラリ</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCompositorOpen(true)}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-pink-950/40 hover:bg-pink-900/40 border border-pink-900/40 transition-colors text-pink-100 hover:text-pink-50 text-xs font-bold"
+                                    >
+                                        <ImagePlus size={15} />
+                                        <span>背景＋人物の合成</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
 
-                            {/* Mosaic controls */}
-                            <div className="pt-2 border-t border-zinc-800 space-y-2">
+                        {/* Mosaic controls */}
+                        <div className="border-t border-zinc-800 pt-2 space-y-2">
                                 <div className="flex items-center justify-between px-1">
                                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">モザイク</span>
                                     <button
@@ -211,7 +226,6 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                         )
                                     })}
                                 </div>
-                            </div>
                         </div>
 
                         <div className="space-y-1">
