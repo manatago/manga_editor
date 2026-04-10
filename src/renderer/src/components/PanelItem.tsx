@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
 import { Group, Line, Circle, Rect, Text } from 'react-konva'
 import useImage from 'use-image'
@@ -59,55 +59,6 @@ const FocusAdjustmentHandle: React.FC<{
 
 type ImageEditMode = 'move' | 'scale' | 'rotate'
 
-const IMAGE_TAB_VIEWPORT_MARGIN = 8
-
-function findScrollParent(el: HTMLElement | null): HTMLElement {
-    let cur: HTMLElement | null = el
-    while (cur) {
-        const { overflow, overflowY, overflowX } = getComputedStyle(cur)
-        const oy = overflowY || overflow
-        const ox = overflowX || overflow
-        if (/(auto|scroll|overlay)/.test(oy) || /(auto|scroll|overlay)/.test(ox)) {
-            return cur
-        }
-        cur = cur.parentElement
-    }
-    return document.documentElement
-}
-
-/**
- * Konva の getClientRect() は既にステージ（キャンバス）座標系の AABB。
- * ここで絶対変換を掛け直さないこと（二重変換で位置が大きくずれる）。
- */
-function getScreenBoxForNode(node: Konva.Node, stage: Konva.Stage): { left: number; top: number; right: number; bottom: number } {
-    const cr = stage.container().getBoundingClientRect()
-    const sw = stage.width()
-    const sh = stage.height()
-    const rect = node.getClientRect({ skipTransform: false })
-    if (sw <= 0 || sh <= 0) {
-        return { left: cr.left, top: cr.top, right: cr.left, bottom: cr.top }
-    }
-    const scaleX = cr.width / sw
-    const scaleY = cr.height / sh
-    const left = cr.left + rect.x * scaleX
-    const right = cr.left + (rect.x + rect.width) * scaleX
-    const top = cr.top + rect.y * scaleY
-    const bottom = cr.top + (rect.y + rect.height) * scaleY
-    return { left, top, right, bottom }
-}
-
-function viewportOverflowAmount(
-    b: { left: number; top: number; right: number; bottom: number },
-    vp: DOMRect,
-    margin: number
-): number {
-    let s = 0
-    if (b.top < vp.top + margin) s += vp.top + margin - b.top
-    if (b.bottom > vp.bottom - margin) s += b.bottom - (vp.bottom - margin)
-    if (b.left < vp.left + margin) s += vp.left + margin - b.left
-    if (b.right > vp.right - margin) s += b.right - (vp.right - margin)
-    return s
-}
 
 const ImageEditModeTabs: React.FC<{
     mode: ImageEditMode
@@ -316,7 +267,6 @@ export const PanelItem: React.FC<{
     }, [panel.imagePath, currentProjectPath])
     const [image] = useImage(imagePath)
     const lineRef = useRef<Konva.Line>(null)
-    const imageTabsRef = useRef<Konva.Group>(null)
     const snap = (value: number) => snapToGrid(value, page)
 
     useEffect(() => {
@@ -389,78 +339,8 @@ export const PanelItem: React.FC<{
         }
     }
 
-    const defaultTabY = panel.y <= 44 ? panel.height + 8 : -38
-    const [tabPos, setTabPos] = useState({ x: 0, y: defaultTabY })
-
-    useLayoutEffect(() => {
-        if (!shouldShowImageTabs) return
-        const node = imageTabsRef.current
-        const stage = node?.getStage() as Konva.Stage | undefined
-        if (!node || !stage) return
-
-        const scrollEl = findScrollParent(stage.container())
-        const m = IMAGE_TAB_VIEWPORT_MARGIN
-
-        const run = () => {
-            const vp = scrollEl.getBoundingClientRect()
-            const above = { x: 0, y: -38 }
-            const below = { x: 0, y: panel.height + 8 }
-            const preferBelowFirst = panel.y <= 44
-            const order = preferBelowFirst ? [below, above] : [above, below]
-
-            const applyAndFits = (pos: { x: number; y: number }) => {
-                node.position(pos)
-                node.getLayer()?.batchDraw()
-                const b = getScreenBoxForNode(node, stage)
-                return (
-                    b.top >= vp.top + m &&
-                    b.bottom <= vp.bottom - m &&
-                    b.left >= vp.left + m &&
-                    b.right <= vp.right - m
-                )
-            }
-
-            let chosen = order.find((pos) => applyAndFits(pos))
-            if (!chosen) {
-                let best = order[0]
-                let bestScore = Infinity
-                for (const pos of order) {
-                    node.position(pos)
-                    node.getLayer()?.batchDraw()
-                    const b = getScreenBoxForNode(node, stage)
-                    const score = viewportOverflowAmount(b, vp, m)
-                    if (score < bestScore) {
-                        bestScore = score
-                        best = pos
-                    }
-                }
-                chosen = best
-                node.position(chosen)
-                node.getLayer()?.batchDraw()
-            }
-            setTabPos({ x: node.x(), y: node.y() })
-        }
-
-        run()
-        scrollEl.addEventListener('scroll', run, { passive: true })
-        window.addEventListener('resize', run)
-        return () => {
-            scrollEl.removeEventListener('scroll', run)
-            window.removeEventListener('resize', run)
-        }
-    }, [
-        shouldShowImageTabs,
-        panel.id,
-        panel.x,
-        panel.y,
-        panel.width,
-        panel.height,
-        panel.rotation,
-        panel.imagePath,
-        imageEditMode,
-        isShiftPressed,
-        defaultTabY
-    ])
+    // ツールバーは常にパネル内側上端に固定
+    const tabPos = { x: 0, y: 8 }
 
     return (
         <Group
@@ -608,7 +488,7 @@ export const PanelItem: React.FC<{
                 <Line points={points} closed={true} fill="transparent" />
             )}
             {shouldShowImageTabs && (
-                <Group ref={imageTabsRef} x={tabPos.x} y={tabPos.y} listening>
+                <Group x={tabPos.x} y={tabPos.y} listening>
                     <ImageEditModeTabs
                         mode={imageEditMode}
                         onChange={setImageEditMode}
