@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors } from 'lucide-react'
+import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors, ImageIcon } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 import { referenceAssetsSubdir } from '../utils/referenceCharacters'
 import { showError } from '../utils/dialogs'
@@ -18,6 +18,11 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
     const updateReferenceCharacter = useMangaStore((s) => s.updateReferenceCharacter)
     const registerReferenceCharacterImage = useMangaStore((s) => s.registerReferenceCharacterImage)
     const removeReferenceCharacterImage = useMangaStore((s) => s.removeReferenceCharacterImage)
+    const selectedPanelId = useMangaStore((s) => s.selectedPanelId)
+    const updatePanel = useMangaStore((s) => s.updatePanel)
+    const pages = useMangaStore((s) => s.pages)
+    const currentPageId = useMangaStore((s) => s.currentPageId)
+    const selectedPanel = pages.find((p) => p.id === currentPageId)?.panels.find((p) => p.id === selectedPanelId) ?? null
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [rembgBusyImageId, setRembgBusyImageId] = useState<string | null>(null)
@@ -121,6 +126,17 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
         } finally {
             setRembgBusyImageId(null)
         }
+    }
+
+    const handleInsertToPanel = (relativePath: string) => {
+        if (!selectedPanelId || !selectedPanel) return
+        updatePanel(selectedPanelId, {
+            imagePath: relativePath,
+            imageScale: 1,
+            imageRotation: 0,
+            imageX: selectedPanel.width / 2,
+            imageY: selectedPanel.height / 2
+        })
     }
 
     const handleOpenWandEditor = (characterId: string, imageId: string, relativePath: string, url: string) => {
@@ -332,7 +348,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                     ここに画像をドラッグ＆ドロップするか、「ファイルから追加」で取り込みます。
                                                     <br />
                                                     <span className="text-zinc-700 text-xs mt-2 inline-block">
-                                                        画像をクリックで拡大表示。サムネを外にドラッグでエクスポート。左下の杖で背景除去（rembg）。ハサミでマジックワンド手動編集。
+                                                        画像をクリックで拡大表示。サムネを外にドラッグでエクスポート。左下の杖で背景除去（rembg）、ハサミでマジックワンド編集。コマ選択中は緑のアイコンでそのコマに画像を入れられます。
                                                     </span>
                                                 </p>
                                             ) : (
@@ -418,6 +434,19 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                 >
                                                                     <Scissors size={14} />
                                                                 </button>
+                                                                {selectedPanel && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            handleInsertToPanel(im.relativePath)
+                                                                        }}
+                                                                        className="absolute bottom-1 left-[3.75rem] z-30 p-1 rounded bg-black/60 text-emerald-300/90 opacity-0 group-hover:opacity-100 hover:text-emerald-100"
+                                                                        title="選択中のコマに入れる"
+                                                                    >
+                                                                        <ImageIcon size={14} />
+                                                                    </button>
+                                                                )}
                                                                 <button
                                                                     type="button"
                                                                     disabled={!!rembgBusyImageId}
