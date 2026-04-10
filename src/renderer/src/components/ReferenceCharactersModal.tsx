@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X } from 'lucide-react'
+import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 import { referenceAssetsSubdir } from '../utils/referenceCharacters'
 import { showError } from '../utils/dialogs'
+import { MagicWandEditorModal } from './MagicWandEditorModal'
 
 interface ReferenceCharactersModalProps {
     isOpen: boolean
@@ -21,6 +22,12 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [rembgBusyImageId, setRembgBusyImageId] = useState<string | null>(null)
     const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null)
+    const [wandEditor, setWandEditor] = useState<{
+        url: string
+        characterId: string
+        assetsSubPath: string
+        baseName: string
+    } | null>(null)
 
     const selected = referenceCharacters.find((c) => c.id === selectedId) ?? null
 
@@ -116,6 +123,24 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
         }
     }
 
+    const handleOpenWandEditor = (characterId: string, imageId: string, relativePath: string, url: string) => {
+        const sub = referenceAssetsSubdir(characterId)
+        const base = relativePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? imageId
+        setWandEditor({ url, characterId, assetsSubPath: sub, baseName: base })
+    }
+
+    const handleWandSave = async (dataUrl: string) => {
+        if (!wandEditor || !currentProjectPath || !window.electron) return
+        const { relativePath } = await window.electron.saveWandPng(
+            currentProjectPath,
+            wandEditor.assetsSubPath,
+            wandEditor.baseName,
+            dataUrl
+        )
+        registerReferenceCharacterImage(wandEditor.characterId, relativePath)
+        setWandEditor(null)
+    }
+
     if (!isOpen) return null
 
     const lightboxLayer =
@@ -154,6 +179,14 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
 
     return (
         <>
+            {wandEditor && (
+                <MagicWandEditorModal
+                    isOpen={true}
+                    onClose={() => setWandEditor(null)}
+                    imageUrl={wandEditor.url}
+                    onSave={handleWandSave}
+                />
+            )}
             {lightboxLayer}
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9998] flex items-center justify-center p-4">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
@@ -299,7 +332,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                     ここに画像をドラッグ＆ドロップするか、「ファイルから追加」で取り込みます。
                                                     <br />
                                                     <span className="text-zinc-700 text-xs mt-2 inline-block">
-                                                        画像をクリックで拡大表示。サムネを外にドラッグでエクスポート。左下の杖で背景除去（rembg）。
+                                                        画像をクリックで拡大表示。サムネを外にドラッグでエクスポート。左下の杖で背景除去（rembg）。ハサミでマジックワンド手動編集。
                                                     </span>
                                                 </p>
                                             ) : (
@@ -373,6 +406,17 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                     title="背景除去（rembg / isnet-anime）"
                                                                 >
                                                                     <Wand2 size={14} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        if (url) handleOpenWandEditor(selected.id, im.id, im.relativePath, url)
+                                                                    }}
+                                                                    className="absolute bottom-1 left-8 z-30 p-1 rounded bg-black/60 text-sky-300/90 opacity-0 group-hover:opacity-100 hover:text-sky-100"
+                                                                    title="マジックワンドで手動編集"
+                                                                >
+                                                                    <Scissors size={14} />
                                                                 </button>
                                                                 <button
                                                                     type="button"

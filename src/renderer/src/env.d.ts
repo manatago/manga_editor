@@ -23,6 +23,13 @@ declare global {
                 projectPath: string,
                 inputRelativePath: string
             ) => Promise<{ relativePath: string }>
+            /** マジックワンド編集後の PNG を assets/{assetsSubPath}/{baseName}_wand.png に保存 */
+            saveWandPng: (
+                projectPath: string,
+                assetsSubPath: string,
+                baseName: string,
+                data: string
+            ) => Promise<{ relativePath: string }>
             getAssets: (projectPath: string) => Promise<string[]>
             deleteFile: (path: string) => Promise<boolean>
             /** 未使用整理用: assets 内ファイルを assets/dust/ へ移動（削除しない） */

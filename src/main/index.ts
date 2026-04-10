@@ -380,6 +380,34 @@ app.whenReady().then(() => {
         }
     })
 
+    /** マジックワンド編集後の PNG を参照キャラクター assets に保存 */
+    ipcMain.handle('save-wand-png', async (_, { projectPath, assetsSubPath, baseName, data }: { projectPath: string; assetsSubPath: string; baseName: string; data: string }) => {
+        const root = String(projectPath ?? '').trim()
+        const sub = sanitizeAssetsSubPath(assetsSubPath)
+        if (!sub) throw new Error('assetsSubPath が不正です')
+        const dir = pathModule.join(root, 'assets', sub)
+        try {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true })
+            }
+            const safe = String(baseName ?? 'wand').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'wand'
+            let filePath = pathModule.join(dir, `${safe}_wand.png`)
+            let n = 0
+            while (fs.existsSync(filePath)) {
+                n += 1
+                filePath = pathModule.join(dir, `${safe}_wand_${n}.png`)
+            }
+            const base64Data = data.replace(/^data:image\/png;base64,/, '')
+            fs.writeFileSync(filePath, base64Data, 'base64')
+            const rel = pathModule.relative(root, filePath).split(pathModule.sep).join('/')
+            console.log('Main: wand PNG saved to', rel)
+            return { relativePath: rel }
+        } catch (error) {
+            console.error('Main: failed to save wand png:', error)
+            throw error
+        }
+    })
+
     function listAssetFilesRecursive(dir: string): string[] {
         const out: string[] = []
         if (!fs.existsSync(dir)) return out

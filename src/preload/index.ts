@@ -88,6 +88,8 @@ if (process.contextIsolated) {
             startDragFile: (absolutePath: string) => ipcRenderer.send('start-drag-file', absolutePath),
             rembgRemoveBackground: (projectPath: string, inputRelativePath: string) =>
                 ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
+            saveWandPng: (projectPath: string, assetsSubPath: string, baseName: string, data: string) =>
+                ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
             getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
             deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
             moveAssetToTrash: (projectPath: string, absoluteFilePath: string) =>
@@ -130,6 +132,8 @@ if (process.contextIsolated) {
         startDragFile: (absolutePath) => ipcRenderer.send('start-drag-file', absolutePath),
         rembgRemoveBackground: (projectPath, inputRelativePath) =>
             ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
+        saveWandPng: (projectPath, assetsSubPath, baseName, data) =>
+            ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
         getAssets: (projectPath) => ipcRenderer.invoke('get-assets', projectPath),
         deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
         moveAssetToTrash: (projectPath, absoluteFilePath) =>
