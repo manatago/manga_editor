@@ -3,7 +3,7 @@ import { Stage, Layer, Image as KonvaImage, Transformer, Rect } from 'react-konv
 import useImage from 'use-image'
 import Konva from 'konva'
 import { X, ImagePlus, Download, RotateCcw, FlipHorizontal, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
-import { showError, showInfo } from '../utils/dialogs'
+import { showError, showInfo, confirmMessage } from '../utils/dialogs'
 import { useMangaStore } from '../store/useMangaStore'
 import type { ReferenceCharacter } from '../store/types'
 
@@ -242,6 +242,33 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
     const [charInstances, setCharInstances] = useState<CompositorCharInstance[]>([])
     const [selected, setSelected] = useState<'bg' | string | null>(null)
     const [bgT, setBgT] = useState<LayerTransform>(() => defaultTransform())
+    const [compositesList, setCompositesList] = useState<string[]>([])
+    const [zoomedComposite, setZoomedComposite] = useState<string | null>(null)
+
+    const reloadComposites = useCallback(async () => {
+        if (!currentProjectPath || !window.electron) {
+            setCompositesList([])
+            return
+        }
+        try {
+            const absList = await window.electron.getAssets(currentProjectPath)
+            const norm = (currentProjectPath + '/assets/composites/').replace(/\\/g, '/')
+            const rel = absList
+                .map((a) => a.replace(/\\/g, '/'))
+                .filter((a) => a.startsWith(norm))
+                .map((a) => 'assets/composites/' + a.slice(norm.length))
+                .sort((a, b) => (a > b ? -1 : 1))
+            setCompositesList(rel)
+        } catch (e) {
+            console.error('ImageCompositorModal: failed to list composites', e)
+            setCompositesList([])
+        }
+    }, [currentProjectPath])
+
+    useEffect(() => {
+        if (!isOpen) return
+        void reloadComposites()
+    }, [isOpen, reloadComposites])
 
     const bgItem = bgLibraryId ? backgroundLibrary.find((b) => b.id === bgLibraryId) : null
     const bgUrl = useMemo(() => {
@@ -342,6 +369,27 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
     }, [isOpen, canvasW, canvasH])
 
     useEffect(() => {
+        if (!zoomedComposite) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation()
+                setZoomedComposite(null)
+                return
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const idx = compositesList.findIndex((r) => r === zoomedComposite)
+                if (idx < 0) return
+                const nextIdx = e.key === 'ArrowLeft' ? idx - 1 : idx + 1
+                if (nextIdx >= 0 && nextIdx < compositesList.length) {
+                    setZoomedComposite(compositesList[nextIdx])
+                }
+            }
+        }
+        window.addEventListener('keydown', onKey, true)
+        return () => window.removeEventListener('keydown', onKey, true)
+    }, [zoomedComposite, compositesList])
+
+    useEffect(() => {
         if (!isOpen) return
         const onKey = (e: KeyboardEvent) => {
             const el = e.target as HTMLElement | null
@@ -351,6 +399,8 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
             ) {
                 return
             }
+            // 拡大表示中はキャンバスショートカットを無効化
+            if (zoomedComposite) return
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
                 e.preventDefault()
                 handleUndo()
@@ -374,7 +424,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [isOpen, selected, handleUndo, pushUndo])
+    }, [isOpen, selected, handleUndo, pushUndo, zoomedComposite])
 
     const refImageOptions = useMemo(() => flattenReferenceImages(referenceCharacters), [referenceCharacters])
 
@@ -556,6 +606,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
             })
             const { relativePath } = await window.electron.saveCompositePng(currentProjectPath, dataUrl)
             await showInfo(`${relativePath} に保存しました`)
+            void reloadComposites()
         } catch (e) {
             console.error('ImageCompositorModal: export', e)
             await showError('画像の保存に失敗しました')
@@ -567,6 +618,26 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                 stage.batchDraw()
             }
         }
+    }
+
+    const handleDeleteComposite = async (relPath: string) => {
+        if (!currentProjectPath || !window.electron) return
+        const ok = await confirmMessage('この合成画像を削除しますか？（assets/dust/ に移動します）')
+        if (!ok) return
+        try {
+            const abs = window.electron.resolveAssetPath(currentProjectPath, relPath)
+            if (!abs) throw new Error('パスの解決に失敗しました')
+            const result = await window.electron.moveAssetToTrash(currentProjectPath, abs)
+            if (!result.moved) {
+                await showError(`削除できませんでした (${result.reason})`)
+                return
+            }
+        } catch (e) {
+            await showError(e instanceof Error ? e.message : String(e))
+            return
+        }
+        if (zoomedComposite === relPath) setZoomedComposite(null)
+        void reloadComposites()
     }
 
     if (!isOpen) return null
@@ -815,11 +886,60 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold disabled:opacity-40"
                         >
                             <Download size={18} />
-                            PNG で保存（assets/images/composite/）
+                            PNG で保存（assets/composites/）
                         </button>
                         <p className="text-[10px] text-zinc-600">
                             ファイル名は保存日時から自動で付きます（例: 20260402_154530_123.png）。
                         </p>
+
+                        <div className="border-t border-zinc-800 pt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-zinc-400">過去の合成出力</span>
+                                <span className="text-[10px] text-zinc-500">{compositesList.length} 件</span>
+                            </div>
+                            {compositesList.length === 0 ? (
+                                <p className="text-[11px] text-zinc-600">
+                                    まだ保存されていません。
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto manga-scrollbar">
+                                    {compositesList.map((rel) => {
+                                        const abs = currentProjectPath && window.electron
+                                            ? window.electron.resolveAssetPath(currentProjectPath, rel)
+                                            : ''
+                                        const url = abs && window.electron ? window.electron.pathToUrl(abs) : ''
+                                        const base = rel.split('/').pop() ?? rel
+                                        return (
+                                            <div
+                                                key={rel}
+                                                className="relative aspect-square rounded-md border border-zinc-700 overflow-hidden hover:border-zinc-500 group"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setZoomedComposite(rel)}
+                                                    className="absolute inset-0"
+                                                    title={`${base}\nクリックで拡大`}
+                                                >
+                                                    {url ? (
+                                                        <img src={url} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-zinc-800" />
+                                                    )}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); void handleDeleteComposite(rel) }}
+                                                    className="absolute top-0.5 right-0.5 p-0.5 rounded bg-black/60 text-zinc-300 hover:text-red-400"
+                                                    title="削除（assets/dust/ へ移動）"
+                                                >
+                                                    <Trash2 size={11} />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2">
@@ -939,6 +1059,71 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                     </div>
                 </div>
             </div>
+
+            {zoomedComposite && (() => {
+                const abs = currentProjectPath && window.electron
+                    ? window.electron.resolveAssetPath(currentProjectPath, zoomedComposite)
+                    : ''
+                const url = abs && window.electron ? window.electron.pathToUrl(abs) : ''
+                const base = zoomedComposite.split('/').pop() ?? zoomedComposite
+                const curIdx = compositesList.findIndex((r) => r === zoomedComposite)
+                const prev = curIdx > 0 ? compositesList[curIdx - 1] : null
+                const next = curIdx >= 0 && curIdx < compositesList.length - 1 ? compositesList[curIdx + 1] : null
+                return (
+                    <div
+                        className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/85 backdrop-blur-sm p-8"
+                        onClick={() => setZoomedComposite(null)}
+                    >
+                        <div
+                            className="relative flex flex-col items-center gap-3 max-w-full max-h-full"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setZoomedComposite(null)}
+                                className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700"
+                                title="閉じる (Esc)"
+                            >
+                                <X size={18} />
+                            </button>
+                            {url ? (
+                                <img
+                                    src={url}
+                                    alt=""
+                                    className="max-w-[92vw] max-h-[78vh] object-contain rounded-lg shadow-2xl border border-zinc-800"
+                                />
+                            ) : (
+                                <div className="text-zinc-500 text-sm">画像を読み込めませんでした</div>
+                            )}
+                            <div className="flex items-center gap-3 text-xs text-zinc-300 font-mono bg-zinc-900/80 border border-zinc-800 rounded-full px-4 py-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => prev && setZoomedComposite(prev)}
+                                    disabled={!prev}
+                                    className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
+                                    title="前（新しい）"
+                                >◀</button>
+                                <span className="truncate max-w-[50vw]">{base}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => next && setZoomedComposite(next)}
+                                    disabled={!next}
+                                    className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
+                                    title="次（古い）"
+                                >▶</button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleDeleteComposite(zoomedComposite)}
+                                    className="ml-2 text-zinc-500 hover:text-red-400"
+                                    title="削除"
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
         </div>
     )
 }

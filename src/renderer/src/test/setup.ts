@@ -18,7 +18,7 @@ const electronBridge = {
   moveAssetToTrash: vi.fn(async () => ({ moved: true as const, relativePath: 'assets/dust/1_test.png' })),
   getAssets: vi.fn(async () => []),
   exportPNG: vi.fn(async () => '/tmp/out.png'),
-  saveCompositePng: vi.fn(async () => ({ relativePath: 'assets/images/composite/20260101_120000_0.png' })),
+  saveCompositePng: vi.fn(async () => ({ relativePath: 'assets/composites/20260101_120000_0.png' })),
   selectFile: vi.fn(async () => null),
   startDragFile: vi.fn(),
   rembgRemoveBackground: vi.fn(async () => ({ relativePath: 'assets/references/characters/x/out_nobg.png' })),

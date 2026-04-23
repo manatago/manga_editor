@@ -1,10 +1,79 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
-import type { PageTemplate, MangaProjectData, Page, FadeDirection } from '../types'
+import type { PageTemplate, MangaProjectData, Page, FadeDirection, NovelAIPanelConfig, PreciseReferenceEntry, NovelAIAspect, PreciseRefType, PreciseRefSource, NovelAIHistoryEntry } from '../types'
 import { toRelativeAssetPath, physicalFileToRelative, isAssetTrashRelativePath } from '../../utils/projectAssets'
 import { normalizeReferenceCharacters } from '../../utils/referenceCharacters'
 import { normalizeBackgroundLibrary } from '../../utils/backgroundLibrary'
 import { confirmMessage, showError, showInfo } from '../../utils/dialogs'
+
+const NOVELAI_ASPECTS: readonly NovelAIAspect[] = ['portrait', 'square', 'landscape']
+const PRECISE_REF_TYPES: readonly PreciseRefType[] = ['character', 'style', 'character&style']
+const PRECISE_REF_SOURCES: readonly PreciseRefSource[] = ['character-image', 'composite']
+
+function sanitizeNovelAIPanelConfig(raw: unknown): NovelAIPanelConfig | undefined {
+    if (!raw || typeof raw !== 'object') return undefined
+    const r = raw as Record<string, unknown>
+    const out: NovelAIPanelConfig = {}
+    if (typeof r.situationPrompt === 'string') out.situationPrompt = r.situationPrompt
+    if (typeof r.supplementaryPrompt === 'string') out.supplementaryPrompt = r.supplementaryPrompt
+    if (typeof r.negativeOverride === 'string') out.negativeOverride = r.negativeOverride
+    if (typeof r.aspect === 'string' && (NOVELAI_ASPECTS as readonly string[]).includes(r.aspect)) {
+        out.aspect = r.aspect as NovelAIAspect
+    }
+    if (Array.isArray(r.characterRefIds)) {
+        const ids = r.characterRefIds.filter((v): v is string => typeof v === 'string' && !!v).slice(0, 6)
+        if (ids.length) out.characterRefIds = ids
+    } else if (typeof r.characterRefId === 'string' && r.characterRefId) {
+        // 旧形式（単数）→ 配列へ移行
+        out.characterRefIds = [r.characterRefId]
+    }
+    if (Array.isArray(r.preciseRefs)) {
+        const refs: PreciseReferenceEntry[] = []
+        for (const it of r.preciseRefs) {
+            if (!it || typeof it !== 'object') continue
+            const e = it as Record<string, unknown>
+            if (typeof e.source !== 'string' || !(PRECISE_REF_SOURCES as readonly string[]).includes(e.source)) continue
+            if (typeof e.id !== 'string' || !e.id) continue
+            const strength = typeof e.strength === 'number' ? Math.max(0, Math.min(1, e.strength)) : 0.7
+            const fidelity = typeof e.fidelity === 'number' ? Math.max(0, Math.min(1, e.fidelity)) : 0.7
+            const type = typeof e.type === 'string' && (PRECISE_REF_TYPES as readonly string[]).includes(e.type)
+                ? (e.type as PreciseRefType) : 'character'
+            refs.push({ source: e.source as PreciseRefSource, id: e.id, strength, fidelity, type })
+            if (refs.length >= 5) break
+        }
+        if (refs.length) out.preciseRefs = refs
+    }
+    if (typeof r.lastSeed === 'number' && Number.isFinite(r.lastSeed)) {
+        out.lastSeed = Math.floor(r.lastSeed) >>> 0
+    }
+    if (Array.isArray(r.history)) {
+        const hist: NovelAIHistoryEntry[] = []
+        for (const it of r.history) {
+            if (!it || typeof it !== 'object') continue
+            const e = it as Record<string, unknown>
+            if (typeof e.relativePath !== 'string' || !e.relativePath) continue
+            if (typeof e.seed !== 'number' || !Number.isFinite(e.seed)) continue
+            if (typeof e.createdAt !== 'number' || !Number.isFinite(e.createdAt)) continue
+            const entry: NovelAIHistoryEntry = {
+                relativePath: e.relativePath,
+                seed: Math.floor(e.seed) >>> 0,
+                createdAt: Math.floor(e.createdAt)
+            }
+            if (typeof e.situationPrompt === 'string') entry.situationPrompt = e.situationPrompt
+            if (typeof e.supplementaryPrompt === 'string') entry.supplementaryPrompt = e.supplementaryPrompt
+            if (typeof e.aspect === 'string' && (NOVELAI_ASPECTS as readonly string[]).includes(e.aspect)) {
+                entry.aspect = e.aspect as NovelAIAspect
+            }
+            if (typeof e.width === 'number' && Number.isFinite(e.width)) entry.width = Math.floor(e.width)
+            if (typeof e.height === 'number' && Number.isFinite(e.height)) entry.height = Math.floor(e.height)
+            hist.push(entry)
+        }
+        if (hist.length) out.history = hist
+    }
+    // すべて空なら undefined を返して manga.json を汚さない
+    if (Object.keys(out).length === 0) return undefined
+    return out
+}
 
 export interface ProjectSlice {
     currentProjectPath: string | null
@@ -197,7 +266,8 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                     fgToneFadeStrength:
                         typeof panel.fgToneFadeStrength === 'number'
                             ? Math.max(0, Math.min(1, panel.fgToneFadeStrength))
-                            : undefined
+                            : undefined,
+                    novelai: sanitizeNovelAIPanelConfig(panel.novelai)
                 }
             }),
             mosaics: (page.mosaics || []).map((m) => ({

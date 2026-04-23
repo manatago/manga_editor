@@ -25,6 +25,14 @@ function resolveAssetPathWithFallback(projectRoot: string, stored: string): stri
     if (norm.startsWith('assets/')) {
         const rest = norm.slice('assets/'.length)
 
+        if (rest.startsWith('images/composite/')) {
+            // 旧パス。新 assets/composites/ に移行済みの可能性あり
+            add(`assets/composites/${rest.slice('images/composite/'.length)}`)
+        }
+        if (rest.startsWith('composites/')) {
+            // 新パス。未移行プロジェクトの互換で旧パスにも fallback
+            add(`assets/images/composite/${rest.slice('composites/'.length)}`)
+        }
         if (rest.startsWith('images/')) {
             const t = rest.slice('images/'.length)
             add(`assets/workspace/${t}`)
@@ -112,7 +120,14 @@ if (process.contextIsolated) {
             getPathForFile: (file: File) => webUtils.getPathForFile(file),
             log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args),
             showMessage: (payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => ipcRenderer.invoke('show-message', payload),
-            confirmMessage: (payload: { title?: string; message: string }) => ipcRenderer.invoke('confirm-message', payload)
+            confirmMessage: (payload: { title?: string; message: string }) => ipcRenderer.invoke('confirm-message', payload),
+            novelaiSaveToken: (token: string) => ipcRenderer.invoke('novelai:save-token', { token }),
+            novelaiLoadToken: () => ipcRenderer.invoke('novelai:load-token'),
+            novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
+            novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
+            novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
+            novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
+                ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
         })
     } catch (error) {
         console.error(error)
@@ -161,6 +176,13 @@ if (process.contextIsolated) {
         getPathForFile: (file) => webUtils.getPathForFile(file),
         log: (level, ...args) => ipcRenderer.send('renderer-log', level, ...args),
         showMessage: (payload) => ipcRenderer.invoke('show-message', payload),
-        confirmMessage: (payload) => ipcRenderer.invoke('confirm-message', payload)
+        confirmMessage: (payload) => ipcRenderer.invoke('confirm-message', payload),
+        novelaiSaveToken: (token: string) => ipcRenderer.invoke('novelai:save-token', { token }),
+        novelaiLoadToken: () => ipcRenderer.invoke('novelai:load-token'),
+        novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
+        novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
+        novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
+        novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
+            ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
     }
 }

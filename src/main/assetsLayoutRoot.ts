@@ -5,3 +5,4 @@
 export const ASSETS_IMAGES_DIR = 'images'
 export const ASSETS_DUST_DIR = 'dust'
 export const ASSETS_REFERENCES_DIR = 'references'
+export const ASSETS_COMPOSITES_DIR = 'composites'

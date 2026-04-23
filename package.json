@@ -96,6 +96,7 @@
     "@fontsource/yusei-magic": "^5.2.8",
     "@fontsource/zen-kurenaido": "^5.2.8",
     "clsx": "^2.1.1",
+    "fflate": "^0.8.2",
     "framer-motion": "^12.35.1",
     "konva": "^10.2.0",
     "lucide-react": "^0.577.0",

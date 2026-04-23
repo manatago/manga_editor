@@ -61,6 +61,7 @@ type ImageEditMode = 'move' | 'scale' | 'rotate'
 
 
 const ImageEditModeTabs: React.FC<{
+    hasImage: boolean
     mode: ImageEditMode
     onChange: (mode: ImageEditMode) => void
     isGrayscale: boolean
@@ -70,7 +71,10 @@ const ImageEditModeTabs: React.FC<{
     rembgEnabled?: boolean
     rembgBusy?: boolean
     onRembg?: () => void
+    novelaiActive: boolean
+    onNovelAI: () => void
 }> = ({
+    hasImage,
     mode,
     onChange,
     isGrayscale,
@@ -79,7 +83,9 @@ const ImageEditModeTabs: React.FC<{
     onToggleFlipX,
     rembgEnabled,
     rembgBusy,
-    onRembg
+    onRembg,
+    novelaiActive,
+    onNovelAI
 }) => {
     const tabs: Array<{ key: ImageEditMode; title: string }> = [
         { key: 'move', title: '移動' },
@@ -87,8 +93,12 @@ const ImageEditModeTabs: React.FC<{
         { key: 'rotate', title: '回転' }
     ]
 
+    const showRembg = hasImage && !!rembgEnabled && !!onRembg
+    const novelaiY = hasImage ? (showRembg ? 70 : 38) : 0
+
     return (
         <Group>
+            {hasImage && <>
             <Rect
                 x={0}
                 y={0}
@@ -202,7 +212,7 @@ const ImageEditModeTabs: React.FC<{
                 <Line points={[18, 10, 20, 13, 18, 16]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
                 <Line points={[14, 8, 14, 18]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={1.5} dash={[2, 2]} listening={false} />
             </Group>
-            {rembgEnabled && onRembg ? (
+            {showRembg ? (
                 <Group y={38}>
                     <Rect
                         x={0}
@@ -221,11 +231,11 @@ const ImageEditModeTabs: React.FC<{
                         }}
                         onClick={(e) => {
                             e.cancelBubble = true
-                            if (!rembgBusy) onRembg()
+                            if (!rembgBusy) onRembg!()
                         }}
                         onTap={(e) => {
                             e.cancelBubble = true
-                            if (!rembgBusy) onRembg()
+                            if (!rembgBusy) onRembg!()
                         }}
                     />
                     <Text
@@ -240,6 +250,40 @@ const ImageEditModeTabs: React.FC<{
                     />
                 </Group>
             ) : null}
+            </>}
+            <Group y={novelaiY}>
+                <Rect
+                    x={0}
+                    y={0}
+                    width={170}
+                    height={28}
+                    cornerRadius={6}
+                    fill={novelaiActive ? 'rgba(79,70,229,0.95)' : 'rgba(39,39,42,0.95)'}
+                    stroke={novelaiActive ? '#818cf8' : '#3f3f46'}
+                    strokeWidth={1}
+                    onMouseDown={(e) => { e.cancelBubble = true }}
+                    onMouseUp={(e) => { e.cancelBubble = true }}
+                    onClick={(e) => {
+                        e.cancelBubble = true
+                        if (novelaiActive) onNovelAI()
+                    }}
+                    onTap={(e) => {
+                        e.cancelBubble = true
+                        if (novelaiActive) onNovelAI()
+                    }}
+                />
+                <Text
+                    x={0}
+                    y={7}
+                    width={170}
+                    align="center"
+                    text={novelaiActive ? 'NovelAI で画像生成' : 'NovelAI 未接続（設定から疎通確認）'}
+                    fontSize={11}
+                    fontStyle="bold"
+                    fill={novelaiActive ? '#ffffff' : '#71717a'}
+                    listening={false}
+                />
+            </Group>
         </Group>
     )
 }
@@ -311,7 +355,10 @@ export const PanelItem: React.FC<{
     const shouldRenderContent = renderPass === 'content' || !renderPass;
     const shouldRenderEffects = renderPass === 'effects' || !renderPass;
     const shouldRenderStrokes = renderPass === 'strokes' || !renderPass;
-    const shouldShowImageTabs = isInteractive && isSelected && !!panel.imagePath && isShiftPressed
+    const shouldShowImageTabs = isInteractive && isSelected && isShiftPressed
+    const novelaiConnection = useMangaStore((s) => s.novelaiConnection)
+    const openNovelAIForPanel = useMangaStore((s) => s.openNovelAIForPanel)
+    const novelaiActive = novelaiConnection.state === 'ok'
 
     const handlePanelRembg = async () => {
         if (!currentProjectPath || !panel.imagePath || rembgBusy || !window.electron) return
@@ -490,6 +537,7 @@ export const PanelItem: React.FC<{
             {shouldShowImageTabs && (
                 <Group x={tabPos.x} y={tabPos.y} listening>
                     <ImageEditModeTabs
+                        hasImage={!!panel.imagePath}
                         mode={imageEditMode}
                         onChange={setImageEditMode}
                         isGrayscale={!!panel.isGrayscale}
@@ -505,6 +553,8 @@ export const PanelItem: React.FC<{
                         rembgEnabled={!!currentProjectPath && !!panel.imagePath}
                         rembgBusy={rembgBusy}
                         onRembg={handlePanelRembg}
+                        novelaiActive={novelaiActive}
+                        onNovelAI={() => openNovelAIForPanel(panel.id)}
                     />
                 </Group>
             )}

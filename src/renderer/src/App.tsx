@@ -4,6 +4,7 @@ import SidebarLeft from './components/SidebarLeft'
 import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
 import { ExportOverlay } from './components/ExportOverlay'
+import { NovelAIGenerationModal } from './components/NovelAIGenerationModal'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
 import { PanelTop, PanelLeft } from 'lucide-react'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -43,6 +44,7 @@ function App(): React.JSX.Element {
         setSelectedMaterial,
         loadTemplates,
         loadCustomTones,
+        loadNovelAIToken,
         isExporting,
         isSaving,
         lastSavedAt,
@@ -125,6 +127,7 @@ function App(): React.JSX.Element {
     useEffect(() => {
         loadTemplates()
         loadCustomTones()
+        loadNovelAIToken()
     }, [])
 
     // Auto-save logic
@@ -310,6 +313,8 @@ function App(): React.JSX.Element {
             />
 
             <ExportOverlay isExporting={isExporting} />
+
+            <NovelAIGenerationModal />
         </div>
     )
 }

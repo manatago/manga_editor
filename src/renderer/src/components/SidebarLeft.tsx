@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
+import { NovelAISettingsModal } from './NovelAISettingsModal'
 import { useMangaStore } from '../store/useMangaStore'
 import type { Page, Panel, MosaicType } from '../store/types'
 import { confirmMessage } from '../utils/dialogs'
@@ -65,7 +66,10 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     const [referenceModalOpen, setReferenceModalOpen] = useState(false)
     const [backgroundLibraryOpen, setBackgroundLibraryOpen] = useState(false)
     const [compositorOpen, setCompositorOpen] = useState(false)
+    const [novelaiSettingsOpen, setNovelaiSettingsOpen] = useState(false)
     const [toolsOpen, setToolsOpen] = useState(false)
+    const novelaiConnection = useMangaStore((s) => s.novelaiConnection)
+    const novelaiConnectedOk = novelaiConnection.state === 'ok'
 
     return (
         <div className="h-full flex flex-col min-h-0 bg-zinc-900">
@@ -161,6 +165,21 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     >
                                         <ImagePlus size={15} />
                                         <span>背景＋人物の合成</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNovelaiSettingsOpen(true)}
+                                        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-800/40 transition-colors text-indigo-100 hover:text-indigo-50 text-xs font-bold"
+                                        title="NovelAI トークン設定・疎通確認"
+                                    >
+                                        <span className="flex items-center gap-2.5">
+                                            <Sparkles size={15} />
+                                            NovelAI 設定
+                                        </span>
+                                        <span
+                                            className={`w-2 h-2 rounded-full ${novelaiConnectedOk ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+                                            title={novelaiConnectedOk ? '接続 OK' : '未接続'}
+                                        />
                                     </button>
                                 </div>
                             )}
@@ -324,6 +343,10 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                 isOpen={compositorOpen}
                 onClose={() => setCompositorOpen(false)}
                 currentProjectPath={currentProjectPath}
+            />
+            <NovelAISettingsModal
+                isOpen={novelaiSettingsOpen}
+                onClose={() => setNovelaiSettingsOpen(false)}
             />
         </div>
     )

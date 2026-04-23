@@ -13,7 +13,7 @@ declare global {
             deleteTemplate: (id: string) => Promise<PageTemplate[]>
             exportPNG: (path: string, name: string, data: string) => Promise<string>
             exportText: (path: string, data: string) => Promise<string>
-            /** 合成ツール用: assets/images/composite/ に日時ファイル名で保存 */
+            /** 合成ツール用: assets/composites/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
             selectFile: () => Promise<string | null>
             copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) => Promise<string>
@@ -53,6 +53,40 @@ declare global {
             log: (level: string, ...args: any[]) => void
             showMessage: (payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => Promise<boolean>
             confirmMessage: (payload: { title?: string; message: string }) => Promise<boolean>
+            /** NovelAI トークンを safeStorage で暗号化保存（空文字列は削除） */
+            novelaiSaveToken: (token: string) => Promise<{ saved: boolean }>
+            novelaiLoadToken: () => Promise<{ token: string }>
+            novelaiClearToken: () => Promise<{ cleared: boolean }>
+            /** NovelAI /user/subscription で疎通確認。token 省略時は保存済みを使用 */
+            novelaiTestConnection: (token?: string) => Promise<
+                | { ok: true; anlas: number; fixedAnlas: number; purchasedAnlas: number; tier: number | null; active: boolean | null }
+                | { ok: false; error: 'token-missing' | 'network' | `http-${number}`; status?: number; message?: string }
+            >
+            /** NovelAI 画像生成。assets/images/novelai/<panelId>/ に直接保存し、相対パスを返す */
+            novelaiGenerate: (payload: {
+                projectPath: string
+                panelId: string
+                aspect?: 'portrait' | 'square' | 'landscape'
+                situationPrompt?: string
+                supplementaryPrompt?: string
+                characterPrompts?: Array<{ prompt: string; uc?: string }>
+                negativeOverride?: string
+                seed?: number | null
+                preciseRefs?: Array<{
+                    imageBase64Png: string
+                    strength: number
+                    fidelity: number
+                    type: 'character' | 'style' | 'character&style'
+                }>
+            }) => Promise<
+                | { ok: true; relativePath: string; seed: number; width: number; height: number; createdAt: number }
+                | { ok: false; error: string; status?: number; message?: string }
+            >
+            /** 生成履歴を 1 件削除（assets/dust/ へ物理移動） */
+            novelaiDeleteGeneration: (projectPath: string, relativePath: string) => Promise<
+                | { moved: true; relativePath: string }
+                | { moved: false; reason: 'missing' | 'invalid' | 'out-of-project' }
+            >
         }
     }
 }

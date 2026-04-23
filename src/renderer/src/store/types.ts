@@ -91,6 +91,51 @@ export interface Panel {
     fgToneOffsetY?: number
     fgToneFadeDirections?: FadeDirection[]
     fgToneFadeStrength?: number
+    /** NovelAI 生成用の入力保存（コマ単位） */
+    novelai?: NovelAIPanelConfig
+}
+
+export type NovelAIAspect = 'portrait' | 'square' | 'landscape'
+export type PreciseRefType = 'character' | 'style' | 'character&style'
+export type PreciseRefSource = 'character-image' | 'composite'
+
+export interface PreciseReferenceEntry {
+    source: PreciseRefSource
+    /** character-image: `${charId}/${imageId}` 形式 / composite: 相対パス（assets/composites/...） */
+    id: string
+    strength: number
+    fidelity: number
+    type: PreciseRefType
+}
+
+export interface NovelAIPanelConfig {
+    situationPrompt?: string
+    supplementaryPrompt?: string
+    negativeOverride?: string
+    aspect?: NovelAIAspect
+    /** 参照キャラクター ID（最大 6、order-based で左→右に並ぶ） */
+    characterRefIds?: string[]
+    /** 精密参照（最大 2 件） */
+    preciseRefs?: PreciseReferenceEntry[]
+    /** 直近使用したシード（再現用。空なら毎回ランダム） */
+    lastSeed?: number
+    /** このコマで生成した画像の履歴（新しいものが末尾） */
+    history?: NovelAIHistoryEntry[]
+}
+
+/** コマごとの NovelAI 生成履歴エントリ。実ファイルは assets/images/novelai/<panelId>/ に保存される */
+export interface NovelAIHistoryEntry {
+    /** assets/images/novelai/<panelId>/<timestamp>_<seed>.png */
+    relativePath: string
+    seed: number
+    /** 生成時の UNIX ms */
+    createdAt: number
+    /** 生成時のプロンプト（後追い確認用） */
+    situationPrompt?: string
+    supplementaryPrompt?: string
+    aspect?: NovelAIAspect
+    width?: number
+    height?: number
 }
 
 /** アプリ全体（userData）に登録したカスタムスクリーントーン。custom-tone://{id} で参照 */
