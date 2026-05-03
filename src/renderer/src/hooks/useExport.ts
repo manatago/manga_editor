@@ -56,12 +56,27 @@ export const useExport = () => {
         }
     }
 
-    const handleExportAllPagesPNG = async () => {
-        const { pages, currentPageId, currentProjectPath, setExporting, selectPage } = useMangaStore.getState()
+    const handleExportAllPagesPNG = async (options?: { hideMosaic?: boolean }) => {
+        const {
+            pages,
+            currentPageId,
+            currentProjectPath,
+            setExporting,
+            selectPage,
+            mosaicVisible,
+            setMosaicVisible
+        } = useMangaStore.getState()
         if (!stageRef.current || !currentProjectPath || pages.length === 0) return
 
         const originalPageId = currentPageId
+        const originalMosaicVisible = mosaicVisible
+        const shouldToggleMosaic = options?.hideMosaic === true && originalMosaicVisible
         setExporting(true)
+        if (shouldToggleMosaic) {
+            flushSync(() => {
+                setMosaicVisible(false)
+            })
+        }
         await prepareStageForCapture(stageRef.current)
 
         try {
@@ -77,12 +92,18 @@ export const useExport = () => {
                     await window.electron.exportPNG(currentProjectPath, page.name, dataUrl)
                 }
             }
-            console.log('useExport: all pages exported', pages.length)
-            await showInfo(`全 ${pages.length} ページを PNG 出力しました（exports/）`)
+            console.log('useExport: all pages exported', pages.length, options)
+            const suffix = options?.hideMosaic ? '（モザイクなし）' : ''
+            await showInfo(`全 ${pages.length} ページを PNG 出力しました${suffix}（exports/）`)
         } catch (error) {
             console.error('useExport: batch export failed', error)
             await showError('一括エクスポートに失敗しました')
         } finally {
+            if (shouldToggleMosaic) {
+                flushSync(() => {
+                    setMosaicVisible(originalMosaicVisible)
+                })
+            }
             if (originalPageId) {
                 selectPage(originalPageId)
             }

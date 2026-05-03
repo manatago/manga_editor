@@ -206,7 +206,8 @@ function App(): React.JSX.Element {
                 <div className="w-64 h-full min-h-0 flex flex-col">
                     <SidebarLeft
                         onExportPNG={handleExportPNG}
-                        onExportAllPagesPNG={handleExportAllPagesPNG}
+                        onExportAllPagesPNG={() => handleExportAllPagesPNG()}
+                        onExportAllPagesPNGNoMosaic={() => handleExportAllPagesPNG({ hideMosaic: true })}
                         onExportText={handleExportText}
                         onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
                         handleCreateNew={handleCreateNew}

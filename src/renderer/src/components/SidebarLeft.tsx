@@ -11,6 +11,7 @@ import { confirmMessage } from '../utils/dialogs'
 interface SidebarLeftProps {
     onExportPNG: () => void;
     onExportAllPagesPNG: () => void;
+    onExportAllPagesPNGNoMosaic: () => void;
     onExportText: () => void;
     onOpenTemplateModal: () => void;
     handleCreateNew: () => void;
@@ -28,6 +29,7 @@ interface SidebarLeftProps {
 const SidebarLeft: React.FC<SidebarLeftProps> = ({
     onExportPNG,
     onExportAllPagesPNG,
+    onExportAllPagesPNGNoMosaic,
     onExportText,
     onOpenTemplateModal,
     handleCreateNew,
@@ -132,7 +134,15 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                         className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Download size={15} />
-                                        <span>全ページ一括 PNG</span>
+                                        <span>全ページ一括 PNG（モザイクあり）</span>
+                                    </button>
+                                    <button
+                                        onClick={onExportAllPagesPNGNoMosaic}
+                                        disabled={!currentPageId || pages.length === 0}
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Download size={15} />
+                                        <span>全ページ一括 PNG（モザイクなし）</span>
                                     </button>
                                     <button
                                         onClick={onExportText}
