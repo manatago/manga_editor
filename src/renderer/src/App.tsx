@@ -5,7 +5,7 @@ import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
 import { ExportOverlay } from './components/ExportOverlay'
 import { NovelAIGenerationModal } from './components/NovelAIGenerationModal'
-import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
+import { useMangaStore, PanelType, type BubbleType, type Page } from './store/useMangaStore'
 import { PanelTop, PanelLeft } from 'lucide-react'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
@@ -13,6 +13,74 @@ import { useExport } from './hooks/useExport'
 import { PanelTypeIcon } from './components/icons/PanelTypeIcon'
 import { BubbleTypeIcon } from './components/icons/BubbleTypeIcon'
 import { BUBBLE_TYPE_LABELS, BUBBLE_TYPE_ORDER } from './components/icons/bubbleTypeMeta'
+
+const PANEL_RIGHT_MARGIN = 10
+const PANEL_LEFT_MARGIN = 10
+const PANEL_SIDE_GAP = 10
+const PANEL_VERTICAL_GAP = 10
+const PANEL_STANDARD_HEIGHT = 300
+
+function standardPanelWidth(pageWidth: number): number {
+    return Math.round(pageWidth / 2 - 15)
+}
+
+function computePanelInsertion(
+    page: Page | undefined,
+    type: PanelType,
+    defaultWidth: number,
+    defaultHeight: number
+): { x: number; y: number; width: number; height: number } {
+    const pageWidth = page?.pageWidth ?? 840
+    const pageHeight = page?.pageHeight ?? 1188
+    const fallback = {
+        x: Math.max(0, pageWidth - defaultWidth - PANEL_RIGHT_MARGIN),
+        y: 100,
+        width: defaultWidth,
+        height: defaultHeight
+    }
+    if (!page || page.panels.length === 0) return fallback
+
+    const fitShape = (w: number, h: number): { width: number; height: number } => {
+        if (type === 'circle') {
+            const s = Math.min(w, h)
+            return { width: s, height: s }
+        }
+        if (type === 'hexagon') {
+            const ratio = Math.sqrt(3) / 2
+            let hh = h
+            let ww = Math.round(h / ratio)
+            if (ww > w) {
+                ww = w
+                hh = Math.round(w * ratio)
+            }
+            return { width: ww, height: hh }
+        }
+        return { width: w, height: h }
+    }
+
+    const maxBottomEdge = Math.max(...page.panels.map(p => p.y + p.height))
+    const bottomRow = page.panels.filter(p => Math.abs(p.y + p.height - maxBottomEdge) < 1)
+    const leftmostBottom = bottomRow.reduce((acc, p) => (p.x < acc.x ? p : acc))
+
+    if (leftmostBottom.width <= pageWidth * 0.8) {
+        const newWidth = leftmostBottom.x - PANEL_LEFT_MARGIN - PANEL_SIDE_GAP
+        if (newWidth >= 80) {
+            const fitted = fitShape(newWidth, leftmostBottom.height)
+            const x = PANEL_LEFT_MARGIN
+            const y = leftmostBottom.y + Math.round((leftmostBottom.height - fitted.height) / 2)
+            return { x, y, ...fitted }
+        }
+    }
+
+    if (pageHeight - maxBottomEdge - PANEL_VERTICAL_GAP >= PANEL_STANDARD_HEIGHT) {
+        const fitted = fitShape(standardPanelWidth(pageWidth), PANEL_STANDARD_HEIGHT)
+        const x = Math.max(0, pageWidth - fitted.width - PANEL_RIGHT_MARGIN)
+        const y = maxBottomEdge + PANEL_VERTICAL_GAP
+        return { x, y, ...fitted }
+    }
+
+    return fallback
+}
 
 function App(): React.JSX.Element {
     const {
@@ -170,16 +238,22 @@ function App(): React.JSX.Element {
     }, [currentProjectPath, getProjectData])
 
     const handleAddPanelWithType = (type: PanelType) => {
+        const pageWidth = currentPage?.pageWidth ?? 840
         let slant = 0, offsetB = 0, offsetC = 0, offsetD = 0
-        let width = 200, height = 150
+        let width = standardPanelWidth(pageWidth)
+        let height = PANEL_STANDARD_HEIGHT
         if (type === 'slanted') slant = 40
         if (type === 'trapezoid-h') { slant = 20; offsetB = -20; offsetC = 0; offsetD = 0; }
         if (type === 'trapezoid-v') { slant = 0; offsetD = 20; offsetC = -20; offsetB = 0; }
         if (type === 'hexagon') { width = 200; height = Math.round(200 * Math.sqrt(3) / 2) }
         if (type === 'circle') { width = 180; height = 180 }
 
+        const placement = computePanelInsertion(currentPage, type, width, height)
+
         addPanel({
-            x: 100, y: 100, type, slant, offsetB, offsetC, offsetD, width, height
+            x: placement.x, y: placement.y, type,
+            slant, offsetB, offsetC, offsetD,
+            width: placement.width, height: placement.height
         })
     }
 
