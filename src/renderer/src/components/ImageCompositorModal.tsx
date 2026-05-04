@@ -5,223 +5,27 @@ import Konva from 'konva'
 import { X, ImagePlus, Download, RotateCcw, FlipHorizontal, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { showError, showInfo, confirmMessage } from '../utils/dialogs'
 import { useMangaStore } from '../store/useMangaStore'
-import type { ReferenceCharacter } from '../store/types'
+import {
+    ASPECT_PRESETS,
+    canvasSizeFromPreset,
+    defaultTransform,
+    flattenReferenceImages,
+    newInstanceId,
+    waitFrame,
+    type CompositorCharInstance,
+    type CompositorSnapshot,
+    type LayerTransform,
+    type RefImageOption
+} from './ImageCompositor/types'
+import { CompositorCharNode } from './ImageCompositor/CompositorCharNode'
+import { useFitScale } from './ImageCompositor/useFitScale'
+import { useCompositorUndo } from './ImageCompositor/useCompositorUndo'
+import { CompositeZoomOverlay } from './ImageCompositor/CompositeZoomOverlay'
 
 interface ImageCompositorModalProps {
     isOpen: boolean
     onClose: () => void
     currentProjectPath: string | null
-}
-
-type LayerTransform = {
-    x: number
-    y: number
-    scaleX: number
-    scaleY: number
-    rotation: number
-}
-
-const defaultTransform = (): LayerTransform => ({
-    x: 0,
-    y: 0,
-    scaleX: 1,
-    scaleY: 1,
-    rotation: 0
-})
-
-/** 長辺を基準にキャンバス寸法を決める（最大辺 1200px 前後） */
-const LONG_EDGE = 1200
-
-type AspectPreset = {
-    id: string
-    label: string
-    category: '横長' | '縦長' | '正方形'
-    wRatio: number
-    hRatio: number
-}
-
-const ASPECT_PRESETS: AspectPreset[] = [
-    { id: 'land-3-1', label: '横 3:1（既定）', category: '横長', wRatio: 3, hRatio: 1 },
-    { id: 'land-4-1', label: '横 4:1', category: '横長', wRatio: 4, hRatio: 1 },
-    { id: 'land-4-3', label: '横 4:3', category: '横長', wRatio: 4, hRatio: 3 },
-    { id: 'land-16-9', label: '横 16:9', category: '横長', wRatio: 16, hRatio: 9 },
-    { id: 'port-1-3', label: '縦 1:3', category: '縦長', wRatio: 1, hRatio: 3 },
-    { id: 'port-1-4', label: '縦 1:4', category: '縦長', wRatio: 1, hRatio: 4 },
-    { id: 'port-3-4', label: '縦 3:4', category: '縦長', wRatio: 3, hRatio: 4 },
-    { id: 'port-9-16', label: '縦 9:16', category: '縦長', wRatio: 9, hRatio: 16 },
-    { id: 'sq-1-1', label: '1:1', category: '正方形', wRatio: 1, hRatio: 1 }
-]
-
-function canvasSizeFromPreset(p: AspectPreset): { w: number; h: number } {
-    const { wRatio: wr, hRatio: hr } = p
-    if (wr === hr) {
-        const s = Math.min(LONG_EDGE, 1000)
-        return { w: s, h: s }
-    }
-    if (wr > hr) {
-        const w = LONG_EDGE
-        const h = Math.max(200, Math.round((LONG_EDGE * hr) / wr))
-        return { w, h }
-    }
-    const h = LONG_EDGE
-    const w = Math.max(200, Math.round((LONG_EDGE * wr) / hr))
-    return { w, h }
-}
-
-type RefImageOption = {
-    key: string
-    characterName: string
-    relativePath: string
-}
-
-function flattenReferenceImages(chars: ReferenceCharacter[]): RefImageOption[] {
-    const out: RefImageOption[] = []
-    for (const c of chars) {
-        for (const im of c.images) {
-            out.push({
-                key: `${c.id}:${im.id}`,
-                characterName: c.name,
-                relativePath: im.relativePath
-            })
-        }
-    }
-    return out
-}
-
-function newInstanceId(): string {
-    return globalThis.crypto?.randomUUID?.() ?? `ci_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-}
-
-type CompositorCharInstance = {
-    instanceId: string
-    relativePath: string
-    label: string
-    transform: LayerTransform
-    /** true なら初回の自動スケール済み（Undo 復元時は true のまま保持） */
-    layoutResolved?: boolean
-}
-
-type CompositorSnapshot = {
-    aspectPresetId: string
-    canvasW: number
-    canvasH: number
-    bgLibraryId: string | null
-    bgT: LayerTransform
-    charInstances: CompositorCharInstance[]
-    selected: 'bg' | string | null
-}
-
-const MAX_UNDO = 50
-
-function cloneSnapshot(s: CompositorSnapshot): CompositorSnapshot {
-    return {
-        aspectPresetId: s.aspectPresetId,
-        canvasW: s.canvasW,
-        canvasH: s.canvasH,
-        bgLibraryId: s.bgLibraryId,
-        bgT: { ...s.bgT },
-        charInstances: s.charInstances.map((c) => ({
-            ...c,
-            layoutResolved: c.layoutResolved,
-            transform: { ...c.transform }
-        })),
-        selected: s.selected
-    }
-}
-
-const waitFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
-
-type CompositorCharNodeProps = {
-    instanceId: string
-    relativePath: string
-    projectPath: string | null
-    transform: LayerTransform
-    stackIndex: number
-    canvasW: number
-    canvasH: number
-    onSelect: () => void
-    onDragEnd: (x: number, y: number) => void
-    onTransformEnd: (t: LayerTransform) => void
-    onInitialLayout: (id: string, t: LayerTransform) => void
-    registerNode: (id: string, node: Konva.Image | null) => void
-    layoutResolved: boolean
-}
-
-const CompositorCharNode: React.FC<CompositorCharNodeProps> = ({
-    instanceId,
-    relativePath,
-    projectPath,
-    transform,
-    stackIndex,
-    canvasW,
-    canvasH,
-    onSelect,
-    onDragEnd,
-    onTransformEnd,
-    onInitialLayout,
-    registerNode,
-    layoutResolved
-}) => {
-    const url = useMemo(() => {
-        if (!projectPath || !window.electron) return ''
-        const abs = window.electron.resolveAssetPath(projectPath, relativePath)
-        return abs ? window.electron.pathToUrl(abs) : ''
-    }, [projectPath, relativePath])
-    const [img] = useImage(url, 'anonymous')
-    const laidOutRef = useRef(false)
-
-    useEffect(() => {
-        if (layoutResolved || !img) return
-        if (laidOutRef.current) return
-        laidOutRef.current = true
-        const targetH = canvasH * 0.48
-        const sc = Math.min(2.5, Math.max(0.05, targetH / img.height))
-        onInitialLayout(instanceId, {
-            x: canvasW / 2 + stackIndex * 28,
-            y: canvasH / 2,
-            scaleX: sc,
-            scaleY: sc,
-            rotation: 0
-        })
-    }, [img, canvasW, canvasH, instanceId, stackIndex, onInitialLayout, layoutResolved])
-
-    const iw = img?.width ?? 0
-    const ih = img?.height ?? 0
-
-    if (!img || iw <= 0 || ih <= 0) return null
-
-    return (
-        <KonvaImage
-            ref={(node) => registerNode(instanceId, node)}
-            image={img}
-            x={transform.x}
-            y={transform.y}
-            offsetX={iw / 2}
-            offsetY={ih / 2}
-            scaleX={transform.scaleX}
-            scaleY={transform.scaleY}
-            rotation={transform.rotation}
-            draggable
-            onMouseDown={(e) => {
-                e.cancelBubble = true
-                onSelect()
-            }}
-            onDragEnd={(e) => {
-                const n = e.target
-                onDragEnd(n.x(), n.y())
-            }}
-            onTransformEnd={(e) => {
-                const n = e.target
-                onTransformEnd({
-                    x: n.x(),
-                    y: n.y(),
-                    scaleX: n.scaleX(),
-                    scaleY: n.scaleY(),
-                    rotation: n.rotation()
-                })
-            }}
-        />
-    )
 }
 
 export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
@@ -286,37 +90,12 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
     const bgInitRef = useRef(false)
     const canvasViewportRef = useRef<HTMLDivElement>(null)
 
-    const [fitScale, setFitScale] = useState(1)
-    const fitScaleRef = useRef(1)
-    useEffect(() => {
-        fitScaleRef.current = fitScale
-    }, [fitScale])
-
-    const [undoStack, setUndoStack] = useState<CompositorSnapshot[]>([])
-    const snapshotRef = useRef<CompositorSnapshot | null>(null)
-
-    useEffect(() => {
-        if (!isOpen) return
-        snapshotRef.current = {
-            aspectPresetId,
-            canvasW,
-            canvasH,
-            bgLibraryId,
-            bgT: { ...bgT },
-            charInstances: charInstances.map((c) => ({
-                ...c,
-                layoutResolved: c.layoutResolved,
-                transform: { ...c.transform }
-            })),
-            selected
-        }
-    }, [isOpen, aspectPresetId, canvasW, canvasH, bgLibraryId, bgT, charInstances, selected])
-
-    const pushUndo = useCallback(() => {
-        const s = snapshotRef.current
-        if (!s) return
-        setUndoStack((st) => [...st.slice(-(MAX_UNDO - 1)), cloneSnapshot(s)])
-    }, [])
+    const { fitScale, fitScaleRef, resetFitScale } = useFitScale({
+        isOpen,
+        canvasW,
+        canvasH,
+        viewportRef: canvasViewportRef
+    })
 
     const applySnapshot = useCallback((snap: CompositorSnapshot) => {
         setAspectPresetId(snap.aspectPresetId)
@@ -335,59 +114,17 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         bgInitRef.current = true
     }, [])
 
-    const handleUndo = useCallback(() => {
-        setUndoStack((st) => {
-            if (st.length === 0) return st
-            const top = st[st.length - 1]
-            const next = st.slice(0, -1)
-            requestAnimationFrame(() => applySnapshot(top))
-            return next
-        })
-    }, [applySnapshot])
-
-    useEffect(() => {
-        if (!isOpen) return
-        const el = canvasViewportRef.current
-        if (!el) return
-        const update = () => {
-            const pad = 16
-            const w = Math.max(80, el.clientWidth - pad)
-            const h = Math.max(80, el.clientHeight - pad)
-            const sx = w / canvasW
-            const sy = h / canvasH
-            const s = Math.min(sx, sy, 1)
-            setFitScale(s > 0 && Number.isFinite(s) ? s : 1)
-        }
-        update()
-        const ro = new ResizeObserver(update)
-        ro.observe(el)
-        window.addEventListener('resize', update)
-        return () => {
-            ro.disconnect()
-            window.removeEventListener('resize', update)
-        }
-    }, [isOpen, canvasW, canvasH])
-
-    useEffect(() => {
-        if (!zoomedComposite) return
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.stopPropagation()
-                setZoomedComposite(null)
-                return
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                const idx = compositesList.findIndex((r) => r === zoomedComposite)
-                if (idx < 0) return
-                const nextIdx = e.key === 'ArrowLeft' ? idx - 1 : idx + 1
-                if (nextIdx >= 0 && nextIdx < compositesList.length) {
-                    setZoomedComposite(compositesList[nextIdx])
-                }
-            }
-        }
-        window.addEventListener('keydown', onKey, true)
-        return () => window.removeEventListener('keydown', onKey, true)
-    }, [zoomedComposite, compositesList])
+    const { pushUndo, handleUndo, resetUndo } = useCompositorUndo({
+        isOpen,
+        aspectPresetId,
+        canvasW,
+        canvasH,
+        bgLibraryId,
+        bgT,
+        charInstances,
+        selected,
+        applySnapshot
+    })
 
     useEffect(() => {
         if (!isOpen) return
@@ -455,9 +192,9 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         setSelected(null)
         setBgLibraryId(null)
         setBgT(defaultTransform())
-        setUndoStack([])
-        setFitScale(1)
-    }, [isOpen])
+        resetUndo()
+        resetFitScale()
+    }, [isOpen, resetUndo, resetFitScale])
 
     useEffect(() => {
         if (!bgImg || !isOpen) return
@@ -575,7 +312,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         setCharInstances((prev) => prev.map((c) => (c.instanceId === instanceId ? { ...c, transform: t } : c)))
     }, [])
 
-    const handleExport = async () => {
+    const handleExport = async (): Promise<void> => {
         if (!currentProjectPath || !window.electron || !stageRef.current) {
             await showError('プロジェクトを開いた状態でエクスポートしてください')
             return
@@ -620,7 +357,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         }
     }
 
-    const handleDeleteComposite = async (relPath: string) => {
+    const handleDeleteComposite = async (relPath: string): Promise<void> => {
         if (!currentProjectPath || !window.electron) return
         const ok = await confirmMessage('この合成画像を削除しますか？（assets/dust/ に移動します）')
         if (!ok) return
@@ -1060,70 +797,16 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                 </div>
             </div>
 
-            {zoomedComposite && (() => {
-                const abs = currentProjectPath && window.electron
-                    ? window.electron.resolveAssetPath(currentProjectPath, zoomedComposite)
-                    : ''
-                const url = abs && window.electron ? window.electron.pathToUrl(abs) : ''
-                const base = zoomedComposite.split('/').pop() ?? zoomedComposite
-                const curIdx = compositesList.findIndex((r) => r === zoomedComposite)
-                const prev = curIdx > 0 ? compositesList[curIdx - 1] : null
-                const next = curIdx >= 0 && curIdx < compositesList.length - 1 ? compositesList[curIdx + 1] : null
-                return (
-                    <div
-                        className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/85 backdrop-blur-sm p-8"
-                        onClick={() => setZoomedComposite(null)}
-                    >
-                        <div
-                            className="relative flex flex-col items-center gap-3 max-w-full max-h-full"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <button
-                                type="button"
-                                onClick={() => setZoomedComposite(null)}
-                                className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700"
-                                title="閉じる (Esc)"
-                            >
-                                <X size={18} />
-                            </button>
-                            {url ? (
-                                <img
-                                    src={url}
-                                    alt=""
-                                    className="max-w-[92vw] max-h-[78vh] object-contain rounded-lg shadow-2xl border border-zinc-800"
-                                />
-                            ) : (
-                                <div className="text-zinc-500 text-sm">画像を読み込めませんでした</div>
-                            )}
-                            <div className="flex items-center gap-3 text-xs text-zinc-300 font-mono bg-zinc-900/80 border border-zinc-800 rounded-full px-4 py-1.5">
-                                <button
-                                    type="button"
-                                    onClick={() => prev && setZoomedComposite(prev)}
-                                    disabled={!prev}
-                                    className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
-                                    title="前（新しい）"
-                                >◀</button>
-                                <span className="truncate max-w-[50vw]">{base}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => next && setZoomedComposite(next)}
-                                    disabled={!next}
-                                    className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
-                                    title="次（古い）"
-                                >▶</button>
-                                <button
-                                    type="button"
-                                    onClick={() => void handleDeleteComposite(zoomedComposite)}
-                                    className="ml-2 text-zinc-500 hover:text-red-400"
-                                    title="削除"
-                                >
-                                    <Trash2 size={13} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            })()}
+            {zoomedComposite && (
+                <CompositeZoomOverlay
+                    relativePath={zoomedComposite}
+                    compositesList={compositesList}
+                    currentProjectPath={currentProjectPath}
+                    onClose={() => setZoomedComposite(null)}
+                    onSelect={(rel) => setZoomedComposite(rel)}
+                    onDelete={(rel) => void handleDeleteComposite(rel)}
+                />
+            )}
         </div>
     )
 }
