@@ -185,6 +185,9 @@ export interface Bubble {
     isClipped: boolean
     panelId?: string
     rotation: number
+    /** undefined / 'off' は従来通り手動。'shrink-font' は枠を保ったまま文字を縮める。
+     *  'expand-bubble' は文字サイズを保ったまま枠を広げる。MVP は横書き矩形系のみ対応 */
+    autoFitMode?: 'off' | 'shrink-font' | 'expand-bubble'
 }
 
 export interface Material {

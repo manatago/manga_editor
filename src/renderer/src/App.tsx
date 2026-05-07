@@ -266,7 +266,8 @@ function App(): React.JSX.Element {
             x: centerX - 75,
             y: centerY - 50,
             panelId: selectedPanel.id,
-            isClipped: false
+            isClipped: false,
+            autoFitMode: 'shrink-font'
         })
     }
 

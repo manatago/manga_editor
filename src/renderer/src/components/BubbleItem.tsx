@@ -11,9 +11,12 @@ import { BubbleHorizontalTextLayers } from './BubbleHorizontalTextLayers'
 import {
     getBubbleInnerPaddingRatio,
     getBubbleInnerSizeRatio,
+    getBubbleAutoFitSafeRatio,
     resolveTextWeightLevel,
     resolveBaseFontStyle,
-    clampRoughness
+    clampRoughness,
+    layoutHorizontalText,
+    layoutVerticalText
 } from './utils/bubbleTextLayout'
 
 // BubbleClusterGroup がクラスタ描画時に注入する内部オーバーライドフィールド（永続化されない）
@@ -57,6 +60,141 @@ export const BubbleItem: React.FC<{
             .catch(() => {})
         return () => { cancelled = true }
     }, [actualFontFamily])
+
+    // 自動フィット：text や枠サイズが変わったらフォント／枠を補正してストアに書き戻す。
+    // - 1 つのコマで複数 renderPass が走るため、interaction パス（or orphan）でだけ動かす
+    // - Web フォント読み込み完了を待たないと measureText がフォールバック幅を返すので fonts.ready を待つ
+    // - shrink-font / expand-bubble はそれぞれ単調操作（縮める・広げるのみ）にしてループを避ける
+    // - 縦書きは VerticalText が `\n` 区切りで列を作る仕様に合わせて、列数 × 最長列高で見積もる
+    const autoFitOwner = renderPass === 'interaction' || !renderPass
+    useEffect(() => {
+        if (!autoFitOwner) return
+        const mode = bubble.autoFitMode
+        if (!mode || mode === 'off') return
+        if (bubble.type === 'megaphone') return // Phase 2
+        if (!bubble.text || bubble.width <= 0 || bubble.height <= 0) return
+
+        let cancelled = false
+        const apply = async (): Promise<void> => {
+            try {
+                if (typeof document !== 'undefined' && document.fonts) {
+                    await document.fonts.ready
+                }
+            } catch {
+                /* ignore */
+            }
+            if (cancelled) return
+
+            const safeRatio = getBubbleAutoFitSafeRatio(bubble.type)
+            const innerW = bubble.width * safeRatio
+            const innerH = bubble.height * safeRatio
+            if (innerW <= 0 || innerH <= 0) return
+
+            const fontWeight = resolveBaseFontStyle(resolveTextWeightLevel(bubble))
+            const lineHeight = bubble.lineHeight ?? 1.0
+            const letterSpacing = bubble.letterSpacing ?? 0
+
+            const measureH = (fs: number): { w: number; h: number } => {
+                const l = layoutHorizontalText({
+                    text: bubble.text,
+                    innerW,
+                    fontSize: fs,
+                    fontFamily: actualFontFamily,
+                    fontWeight,
+                    letterSpacing,
+                    lineHeight
+                })
+                return { w: l.widestLine, h: l.totalHeight }
+            }
+
+            const measureV = (fs: number): { w: number; h: number } => {
+                const l = layoutVerticalText({
+                    text: bubble.text,
+                    fontSize: fs,
+                    lineHeight,
+                    letterSpacing
+                })
+                return { w: l.totalColumnsWidth, h: l.tallestColumnHeight }
+            }
+
+            const measure = bubble.isVertical ? measureV : measureH
+
+            if (mode === 'shrink-font') {
+                const MIN_FS = 10
+                let fs = bubble.fontSize
+                let m = measure(fs)
+                let safety = 60
+                while (safety-- > 0 && fs > MIN_FS && (m.w > innerW || m.h > innerH)) {
+                    fs = Math.max(MIN_FS, Math.floor(fs * 0.95))
+                    m = measure(fs)
+                }
+                if (fs !== bubble.fontSize && !cancelled) {
+                    onUpdate(bubble.id, { fontSize: fs }, false)
+                }
+                return
+            }
+
+            if (mode === 'expand-bubble') {
+                // 「枠をテキストにぴったり合わせる」双方向フィット。
+                // 横書きで 1 行が innerW を超えるなら、自然幅まで広げて再レイアウト。
+                let m = measure(bubble.fontSize)
+                if (!bubble.isVertical && m.w > innerW) {
+                    const re = layoutHorizontalText({
+                        text: bubble.text,
+                        innerW: m.w,
+                        fontSize: bubble.fontSize,
+                        fontFamily: actualFontFamily,
+                        fontWeight,
+                        letterSpacing,
+                        lineHeight
+                    })
+                    m = { w: re.widestLine, h: re.totalHeight }
+                }
+
+                // テキスト幅・高さに safeRatio で逆算した bubble サイズが目標
+                const targetW = Math.ceil(Math.max(20, m.w / safeRatio))
+                const targetH = Math.ceil(Math.max(20, m.h / safeRatio))
+
+                const dW = targetW - bubble.width
+                const dH = targetH - bubble.height
+                const updates: Partial<Bubble> = {}
+                // 1px 未満の差は無視して振動を防ぐ
+                if (Math.abs(dW) >= 1) {
+                    updates.width = targetW
+                    updates.x = bubble.x - dW / 2
+                }
+                if (Math.abs(dH) >= 1) {
+                    updates.height = targetH
+                    updates.y = bubble.y - dH / 2
+                }
+                if (Object.keys(updates).length > 0 && !cancelled) {
+                    onUpdate(bubble.id, updates, false)
+                }
+            }
+        }
+        void apply()
+        return () => {
+            cancelled = true
+        }
+    }, [
+        autoFitOwner,
+        bubble.id,
+        bubble.autoFitMode,
+        bubble.text,
+        bubble.fontSize,
+        bubble.width,
+        bubble.height,
+        bubble.x,
+        bubble.y,
+        bubble.lineHeight,
+        bubble.letterSpacing,
+        bubble.fontWeight,
+        bubble.textWeightLevel,
+        bubble.isVertical,
+        bubble.type,
+        actualFontFamily,
+        onUpdate
+    ])
 
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         if (e.target !== e.currentTarget) return

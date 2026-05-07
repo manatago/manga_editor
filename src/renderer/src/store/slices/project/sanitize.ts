@@ -103,6 +103,8 @@ function relativizeWithProtocol(
     return relativizeAsset(projectPath, value)
 }
 
+const VALID_AUTO_FIT_MODES = new Set(['off', 'shrink-font', 'expand-bubble'])
+
 function sanitizeBubble(bubble: Bubble): Bubble {
     return {
         ...bubble,
@@ -114,7 +116,11 @@ function sanitizeBubble(bubble: Bubble): Bubble {
         narrowRatio: bubble.narrowRatio ?? 0.3,
         flashLength: bubble.flashLength || 1,
         tailType: bubble.tailType || 'point',
-        rotation: bubble.rotation ?? 0
+        rotation: bubble.rotation ?? 0,
+        autoFitMode:
+            bubble.autoFitMode && VALID_AUTO_FIT_MODES.has(bubble.autoFitMode)
+                ? bubble.autoFitMode
+                : undefined
     }
 }
 

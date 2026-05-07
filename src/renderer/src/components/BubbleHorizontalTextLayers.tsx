@@ -18,6 +18,7 @@ type BubbleLike = {
     lineHeight?: number
     _overrideLineHeight?: number
     textRoughness?: number
+    autoFitMode?: 'off' | 'shrink-font' | 'expand-bubble'
 }
 
 type Props = {
@@ -40,6 +41,8 @@ export const BubbleHorizontalTextLayers: React.FC<Props> = ({ bubble, tw, th, we
     const outlineW = (bubble.textStrokeWidth ?? 0) > 0 ? (bubble.textStrokeWidth ?? 0) : 0
     const outlineColor = bubble.textStrokeColor ?? '#ffffff'
 
+    // 自動フィット有効時は Konva 側も文字単位で折り返す（既定 'word' は日本語が折り返されない）
+    const autoFitActive = !!bubble.autoFitMode && bubble.autoFitMode !== 'off'
     const common = {
         text: bubble.text,
         fontSize,
@@ -51,6 +54,7 @@ export const BubbleHorizontalTextLayers: React.FC<Props> = ({ bubble, tw, th, we
         lineHeight,
         letterSpacing: bubble.letterSpacing ?? 0,
         lineJoin: 'round' as const,
+        wrap: autoFitActive ? ('char' as const) : ('word' as const),
         distressStrength: roughness,
         distressScale: BUBBLE_TEXT_DISTRESS_SCALE,
         enableCache: roughness > 0

@@ -225,6 +225,48 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                     />
                 </div>
 
+                <div>
+                    <label className="text-xs text-zinc-400 block mb-2">自動フィット</label>
+                    <div className="flex bg-zinc-900 border border-zinc-800 rounded p-0.5">
+                        {([
+                            ['off', '手動'],
+                            ['shrink-font', '文字を縮める'],
+                            ['expand-bubble', '枠を広げる']
+                        ] as const).map(([mode, label]) => {
+                            const current = bubble.autoFitMode ?? 'off'
+                            const active = current === mode
+                            return (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() =>
+                                        updateBubble(bubble.id, {
+                                            autoFitMode: mode === 'off' ? undefined : mode
+                                        })
+                                    }
+                                    className={`flex-1 py-1.5 text-[11px] rounded transition-colors ${
+                                        active
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-zinc-400 hover:text-zinc-200'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            )
+                        })}
+                    </div>
+                    {bubble.type === 'megaphone' && (bubble.autoFitMode && bubble.autoFitMode !== 'off') ? (
+                        <p className="text-[10px] text-zinc-500 mt-1">
+                            メガホンは現在の自動フィット対象外です。
+                        </p>
+                    ) : null}
+                    {bubble.isVertical && (bubble.autoFitMode === 'expand-bubble' || bubble.autoFitMode === 'shrink-font') ? (
+                        <p className="text-[10px] text-zinc-500 mt-1">
+                            縦書きは <code>\n</code>（改行）で列が分かれる仕様。1 列に詰め込まれて長すぎる場合は適宜改行を入れてください。
+                        </p>
+                    ) : null}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs text-zinc-400 block mb-2">文字サイズ</label>
