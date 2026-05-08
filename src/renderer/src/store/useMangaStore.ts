@@ -13,6 +13,7 @@ import {
 import { createMosaicSlice, type MosaicSlice } from './slices/mosaicSlice'
 import { createCustomTonesSlice, type CustomTonesSlice } from './slices/customTonesSlice'
 import { createNovelAISlice, type NovelAISlice } from './slices/novelaiSlice'
+import { createAlignmentSlice, type AlignmentSlice } from './slices/alignmentSlice'
 
 // Re-export all domain types so existing imports from this file continue to work
 export type {
@@ -46,7 +47,8 @@ export type MangaState =
     BackgroundLibrarySlice &
     MosaicSlice &
     CustomTonesSlice &
-    NovelAISlice
+    NovelAISlice &
+    AlignmentSlice
 
 export const useMangaStore = create<MangaState>()((...a) => ({
     ...createHistorySlice(...a),
@@ -59,5 +61,6 @@ export const useMangaStore = create<MangaState>()((...a) => ({
     ...createBackgroundLibrarySlice(...a),
     ...createMosaicSlice(...a),
     ...createCustomTonesSlice(...a),
-    ...createNovelAISlice(...a)
+    ...createNovelAISlice(...a),
+    ...createAlignmentSlice(...a)
 }))

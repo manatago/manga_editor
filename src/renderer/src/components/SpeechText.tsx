@@ -27,12 +27,24 @@ export const VerticalText: React.FC<{
     const charSpacing = letterSpacing
     const columnSpacing = fontSize * lineHeight * 0.6
     const totalColumnsWidth = lines.length * fontSize + (lines.length - 1) * columnSpacing
-    const startX = width / 2 + totalColumnsWidth / 2 - fontSize / 2
+    // 各列 Group は左上原点で fontSize 幅の文字ボックスを描く。最右列(lineIdx=0)の
+    // 右端を tw/2 + totalColumnsWidth/2 に揃えるため、Group.x = (右端) - fontSize で計算する。
+    const startX = width / 2 + totalColumnsWidth / 2 - fontSize
+    // 各列を垂直方向に中央揃えする（横書きの verticalAlign:'middle' と挙動を合わせる）。
+    // 一番長い列を基準にブロック全体を中央へ寄せ、列内は従来通り上揃え（短い列は上端から始まる）。
+    let tallestColumnHeight = 0
+    for (const line of lines) {
+        const n = Array.from(line).length
+        if (n === 0) continue
+        const h = n * fontSize + (n - 1) * charSpacing
+        if (h > tallestColumnHeight) tallestColumnHeight = h
+    }
+    const yBlockOffset = Math.max(0, (height - tallestColumnHeight) / 2)
     const heavyStrokeWidth = heavyStrokeWidthFor(weightLevel, fontSize)
     const distress = Math.max(0, Math.min(1, roughness))
 
     return (
-        <Group>
+        <Group y={yBlockOffset}>
             {lines.map((line, lineIdx) => {
                 const chars = line.split('')
                 return (

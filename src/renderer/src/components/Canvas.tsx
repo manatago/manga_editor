@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react'
-import { Stage, Layer, Group, Rect } from 'react-konva'
+import { Stage, Layer, Group, Rect, Line } from 'react-konva'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
 import { PanelItem } from './PanelItem'
@@ -16,6 +16,7 @@ import { useGridGuides } from './Canvas/useGridGuides'
 import { useTransformers } from './Canvas/useTransformers'
 import { PageBackground } from './Canvas/PageBackground'
 import { CanvasTransformers } from './Canvas/CanvasTransformers'
+import { PanelSelectionHandles } from './PanelSelectionHandles'
 
 const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ stageRef }) => {
     const {
@@ -125,6 +126,8 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
 
     const showGrid = !!currentPage?.gridEnabled
     const snap = (value: number): number => snapToGrid(value, currentPage)
+    const activeAlignmentGuides = useMangaStore((s) => s.activeAlignmentGuides)
+    const activeParallelGuides = useMangaStore((s) => s.activeParallelGuides)
 
     const { gridLines, snapGuides } = useGridGuides({
         currentPage,
@@ -321,6 +324,15 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                     ))}
                                 </Group>
 
+                                {/* 選択中コマの角ハンドル（吹き出しより手前に来るよう interaction 末尾で描画） */}
+                                {selectedPanel && currentPage && (
+                                    <PanelSelectionHandles
+                                        panel={selectedPanel}
+                                        page={currentPage}
+                                        onUpdate={updatePanel}
+                                    />
+                                )}
+
                                 {/* 8.2 Transformer Handles (Always on top) */}
                                 <CanvasTransformers
                                     transformerRef={transformerRef}
@@ -331,6 +343,47 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                     selectedBubbleId={selectedBubbleId}
                                     selectedMaterialId={selectedMaterialId}
                                 />
+                            </Group>
+                        )}
+
+                        {/* コマ整列ガイド線（ドラッグ・リサイズ中のみ表示） */}
+                        {!isExporting && !isMosaicMode && activeAlignmentGuides.length > 0 && (
+                            <Group listening={false}>
+                                {activeAlignmentGuides.map((g, i) => {
+                                    const stroke = g.matched ? '#22d3ee' : '#9ca3af'
+                                    const strokeWidth = g.matched ? 1.5 : 1
+                                    const dash = g.matched ? undefined : [4, 4]
+                                    const points = g.orientation === 'vertical'
+                                        ? [g.position, g.rangeStart, g.position, g.rangeEnd]
+                                        : [g.rangeStart, g.position, g.rangeEnd, g.position]
+                                    return (
+                                        <Line
+                                            key={`align-${i}`}
+                                            points={points}
+                                            stroke={stroke}
+                                            strokeWidth={strokeWidth}
+                                            dash={dash}
+                                            listening={false}
+                                            perfectDrawEnabled={false}
+                                        />
+                                    )
+                                })}
+                            </Group>
+                        )}
+                        {/* 平行ガイド（台形コマの角ハンドル操作中） */}
+                        {!isExporting && !isMosaicMode && activeParallelGuides.length > 0 && (
+                            <Group listening={false}>
+                                {activeParallelGuides.map((g, i) => (
+                                    <Line
+                                        key={`parallel-${i}`}
+                                        points={[g.x1, g.y1, g.x2, g.y2]}
+                                        stroke={g.matched ? '#22d3ee' : '#9ca3af'}
+                                        strokeWidth={g.matched ? 2 : 1}
+                                        dash={g.matched ? undefined : [4, 4]}
+                                        listening={false}
+                                        perfectDrawEnabled={false}
+                                    />
+                                ))}
                             </Group>
                         )}
 

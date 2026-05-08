@@ -85,7 +85,7 @@ export const BubbleItem: React.FC<{
             }
             if (cancelled) return
 
-            const safeRatio = getBubbleAutoFitSafeRatio(bubble.type)
+            const safeRatio = getBubbleAutoFitSafeRatio(bubble.type, bubble.deformation)
             const innerW = bubble.width * safeRatio
             const innerH = bubble.height * safeRatio
             if (innerW <= 0 || innerH <= 0) return
@@ -192,6 +192,7 @@ export const BubbleItem: React.FC<{
         bubble.textWeightLevel,
         bubble.isVertical,
         bubble.type,
+        bubble.deformation,
         actualFontFamily,
         onUpdate
     ])

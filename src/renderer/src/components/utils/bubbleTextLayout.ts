@@ -17,15 +17,22 @@ export function getBubbleInnerSizeRatio(type: BubbleType): number {
  *
  * 例: rounded は drawRoundedPath が半径 0.42 程度の楕円なので、外接矩形の 84% に楕円が
  * 入る → その楕円の内接矩形は 0.84 × 1/√2 ≈ 0.594 の領域に収まる。
+ *
+ * deformation を渡すと rounded/jagged 系は半径揺らぎの最悪値で再計算する。
  */
-export function getBubbleAutoFitSafeRatio(type: BubbleType): number {
+export function getBubbleAutoFitSafeRatio(type: BubbleType, deformation?: number): number {
+    const def = Math.max(0, deformation ?? 1)
     switch (type) {
         case 'rect':
         case 'rect-double':
             return getBubbleInnerSizeRatio(type) // ≈ 0.9
-        case 'rounded':
-            // 半径 0.42 の楕円内に最大内接矩形を収める（0.84 × 1/√2 ≈ 0.594 → 余裕で 0.58）
-            return 0.58
+        case 'rounded': {
+            // drawRoundedPath: r = 0.5 - 0.08*max(1, def) + jitter, jitter ∈ ±0.045*def
+            // 内接矩形の半幅 = r_min * √2 / 2 → 矩形辺 / バブル外形 = r_min * √2
+            const rMin = 0.5 - 0.08 * Math.max(1, def) - 0.045 * def
+            // 描画揺らぎ・テキスト計測誤差ぶんの 5% マージン、最低 0.2 を保証
+            return Math.max(0.2, rMin * Math.SQRT2 * 0.95)
+        }
         case 'jagged':
         case 'square-jagged':
             // ギザの内側が 0.5 - 0.05 程度まで食い込む。さらに楕円的に絞られる

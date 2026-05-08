@@ -2,6 +2,8 @@ import React from 'react'
 import { Transformer } from 'react-konva'
 import Konva from 'konva'
 import { PANEL_MIN_SIZE } from './helpers'
+import { useMangaStore } from '../../store/useMangaStore'
+import { computePanelAlignmentForResize } from '../../utils/panelAlignment'
 
 type Props = {
     transformerRef: React.RefObject<Konva.Transformer | null>
@@ -22,6 +24,10 @@ export const CanvasTransformers: React.FC<Props> = ({
     selectedBubbleId,
     selectedMaterialId
 }) => {
+    const selectedPanelId = useMangaStore((s) => s.selectedPanelId)
+    const currentPageId = useMangaStore((s) => s.currentPageId)
+    const panels = useMangaStore((s) => s.pages.find((p) => p.id === currentPageId)?.panels ?? [])
+    const setActiveAlignmentGuides = useMangaStore((s) => s.setActiveAlignmentGuides)
     return (
         <>
             <Transformer
@@ -29,14 +35,18 @@ export const CanvasTransformers: React.FC<Props> = ({
                 rotateEnabled={false}
                 keepRatio={false}
                 flipEnabled={false}
+                onTransformEnd={() => {
+                    setActiveAlignmentGuides([])
+                }}
                 boundBoxFunc={(oldBox, newBox) => {
                     if (newBox.width < PANEL_MIN_SIZE || newBox.height < PANEL_MIN_SIZE) {
                         return oldBox
                     }
+                    let next = newBox
                     if (showGrid) {
                         const width = Math.max(PANEL_MIN_SIZE, snap(newBox.width))
                         const height = Math.max(PANEL_MIN_SIZE, snap(newBox.height))
-                        return {
+                        next = {
                             ...newBox,
                             x: snap(newBox.x),
                             y: snap(newBox.y),
@@ -44,7 +54,27 @@ export const CanvasTransformers: React.FC<Props> = ({
                             height
                         }
                     }
-                    return newBox
+                    // 周囲のコマとの整列スナップ
+                    const selected = panels.find((p) => p.id === selectedPanelId)
+                    if (selected && (selected.rotation ?? 0) === 0) {
+                        const others = panels.filter((p) => p.id !== selectedPanelId)
+                        if (others.length > 0) {
+                            const result = computePanelAlignmentForResize(
+                                { x: next.x, y: next.y, width: next.width, height: next.height },
+                                others,
+                                { x: oldBox.x, y: oldBox.y, width: oldBox.width, height: oldBox.height }
+                            )
+                            next = {
+                                ...next,
+                                x: result.snappedX ?? next.x,
+                                y: result.snappedY ?? next.y,
+                                width: Math.max(PANEL_MIN_SIZE, result.snappedWidth ?? next.width),
+                                height: Math.max(PANEL_MIN_SIZE, result.snappedHeight ?? next.height)
+                            }
+                            setActiveAlignmentGuides(result.guides)
+                        }
+                    }
+                    return next
                 }}
             />
             <Transformer

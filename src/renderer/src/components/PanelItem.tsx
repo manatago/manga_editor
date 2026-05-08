@@ -6,6 +6,7 @@ import { Panel, useMangaStore } from '../store/useMangaStore'
 import type { Page } from '../store/types'
 import { getPanelPoints } from './utils/drawPaths'
 import { snapToGrid } from '../utils/gridUtils'
+import { computePanelAlignment } from '../utils/panelAlignment'
 import { FadeOverlay } from './effects/FadeOverlay'
 import { FocusLines } from './effects/FocusLines'
 import { RainEffect } from './effects/RainEffect'
@@ -302,6 +303,8 @@ export const PanelItem: React.FC<{
     const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>('move')
     const [rembgBusy, setRembgBusy] = useState(false)
     const points = getPanelPoints(panel)
+    const setActiveAlignmentGuides = useMangaStore((s) => s.setActiveAlignmentGuides)
+    const clearActiveAlignmentGuides = useMangaStore((s) => s.clearActiveAlignmentGuides)
     const imagePath = useMemo(() => {
         if (!panel.imagePath) return ''
         if (window.electron?.resolveAssetPath && currentProjectPath) {
@@ -406,11 +409,24 @@ export const PanelItem: React.FC<{
                         y: this.getAttr('dragStartY')
                     }
                 }
-                const snappedTopLeftX = snap(pos.x - panel.width / 2)
-                const snappedTopLeftY = snap(pos.y - panel.height / 2)
+                let topLeftX = snap(pos.x - panel.width / 2)
+                let topLeftY = snap(pos.y - panel.height / 2)
+                // 周囲のコマとの整列スナップ（10px 以内で吸着）
+                const others = (page?.panels ?? []).filter((p) => p.id !== panel.id)
+                if (others.length > 0 && (panel.rotation ?? 0) === 0) {
+                    const result = computePanelAlignment(
+                        { x: topLeftX, y: topLeftY, width: panel.width, height: panel.height },
+                        others
+                    )
+                    if (result.snappedX !== undefined) topLeftX = result.snappedX
+                    if (result.snappedY !== undefined) topLeftY = result.snappedY
+                    setActiveAlignmentGuides(result.guides)
+                } else {
+                    setActiveAlignmentGuides([])
+                }
                 return {
-                    x: snappedTopLeftX + panel.width / 2,
-                    y: snappedTopLeftY + panel.height / 2
+                    x: topLeftX + panel.width / 2,
+                    y: topLeftY + panel.height / 2
                 }
             }}
             onClick={(e) => isInteractive && onSelect(panel.id)}
@@ -508,6 +524,7 @@ export const PanelItem: React.FC<{
                     })
                 }
                 target.setAttr('isImageMode', false)
+                clearActiveAlignmentGuides()
             }}
             onTransformEnd={(e) => {
                 const node = e.target
@@ -649,30 +666,8 @@ export const PanelItem: React.FC<{
             {shouldRenderEffects && <RainEffect panel={panel} points={points} />}
             {shouldRenderEffects && <FadeOverlay panel={panel} points={points} backgroundColor={page?.backgroundColor || '#ffffff'} />}
             {isInteractive && panel.isAdjustingFocus && <FocusAdjustmentHandle panel={panel} onUpdate={onUpdate} />}
-            {isInteractive && isSelected && panel.type === 'slanted' && (
-                <Circle
-                    x={panel.slant}
-                    y={0}
-                    radius={6}
-                    fill="#3b82f6"
-                    stroke="white"
-                    strokeWidth={2}
-                    draggable
-                    onDragStart={(e) => { e.cancelBubble = true }}
-                    onDragMove={(e) => {
-                        e.cancelBubble = true
-                        const newSlant = Math.round(e.target.x())
-                        onUpdate(panel.id, { slant: newSlant }, false)
-                    }}
-                    onDragEnd={(e) => {
-                        e.cancelBubble = true
-                        const newSlant = Math.round(e.target.x())
-                        onUpdate(panel.id, { slant: newSlant }, true)
-                        e.target.x(panel.slant)
-                        e.target.y(0)
-                    }}
-                />
-            )}
+            {/* 角ハンドル（slanted/trapezoid）は <PanelSelectionHandles> として
+                Canvas 側の最前面に描画する（吹き出し interaction の上に来てほしいため） */}
         </Group>
     )
 }

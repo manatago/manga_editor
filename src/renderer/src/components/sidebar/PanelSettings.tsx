@@ -127,12 +127,12 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                                     <input type="range" min="-200" max="200" value={panel.offsetB} onChange={(e) => updatePanel(panel.id, { offsetB: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">右下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetC}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetC} onChange={(e) => updatePanel(panel.id, { offsetC: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                </div>
-                                <div>
                                     <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">左下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetD}px</span></div>
                                     <input type="range" min="-200" max="200" value={panel.offsetD} onChange={(e) => updatePanel(panel.id, { offsetD: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">右下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetC}px</span></div>
+                                    <input type="range" min="-200" max="200" value={panel.offsetC} onChange={(e) => updatePanel(panel.id, { offsetC: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                                 </div>
                             </div>
                         )}
