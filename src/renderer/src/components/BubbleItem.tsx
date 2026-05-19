@@ -254,7 +254,9 @@ export const BubbleItem: React.FC<{
             tailX: (bubble.tailX || 0) * scaleX,
             tailY: (bubble.tailY || 0) * scaleY,
             tailControlX: bubble.tailControlX !== undefined ? bubble.tailControlX * scaleX : undefined,
-            tailControlY: bubble.tailControlY !== undefined ? bubble.tailControlY * scaleY : undefined
+            tailControlY: bubble.tailControlY !== undefined ? bubble.tailControlY * scaleY : undefined,
+            // ユーザーが手動でサイズを変えた以上、自動フィットは解除して手動扱いにする
+            autoFitMode: 'off'
         }
 
         if (bubble.isClipped && panels) {
