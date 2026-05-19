@@ -33,6 +33,30 @@ export const useKeyboardShortcuts = () => {
                 return;
             }
 
+            // Shift + 矢印キー: 選択中のコマを 1px 単位で移動（スナップ・自動フィット無し）
+            if (
+                selectedPanelId &&
+                e.shiftKey &&
+                !e.metaKey &&
+                !e.ctrlKey &&
+                !e.altKey &&
+                (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
+            ) {
+                const currentPage = pages.find((p) => p.id === currentPageId)
+                const panel = currentPage?.panels.find((p) => p.id === selectedPanelId)
+                if (panel) {
+                    e.preventDefault()
+                    let dx = 0
+                    let dy = 0
+                    if (e.key === 'ArrowLeft') dx = -1
+                    else if (e.key === 'ArrowRight') dx = 1
+                    else if (e.key === 'ArrowUp') dy = -1
+                    else if (e.key === 'ArrowDown') dy = 1
+                    updatePanel(selectedPanelId, { x: panel.x + dx, y: panel.y + dy })
+                    return
+                }
+            }
+
             if (e.key === 'Backspace' || e.key === 'Delete') {
                 if (selectedPanelId) {
                     const currentPage = pages.find(p => p.id === currentPageId);
