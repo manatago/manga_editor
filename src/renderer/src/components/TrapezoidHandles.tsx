@@ -16,8 +16,8 @@ type CornerKeyV = 'TL' | 'TR' | 'BR' | 'BL'
 // 中央を抜いた輪っか形状にして、Transformer の四角ハンドルと重なっても両方クリックできるようにする。
 // 内側の穴部分は当たり判定が無いため、その上に乗っている Transformer 四角はそのままドラッグできる。
 const HANDLE_PROPS = {
-    innerRadius: 7,
-    outerRadius: 10,
+    innerRadius: 8,
+    outerRadius: 15,
     fill: '#10b981',
     stroke: 'white',
     strokeWidth: 1.5

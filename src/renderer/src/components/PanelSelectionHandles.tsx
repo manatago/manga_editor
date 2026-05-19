@@ -63,8 +63,8 @@ export const PanelSelectionHandles: React.FC<Props> = ({ panel, page, onUpdate }
                     <Ring
                         x={panel.slant}
                         y={0}
-                        innerRadius={7}
-                        outerRadius={10}
+                        innerRadius={8}
+                        outerRadius={15}
                         fill="#10b981"
                         stroke="white"
                         strokeWidth={1.5}
