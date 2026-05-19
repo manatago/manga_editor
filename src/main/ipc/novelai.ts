@@ -31,8 +31,10 @@ type NovelAIGeneratePayload = {
     }>
     /** 保存先のプロジェクトルート（絶対パス） */
     projectPath: string
-    /** 保存先のサブディレクトリに使うコマ ID */
-    panelId: string
+    /** 保存先のサブディレクトリに使うコマ ID。outputSubPath を指定する場合は不要。 */
+    panelId?: string
+    /** assets/ 直下からの保存サブパス。指定時はこちらを優先（参照キャラ用などコマ以外の保存に使う）。 */
+    outputSubPath?: string
 }
 
 /** NovelAI トークンは safeStorage で暗号化して userData 配下に保存 */
@@ -97,7 +99,25 @@ export function registerNovelAIHandlers(): void {
         if (!projectRoot || !fs.existsSync(projectRoot)) {
             return { ok: false, error: 'project-missing' as const }
         }
-        const panelKey = sanitizePanelId(payload.panelId ?? '')
+        // 保存先: outputSubPath が指定されていればそれを使い、無ければ従来どおり panelId 配下。
+        // outputSubPath は assets/ からの相対サブパスで、`..` を含む脱出を拒否する。
+        const subPathRaw = String(payload.outputSubPath ?? '').replace(/\\/g, '/').trim()
+        let outDir: string
+        if (subPathRaw) {
+            const parts = subPathRaw.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean)
+            if (parts.length === 0 || parts.some((seg) => seg === '..' || seg === '.')) {
+                return { ok: false, error: 'invalid-output-path' as const }
+            }
+            outDir = pathModule.join(projectRoot, 'assets', ...parts)
+            const assetsRoot = pathModule.resolve(pathModule.join(projectRoot, 'assets'))
+            const rel = pathModule.relative(assetsRoot, pathModule.resolve(outDir))
+            if (rel.startsWith('..') || pathModule.isAbsolute(rel)) {
+                return { ok: false, error: 'invalid-output-path' as const }
+            }
+        } else {
+            const panelKey = sanitizePanelId(payload.panelId ?? '')
+            outDir = pathModule.join(projectRoot, 'assets', ASSETS_IMAGES_DIR, 'novelai', panelKey)
+        }
 
         const aspectKey = payload.aspect ?? 'portrait'
         const { width, height } = NOVELAI_ASPECT_MAP[aspectKey]
@@ -245,7 +265,6 @@ export function registerNovelAIHandlers(): void {
                 if (!png) {
                     return { ok: false, error: 'zip-missing-png' as const }
                 }
-                const outDir = pathModule.join(projectRoot, 'assets', ASSETS_IMAGES_DIR, 'novelai', panelKey)
                 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
                 const now = new Date()
                 const pad = (n: number) => String(n).padStart(2, '0')

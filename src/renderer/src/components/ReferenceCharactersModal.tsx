@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors, ImageIcon } from 'lucide-react'
+import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors, ImageIcon, Sparkles } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 import { referenceAssetsSubdir } from '../utils/referenceCharacters'
 import { showError } from '../utils/dialogs'
 import { MagicWandEditorModal } from './MagicWandEditorModal'
+import { ReferenceCharacterAIGenerationPanel } from './ReferenceCharacterAIGenerationPanel'
 
 interface ReferenceCharactersModalProps {
     isOpen: boolean
@@ -27,6 +28,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [rembgBusyImageId, setRembgBusyImageId] = useState<string | null>(null)
     const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null)
+    const [aiPanelOpen, setAiPanelOpen] = useState(false)
     const [wandEditor, setWandEditor] = useState<{
         url: string
         characterId: string
@@ -325,15 +327,38 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                                                 画像
                                             </h3>
-                                            <button
-                                                type="button"
-                                                onClick={handleAddImages}
-                                                className="flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200"
-                                            >
-                                                <ImagePlus size={14} />
-                                                ファイルから追加
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAiPanelOpen((v) => !v)}
+                                                    className={`flex items-center gap-1.5 text-xs transition-colors ${
+                                                        aiPanelOpen
+                                                            ? 'text-violet-200'
+                                                            : 'text-violet-300 hover:text-violet-200'
+                                                    }`}
+                                                    title="NovelAI で新しい画像を生成"
+                                                >
+                                                    <Sparkles size={14} />
+                                                    AI 生成
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddImages}
+                                                    className="flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200"
+                                                >
+                                                    <ImagePlus size={14} />
+                                                    ファイルから追加
+                                                </button>
+                                            </div>
                                         </div>
+                                        {aiPanelOpen && (
+                                            <ReferenceCharacterAIGenerationPanel
+                                                key={selected.id}
+                                                character={selected}
+                                                currentProjectPath={currentProjectPath}
+                                                onClose={() => setAiPanelOpen(false)}
+                                            />
+                                        )}
                                         <div
                                             role="presentation"
                                             onDragOver={(e) => {

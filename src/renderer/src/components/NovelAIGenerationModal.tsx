@@ -146,7 +146,14 @@ export const NovelAIGenerationModal: React.FC = () => {
     const toggleCharacterRef = (id: string): void => {
         const cur = form.characterRefIds ?? []
         if (cur.includes(id)) {
-            setForm({ ...form, characterRefIds: cur.filter((v) => v !== id) })
+            // キャラを外したら、そのキャラの画像精密参照も併せて外す（迷子防止）
+            setForm({
+                ...form,
+                characterRefIds: cur.filter((v) => v !== id),
+                preciseRefs: (form.preciseRefs ?? []).filter(
+                    (r) => !(r.source === 'character-image' && r.id.startsWith(`${id}/`))
+                )
+            })
             return
         }
         if (cur.length >= MAX_CHARACTER_REFS) return
@@ -207,7 +214,20 @@ export const NovelAIGenerationModal: React.FC = () => {
             fidelity: 0.7,
             type: 'character'
         }
-        setForm({ ...form, preciseRefs: [...cur, entry] })
+        // キャラクター画像を精密参照に追加するときは、同じキャラのプロンプト参照も自動で有効化する
+        // （プロンプト参照の付け忘れ防止）。キャラ参照枠が満杯のときは黙ってスキップ。
+        let nextCharRefIds = form.characterRefIds ?? []
+        if (cand.source === 'character-image') {
+            const charId = cand.id.split('/')[0]
+            if (
+                charId &&
+                !nextCharRefIds.includes(charId) &&
+                nextCharRefIds.length < MAX_CHARACTER_REFS
+            ) {
+                nextCharRefIds = [...nextCharRefIds, charId]
+            }
+        }
+        setForm({ ...form, preciseRefs: [...cur, entry], characterRefIds: nextCharRefIds })
     }
 
     const removePreciseRef = (entry: PreciseReferenceEntry): void => {
@@ -223,6 +243,38 @@ export const NovelAIGenerationModal: React.FC = () => {
         const cur = form.preciseRefs ?? []
         const next = cur.map((r, i) => (i === idx ? { ...r, ...patch } : r))
         setForm({ ...form, preciseRefs: next })
+    }
+
+    /** キャラ画像（character-image）の精密参照 ON/OFF。CharacterRefSelector から呼ばれる。 */
+    const togglePreciseRefById = (source: 'character-image', id: string): void => {
+        const cur = form.preciseRefs ?? []
+        const existsIdx = cur.findIndex((r) => r.source === source && r.id === id)
+        if (existsIdx >= 0) {
+            setForm({ ...form, preciseRefs: cur.filter((_, i) => i !== existsIdx) })
+            return
+        }
+        if (cur.length >= MAX_PRECISE_REFS) return
+        const entry: PreciseReferenceEntry = {
+            source,
+            id,
+            strength: 0.7,
+            fidelity: 0.7,
+            type: 'character'
+        }
+        setForm({ ...form, preciseRefs: [...cur, entry] })
+    }
+
+    /** キャラ画像精密参照の strength/fidelity/type 更新。CharacterRefSelector から呼ばれる。 */
+    const updatePreciseRefById = (
+        source: 'character-image',
+        id: string,
+        patch: Partial<PreciseReferenceEntry>
+    ): void => {
+        const cur = form.preciseRefs ?? []
+        setForm({
+            ...form,
+            preciseRefs: cur.map((r) => (r.source === source && r.id === id ? { ...r, ...patch } : r))
+        })
     }
 
     const resolvePreciseRefUrl = (entry: PreciseReferenceEntry): string => {
@@ -461,17 +513,30 @@ export const NovelAIGenerationModal: React.FC = () => {
                         <CharacterRefSelector
                             referenceCharacters={referenceCharacters}
                             selectedCharacterIds={form.characterRefIds ?? []}
+                            preciseRefs={preciseList}
                             currentProjectPath={currentProjectPath}
                             onToggle={toggleCharacterRef}
                             onMove={moveCharacterRef}
+                            onTogglePreciseRef={togglePreciseRefById}
+                            onUpdatePreciseRef={updatePreciseRefById}
                         />
 
                         <PreciseRefList
-                            preciseList={preciseList}
-                            candidates={preciseCandidates}
+                            preciseList={preciseList.filter((r) => r.source === 'composite')}
+                            candidates={preciseCandidates.filter((c) => c.source === 'composite')}
                             onAdd={addPreciseRef}
                             onRemove={removePreciseRef}
-                            onUpdate={updatePreciseRef}
+                            onUpdate={(idx, patch) => {
+                                // PreciseRefList が渡す idx は「composite だけに絞ったリスト」のもの。
+                                // 元の preciseRefs 配列での実 index に変換してから更新する。
+                                const filtered = preciseList.filter((r) => r.source === 'composite')
+                                const target = filtered[idx]
+                                if (!target) return
+                                const realIdx = preciseList.findIndex(
+                                    (r) => r.source === target.source && r.id === target.id
+                                )
+                                if (realIdx >= 0) updatePreciseRef(realIdx, patch)
+                            }}
                             resolveUrl={resolvePreciseRefUrl}
                         />
                     </div>

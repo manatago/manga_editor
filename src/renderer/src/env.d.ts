@@ -62,10 +62,15 @@ declare global {
                 | { ok: true; anlas: number; fixedAnlas: number; purchasedAnlas: number; tier: number | null; active: boolean | null }
                 | { ok: false; error: 'token-missing' | 'network' | `http-${number}`; status?: number; message?: string }
             >
-            /** NovelAI 画像生成。assets/images/novelai/<panelId>/ に直接保存し、相対パスを返す */
+            /**
+             * NovelAI 画像生成。
+             * 既定では assets/images/novelai/<panelId>/ に保存。
+             * outputSubPath（assets/ 配下のサブパス）を渡すとそちらに保存（参照キャラ用など）。
+             */
             novelaiGenerate: (payload: {
                 projectPath: string
-                panelId: string
+                panelId?: string
+                outputSubPath?: string
                 aspect?: 'portrait' | 'square' | 'landscape'
                 situationPrompt?: string
                 supplementaryPrompt?: string

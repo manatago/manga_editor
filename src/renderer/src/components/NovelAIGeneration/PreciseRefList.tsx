@@ -27,10 +27,10 @@ export const PreciseRefList: React.FC<Props> = ({
         <div className="border-t border-zinc-800 pt-4 space-y-2">
             <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
-                    精密参照（最大 {MAX_PRECISE_REFS} 枚）
+                    合成出力 精密参照
                 </label>
                 <span className="text-[10px] text-zinc-500">
-                    {preciseList.length}/{MAX_PRECISE_REFS} 枚 ・ +5 Anlas/枚
+                    精密参照 合計 {preciseList.length}/{MAX_PRECISE_REFS} 枚 ・ +5 Anlas/枚
                 </span>
             </div>
 
@@ -113,9 +113,9 @@ export const PreciseRefList: React.FC<Props> = ({
 
             {preciseList.length < MAX_PRECISE_REFS && (
                 <div className="pt-1">
-                    <div className="text-[10px] text-zinc-500 mb-1.5">追加できるソース</div>
+                    <div className="text-[10px] text-zinc-500 mb-1.5">追加できる合成出力</div>
                     {candidates.length === 0 ? (
-                        <div className="text-[11px] text-zinc-600">候補なし（参照キャラ画像 or 合成出力を登録してください）</div>
+                        <div className="text-[11px] text-zinc-600">合成出力なし（背景＋人物の合成ツールから出力すると候補に出ます）</div>
                     ) : (
                         <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto pr-1">
                             {candidates.map((cand) => {
