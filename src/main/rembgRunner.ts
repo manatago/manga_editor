@@ -75,19 +75,26 @@ function resolveInvokeRembgScript(bundledDir: string): string | null {
 }
 
 /**
- * venv/bin/rembg の shebang はビルド機の絶対パスになり .app 移動後に壊れる。
- * 同梱 venv の python にスクリプトパスを渡して実行する（shebang を使わない）。
+ * 同梱 Python に invoke-rembg.py を渡して実行する。shebang は使わない
+ * （ビルド機の絶対パスが焼かれるため）。
+ *
+ * 探索順:
+ *   1. <dir>/python/bin/python3                （python-build-standalone 同梱・現行）
+ *   2. <dir>/venv/bin/python3                  （旧 venv 構造・後方互換）
+ *   3. <dir>/rembg シェルラッパー              （最終フォールバック）
  */
 function bundledRembgCandidates(dir: string, tail: string[]): { command: string; args: string[] }[] {
     const out: { command: string; args: string[] }[] = []
     const invoke = resolveInvokeRembgScript(dir)
 
     if (process.platform === 'win32') {
-        const py = path.join(dir, 'venv', 'Scripts', 'python.exe')
-        if (fs.existsSync(py)) {
-            if (invoke) {
-                out.push({ command: py, args: [invoke, ...tail] })
-            }
+        const standalonePy = path.join(dir, 'python', 'python.exe')
+        if (fs.existsSync(standalonePy) && invoke) {
+            out.push({ command: standalonePy, args: [invoke, ...tail] })
+        }
+        const venvPy = path.join(dir, 'venv', 'Scripts', 'python.exe')
+        if (fs.existsSync(venvPy) && invoke) {
+            out.push({ command: venvPy, args: [invoke, ...tail] })
         }
         const cmd = path.join(dir, 'rembg.cmd')
         if (fs.existsSync(cmd)) {
@@ -100,21 +107,21 @@ function bundledRembgCandidates(dir: string, tail: string[]): { command: string;
         return out
     }
 
-    let py: string | null = null
+    const pyCandidates: string[] = []
     for (const name of ['python3', 'python3.11', 'python'] as const) {
-        const candidate = path.join(dir, 'venv', 'bin', name)
-        if (fs.existsSync(candidate)) {
-            py = candidate
-            break
-        }
+        pyCandidates.push(path.join(dir, 'python', 'bin', name))
     }
-    if (py) {
+    for (const name of ['python3', 'python3.11', 'python'] as const) {
+        pyCandidates.push(path.join(dir, 'venv', 'bin', name))
+    }
+    for (const py of pyCandidates) {
+        if (!fs.existsSync(py)) continue
         if (invoke) {
             out.push({ command: py, args: [invoke, ...tail] })
         }
-        const legacyScript = path.join(dir, 'venv', 'bin', 'rembg')
-        if (fs.existsSync(legacyScript)) {
-            out.push({ command: py, args: [legacyScript, ...tail] })
+        const legacyVenvScript = path.join(dir, 'venv', 'bin', 'rembg')
+        if (py.includes(`${path.sep}venv${path.sep}`) && fs.existsSync(legacyVenvScript)) {
+            out.push({ command: py, args: [legacyVenvScript, ...tail] })
         }
     }
     const sh = path.join(dir, 'rembg')
