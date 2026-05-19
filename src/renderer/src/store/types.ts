@@ -271,4 +271,6 @@ export interface MangaProjectData {
     referenceCharacters?: ReferenceCharacter[]
     /** 背景用に登録した自作画像一覧 */
     backgroundLibrary?: BackgroundLibraryImage[]
+    /** 作品全体の原稿メモ */
+    manuscript?: string
 }

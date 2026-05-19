@@ -20,6 +20,7 @@ export interface ProjectSlice {
         lastPageId?: string | null
         referenceCharacters?: MangaProjectData['referenceCharacters']
         backgroundLibrary?: MangaProjectData['backgroundLibrary']
+        manuscript?: string
     }) => void
     getProjectData: () => MangaProjectData
     saveProject: () => Promise<void>
@@ -56,7 +57,9 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             selectedBubbleId: null,
             currentProjectPath: get().currentProjectPath,
             referenceCharacters: normalizeReferenceCharacters(data.referenceCharacters),
-            backgroundLibrary: normalizeBackgroundLibrary(data.backgroundLibrary)
+            backgroundLibrary: normalizeBackgroundLibrary(data.backgroundLibrary),
+            manuscript: typeof data.manuscript === 'string' ? data.manuscript : '',
+            manuscriptSelection: null
         })
         console.log('Store: setProjectData done. normalized count:', normalizedPages.length)
     },
@@ -69,7 +72,8 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                 pages: state.pages,
                 lastPageId: state.currentPageId,
                 referenceCharacters: state.referenceCharacters,
-                backgroundLibrary: state.backgroundLibrary
+                backgroundLibrary: state.backgroundLibrary,
+                manuscript: state.manuscript
             }
         }
         const pages = state.pages.map((page) => ({
@@ -97,7 +101,8 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             pages,
             lastPageId: state.currentPageId,
             referenceCharacters: state.referenceCharacters,
-            backgroundLibrary: state.backgroundLibrary
+            backgroundLibrary: state.backgroundLibrary,
+            manuscript: state.manuscript
         }
     },
 
