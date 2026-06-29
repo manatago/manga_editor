@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { X, Sparkles, Loader2, RefreshCw, Check } from 'lucide-react'
+import { X, Sparkles, Loader2, RefreshCw, Check, Maximize2 } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 import type {
     NovelAIAspect,
@@ -417,6 +417,58 @@ export const NovelAIGenerationModal: React.FC = () => {
         }
     }
 
+    /**
+     * 部分再描画（infill）。拡大オーバーレイから呼ばれる。塗ったマスク領域だけを再生成し、
+     * 結果を新しい履歴エントリとして追加して選択する。成功時はそのエントリを返す。
+     */
+    const handleInpaint = async (
+        sourceRelativePath: string,
+        maskDataUrl: string,
+        inpaintPrompt: string
+    ): Promise<NovelAIHistoryEntry | null> => {
+        if (!window.electron?.novelaiInpaint || !panel || !currentProjectPath) return null
+        const charPromptsPayload = selectedCharacters
+            .map((c) => ({ prompt: (c.positivePrompt ?? '').trim(), uc: (c.negativePrompt ?? '').trim() }))
+            .filter((p) => !!p.prompt)
+        const negOverride = (form.negativeOverride ?? '').trim()
+        // 再描画元の画像が持つ seed を使う（構図の一貫性を保つ。見つからなければ直近 seed）
+        const sourceEntry = history.find((h) => h.relativePath === sourceRelativePath)
+        const resp = await window.electron.novelaiInpaint({
+            projectPath: currentProjectPath,
+            panelId: panel.id,
+            sourceRelativePath,
+            maskBase64Png: maskDataUrl,
+            situationPrompt: form.situationPrompt ?? '',
+            supplementaryPrompt: (form.supplementaryPrompt ?? '').trim(),
+            inpaintPrompt: inpaintPrompt.trim() || undefined,
+            characterPrompts: charPromptsPayload,
+            negativeOverride: negOverride || undefined,
+            seed: sourceEntry?.seed ?? form.lastSeed ?? null
+        })
+        if (!resp.ok) {
+            await showError(`部分再描画に失敗しました: ${resp.error}${resp.status ? ` (${resp.status})` : ''}${resp.message ? ` ${resp.message}` : ''}`)
+            return null
+        }
+        const entry: NovelAIHistoryEntry = {
+            relativePath: resp.relativePath,
+            seed: resp.seed,
+            createdAt: resp.createdAt,
+            situationPrompt: (form.situationPrompt ?? '').trim() || undefined,
+            supplementaryPrompt: (form.supplementaryPrompt ?? '').trim() || undefined,
+            aspect: form.aspect ?? 'portrait',
+            width: resp.width,
+            height: resp.height
+        }
+        const nextHistory = [...(panel.novelai?.history ?? []), entry]
+        const nextForm = { ...form, lastSeed: resp.seed }
+        setForm(nextForm)
+        persistForm(nextForm, nextHistory)
+        setSelectedRelativePath(entry.relativePath)
+        // 消費した Anlas を残高表示に反映
+        testNovelAIConnection().catch(() => { /* ignore */ })
+        return entry
+    }
+
     if (!targetPanelId || !panel) return null
 
     const preciseList = form.preciseRefs ?? []
@@ -551,11 +603,21 @@ export const NovelAIGenerationModal: React.FC = () => {
                                     生成中…（通常 10〜30 秒）
                                 </div>
                             ) : selectedEntry ? (
-                                <img
-                                    src={toDisplayUrl(pathFromRelative(currentProjectPath, selectedEntry.relativePath))}
-                                    alt=""
-                                    className="max-w-full max-h-full object-contain"
-                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setZoomedRelativePath(selectedEntry.relativePath)}
+                                    title="クリックで拡大（拡大表示から部分再描画できます）"
+                                    className="group relative w-full h-full flex items-center justify-center cursor-zoom-in"
+                                >
+                                    <img
+                                        src={toDisplayUrl(pathFromRelative(currentProjectPath, selectedEntry.relativePath))}
+                                        alt=""
+                                        className="max-w-full max-h-full object-contain"
+                                    />
+                                    <span className="absolute bottom-1 right-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Maximize2 size={11} /> 拡大
+                                    </span>
+                                </button>
                             ) : (
                                 <div className="text-zinc-600 text-xs">未生成</div>
                             )}
@@ -649,6 +711,7 @@ export const NovelAIGenerationModal: React.FC = () => {
                     adoptedRelativePath={panel.imagePath}
                     onClose={() => setZoomedRelativePath(null)}
                     onSelect={setZoomedRelativePath}
+                    onInpaint={handleInpaint}
                 />
             )}
         </div>

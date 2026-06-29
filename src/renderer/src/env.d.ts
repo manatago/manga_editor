@@ -87,6 +87,27 @@ declare global {
                 | { ok: true; relativePath: string; seed: number; width: number; height: number; createdAt: number }
                 | { ok: false; error: string; status?: number; message?: string }
             >
+            /**
+             * 部分再描画（NovelAI infill）。塗ったマスク領域だけを再生成し、
+             * 元コマと同じ assets/images/novelai/<panelId>/ に新しい画像として保存する。
+             */
+            novelaiInpaint: (payload: {
+                projectPath: string
+                panelId: string
+                sourceRelativePath: string
+                /** 白=再描画 の PNG マスク（data URL。サイズは元画像に一致） */
+                maskBase64Png: string
+                situationPrompt?: string
+                supplementaryPrompt?: string
+                /** 塗った範囲に効かせる追加タグ（任意） */
+                inpaintPrompt?: string
+                characterPrompts?: Array<{ prompt: string; uc?: string }>
+                negativeOverride?: string
+                seed?: number | null
+            }) => Promise<
+                | { ok: true; relativePath: string; seed: number; width: number; height: number; createdAt: number }
+                | { ok: false; error: string; status?: number; message?: string }
+            >
             /** 生成履歴を 1 件削除（assets/dust/ へ物理移動） */
             novelaiDeleteGeneration: (projectPath: string, relativePath: string) => Promise<
                 | { moved: true; relativePath: string }

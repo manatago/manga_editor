@@ -126,6 +126,7 @@ if (process.contextIsolated) {
             novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
             novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
             novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
+            novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
             novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
                 ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
         })
@@ -182,6 +183,7 @@ if (process.contextIsolated) {
         novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
         novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
         novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
+        novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
         novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
             ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
     }
