@@ -144,12 +144,23 @@ export const NovelAISettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                 <CheckCircle2 size={16} />
                                 接続成功
                             </div>
-                            <div className="text-zinc-300 text-xs font-mono">
-                                残 Anlas: <span className="text-white font-bold">{connection.anlas.toLocaleString()}</span>
-                                <span className="text-zinc-500 ml-2">
-                                    (fixed {connection.fixedAnlas.toLocaleString()} / purchased {connection.purchasedAnlas.toLocaleString()})
-                                </span>
-                            </div>
+                            {connection.anlas != null ? (
+                                <div className="text-zinc-300 text-xs font-mono">
+                                    残 Anlas: <span className="text-white font-bold">{connection.anlas.toLocaleString()}</span>
+                                    <span className="text-zinc-500 ml-2">
+                                        (fixed {(connection.fixedAnlas ?? 0).toLocaleString()} / purchased {(connection.purchasedAnlas ?? 0).toLocaleString()})
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="text-amber-300/90 text-[11px] leading-relaxed">
+                                    トークンは有効です（生成に使えます）。ただし残高（Anlas）は取得できませんでした。
+                                    <br />
+                                    <span className="text-zinc-500">
+                                        永続 API トークン（pst-…）は NovelAI の仕様上、残高照会エンドポイントに非対応です。
+                                        Anlas 残高も表示したい場合はログイン由来の JWT アクセストークンを入力してください。
+                                    </span>
+                                </div>
+                            )}
                             <div className="text-[10px] text-zinc-500">
                                 確認日時: {new Date(connection.checkedAt).toLocaleString()}
                             </div>

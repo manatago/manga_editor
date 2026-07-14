@@ -5,6 +5,7 @@ import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
 import { ExportOverlay } from './components/ExportOverlay'
 import { NovelAIGenerationModal } from './components/NovelAIGenerationModal'
+import { PanelWandEditor } from './components/PanelWandEditor'
 import { ManuscriptPanel } from './components/ManuscriptPanel'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
 import {
@@ -232,9 +233,9 @@ function App(): React.JSX.Element {
             >
                 <div className="w-64 h-full min-h-0 flex flex-col">
                     <SidebarLeft
-                        onExportPNG={handleExportPNG}
-                        onExportAllPagesPNG={() => handleExportAllPagesPNG()}
-                        onExportAllPagesPNGNoMosaic={() => handleExportAllPagesPNG({ hideMosaic: true })}
+                        onExportPNG={(format) => handleExportPNG(format)}
+                        onExportAllPagesPNG={(format) => handleExportAllPagesPNG({ format })}
+                        onExportAllPagesPNGNoMosaic={(format) => handleExportAllPagesPNG({ hideMosaic: true, format })}
                         onExportText={handleExportText}
                         onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
                         handleCreateNew={handleCreateNew}
@@ -345,6 +346,8 @@ function App(): React.JSX.Element {
             <ExportOverlay isExporting={isExporting} />
 
             <NovelAIGenerationModal />
+
+            <PanelWandEditor />
         </div>
     )
 }

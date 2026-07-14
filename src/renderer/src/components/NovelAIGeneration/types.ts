@@ -41,5 +41,15 @@ export function estimateBaseAnlas(width: number, height: number, tier: number | 
 export const ASPECT_DIMS: Record<NovelAIAspect, { width: number; height: number }> = {
     portrait: { width: 832, height: 1216 },
     square: { width: 1024, height: 1024 },
-    landscape: { width: 1216, height: 832 }
+    landscape: { width: 1216, height: 832 },
+    wide: { width: 1216, height: 384 },
+    tall: { width: 384, height: 1216 }
+}
+
+export const ASPECT_LABELS: Record<NovelAIAspect, string> = {
+    portrait: '縦 832×1216',
+    square: '正方 1024×1024',
+    landscape: '横 1216×832',
+    wide: '超横長 1216×384',
+    tall: '超縦長 384×1216'
 }

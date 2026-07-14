@@ -1,5 +1,5 @@
 import React from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, ImagePlus, Upload } from 'lucide-react'
 import type { NovelAIHistoryEntry } from '../../store/types'
 import { pathFromRelative, toDisplayUrl } from './types'
 
@@ -9,9 +9,15 @@ type Props = {
     selectedRelativePath: string | null
     adoptedRelativePath: string | null | undefined
     busy: boolean
+    /** 現在コマに乗っている画像をまだ履歴に取り込んでいないか（取り込みボタンの表示判定） */
+    canImportCurrent?: boolean
     onSelect: (rel: string) => void
     onZoom: (rel: string) => void
     onDelete: (entry: NovelAIHistoryEntry) => void
+    /** 現在のコマ画像（ドロップ画像など）を履歴に取り込む */
+    onImportCurrent?: () => void
+    /** ファイル選択で外部画像を履歴に取り込む */
+    onImportFile?: () => void
 }
 
 export const HistoryGallery: React.FC<Props> = ({
@@ -20,15 +26,42 @@ export const HistoryGallery: React.FC<Props> = ({
     selectedRelativePath,
     adoptedRelativePath,
     busy,
+    canImportCurrent,
     onSelect,
     onZoom,
-    onDelete
+    onDelete,
+    onImportCurrent,
+    onImportFile
 }) => {
     return (
         <div className="border-t border-zinc-800 pt-3 space-y-2 shrink-0">
             <div className="flex items-center justify-between">
                 <div className="text-xs font-bold text-zinc-400 uppercase tracking-wide">このコマの生成履歴</div>
-                <div className="text-[10px] text-zinc-500">{history.length} 枚</div>
+                <div className="flex items-center gap-1.5">
+                    {onImportCurrent && canImportCurrent && (
+                        <button
+                            type="button"
+                            onClick={onImportCurrent}
+                            disabled={busy}
+                            className="flex items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-bold text-zinc-200 hover:bg-zinc-700 disabled:opacity-40"
+                            title="このコマに乗っている画像（ドロップ画像など）を履歴に取り込む"
+                        >
+                            <ImagePlus size={12} /> コマ画像を取り込む
+                        </button>
+                    )}
+                    {onImportFile && (
+                        <button
+                            type="button"
+                            onClick={onImportFile}
+                            disabled={busy}
+                            className="flex items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-bold text-zinc-200 hover:bg-zinc-700 disabled:opacity-40"
+                            title="外部の画像ファイルを選んで履歴に取り込む"
+                        >
+                            <Upload size={12} /> 読込
+                        </button>
+                    )}
+                    <span className="text-[10px] text-zinc-500">{history.length} 枚</span>
+                </div>
             </div>
             {history.length === 0 ? (
                 <div className="text-[11px] text-zinc-600">まだ生成されていません。</div>
@@ -52,7 +85,7 @@ export const HistoryGallery: React.FC<Props> = ({
                                         onZoom(h.relativePath)
                                     }}
                                     className="absolute inset-0"
-                                    title={`クリックで拡大 / seed: ${h.seed} / ${new Date(h.createdAt).toLocaleString()}`}
+                                    title={`クリックで拡大 / ${h.imported ? '外部読込' : `seed: ${h.seed}`} / ${new Date(h.createdAt).toLocaleString()}`}
                                 >
                                     {url ? (
                                         <img src={url} alt="" className="w-full h-full object-cover" />
@@ -75,7 +108,7 @@ export const HistoryGallery: React.FC<Props> = ({
                                     <Trash2 size={10} />
                                 </button>
                                 <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/60 text-[8px] font-mono text-zinc-300 truncate">
-                                    {h.seed}
+                                    {h.imported ? '外部' : h.seed}
                                 </div>
                             </div>
                         )

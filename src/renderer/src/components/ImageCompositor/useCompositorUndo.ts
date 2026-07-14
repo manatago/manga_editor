@@ -13,6 +13,8 @@ type Args = {
     canvasW: number
     canvasH: number
     bgLibraryId: string | null
+    bgToneId: string | null
+    bgToneScale: number
     bgT: LayerTransform
     charInstances: CompositorCharInstance[]
     selected: 'bg' | string | null
@@ -25,6 +27,8 @@ export function useCompositorUndo({
     canvasW,
     canvasH,
     bgLibraryId,
+    bgToneId,
+    bgToneScale,
     bgT,
     charInstances,
     selected,
@@ -44,6 +48,8 @@ export function useCompositorUndo({
             canvasW,
             canvasH,
             bgLibraryId,
+            bgToneId,
+            bgToneScale,
             bgT: { ...bgT },
             charInstances: charInstances.map((c) => ({
                 ...c,
@@ -52,7 +58,7 @@ export function useCompositorUndo({
             })),
             selected
         }
-    }, [isOpen, aspectPresetId, canvasW, canvasH, bgLibraryId, bgT, charInstances, selected])
+    }, [isOpen, aspectPresetId, canvasW, canvasH, bgLibraryId, bgToneId, bgToneScale, bgT, charInstances, selected])
 
     const pushUndo = useCallback(() => {
         const s = snapshotRef.current

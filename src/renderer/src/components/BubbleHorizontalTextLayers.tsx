@@ -62,6 +62,17 @@ export const BubbleHorizontalTextLayers: React.FC<Props> = ({ bubble, tw, th, we
 
     return (
         <Group>
+            {/* 縁取り: 文字色を潰さないよう、外側に広がるシルエットを背面に敷く。
+                中心線ストロークは半分しか外に出ないので strokeWidth を 2 倍にして
+                スライダー値 = 外側の縁取り太さ(px) にそろえる。 */}
+            {outlineW > 0 && (
+                <FilteredText
+                    {...common}
+                    fill={outlineColor}
+                    stroke={outlineColor}
+                    strokeWidth={outlineW * 2}
+                />
+            )}
             {weightLevel === 2 && heavyW > 0 && (
                 <FilteredText
                     {...common}
@@ -70,11 +81,10 @@ export const BubbleHorizontalTextLayers: React.FC<Props> = ({ bubble, tw, th, we
                     strokeWidth={heavyW}
                 />
             )}
+            {/* 元の文字は縁取りの上に、縁なしで重ねる（文字色は無傷） */}
             <FilteredText
                 {...common}
                 fill={bubble.fontColor}
-                stroke={outlineW > 0 ? outlineColor : undefined}
-                strokeWidth={outlineW > 0 ? outlineW : 0}
             />
         </Group>
     )

@@ -55,11 +55,15 @@ export const BubbleItem: React.FC<{
         let cancelled = false
         const weight = bubble.fontWeight || (bubble.textWeightLevel === 0 ? 'normal' : 'bold')
         const size = bubble._overrideFontSize ?? bubble.fontSize ?? 18
-        document.fonts.load(`${weight} ${size}px ${actualFontFamily}`)
+        // 第2引数にこの吹き出しの実テキストを渡す。日本語フォント（fontsource）は文字ごとに
+        // woff2 サブセットが分かれており、text を省くと既定の ' ' のサブセットしか読まれない。
+        // そのため「が」等がまだ未ロードのまま Konva が描画し、その文字だけ表示されないことがある。
+        // 実テキストを渡すと必要なサブセットが全て読まれ、完了後の forceUpdate で正しく再描画される。
+        document.fonts.load(`${weight} ${size}px ${actualFontFamily}`, bubble.text ?? '')
             .then(() => { if (!cancelled) forceUpdate((prev: number) => prev + 1) })
             .catch(() => {})
         return () => { cancelled = true }
-    }, [actualFontFamily])
+    }, [actualFontFamily, bubble.text, bubble.fontWeight, bubble.textWeightLevel, bubble._overrideFontSize, bubble.fontSize])
 
     // 自動フィット：text や枠サイズが変わったらフォント／枠を補正してストアに書き戻す。
     // - 1 つのコマで複数 renderPass が走るため、interaction パス（or orphan）でだけ動かす
@@ -379,9 +383,13 @@ export const BubbleItem: React.FC<{
                 const cb = parseInt(hexColor.slice(5, 7), 16)
                 const bgAlpha = isMask ? 1 : actualBackgroundOpacity
                 const endRadius = Math.max(bubble.width, bubble.height) / 2 * 0.9
+                // 不透明で塗る半径（0..1）。ここまでベタ塗り、そこから外周へ透明にフェード。
+                // 大きくするほど「真ん中以外が透明」が減り、ほぼベタ塗りになる。
+                const fillR = Math.min(0.99, Math.max(0.05, bubble.flashFillRadius ?? 0.55))
+                const solid = `rgba(${cr},${cg},${cb},${bgAlpha})`
                 const colorStops = isMask
                     ? [0, 'black', 1, 'black']
-                    : [0, `rgba(${cr},${cg},${cb},${bgAlpha})`, 0.55, `rgba(${cr},${cg},${cb},${bgAlpha})`, 1, `rgba(${cr},${cg},${cb},0)`]
+                    : [0, solid, fillR, solid, 1, `rgba(${cr},${cg},${cb},0)`]
                 return (
                     <>
                         {shouldRenderFills && (
@@ -664,9 +672,12 @@ export const BubbleClusterGroup: React.FC<{ members: BubbleRenderProps[] }> = ({
         const fontFamilies = [...new Set(members.map(b => b._overrideFontFamily ?? b.fontFamily).filter(Boolean))]
         const weight = master.fontWeight || 'bold'
         const size = master.fontSize || 18
-        
+        // メンバー全員の実テキストを渡し、必要な日本語サブセット（「が」等）まで確実に読み込む。
+        // text を省くと ' ' のサブセットしか読まれず、一部の文字が欠けたまま cache されてしまう。
+        const memberText = [...new Set(members.map(b => b.text ?? '').join('').split(''))].join('')
+
         Promise.all(fontFamilies.map(f =>
-            document.fonts.load(`${weight} ${size}px ${f}`).catch(() => {})
+            document.fonts.load(`${weight} ${size}px ${f}`, memberText).catch(() => {})
         )).then(() => {
             if (!bgRef.current) return
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;

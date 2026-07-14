@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Minus, Plus, RotateCcw, Save, X } from 'lucide-react'
 
 interface MagicWandEditorModalProps {
@@ -8,44 +8,138 @@ interface MagicWandEditorModalProps {
     onSave: (dataUrl: string) => Promise<void>
 }
 
+/** 選択モード。連結＝クリック地点から繋がった同色領域。全域＝画像全体で同色に近い画素すべて。 */
+export type WandMode = 'contiguous' | 'global'
+
 /**
- * フラッドフィル（4連結）で clicked pixel と色距離 <= tolerance の連続領域を透明化。
- * アルファが 0 のピクセルは伝播しない（既に抜けた部分を跨がない）。
+ * スキャンライン flood-fill（4連結）。クリック色と距離 <= tolerance の連続領域のマスク（0/1）を返す。
+ * アルファ 0 の画素は跨がない（既に抜けた部分で止まる）。
  */
-function floodFill(
+function contiguousMask(
     data: Uint8ClampedArray,
     width: number,
     height: number,
     startX: number,
     startY: number,
     tolerance: number
-): void {
+): Uint8Array {
+    const mask = new Uint8Array(width * height)
     const i0 = (startY * width + startX) * 4
-    if (data[i0 + 3] === 0) return  // already transparent
-
+    if (data[i0 + 3] === 0) return mask
     const tr = data[i0], tg = data[i0 + 1], tb = data[i0 + 2]
-    const visited = new Uint8Array(width * height)
-    const queue: number[] = [startY * width + startX]
-
-    while (queue.length > 0) {
-        const pos = queue.pop()!
-        if (visited[pos]) continue
-        visited[pos] = 1
-
-        const i = pos * 4
-        if (data[i + 3] === 0) continue  // don't spread across transparent
-
+    const tol2 = tolerance * tolerance
+    const within = (p: number): boolean => {
+        const i = p * 4
+        if (data[i + 3] === 0) return false
         const dr = data[i] - tr, dg = data[i + 1] - tg, db = data[i + 2] - tb
-        if (Math.sqrt(dr * dr + dg * dg + db * db) > tolerance) continue
+        return dr * dr + dg * dg + db * db <= tol2
+    }
+    const stack: number[] = [startY * width + startX]
+    while (stack.length > 0) {
+        const seed = stack.pop()!
+        const py = (seed / width) | 0
+        const sx = seed - py * width
+        let x = sx
+        while (x >= 0 && !mask[py * width + x] && within(py * width + x)) x--
+        x++
+        let spanAbove = false
+        let spanBelow = false
+        while (x < width && !mask[py * width + x] && within(py * width + x)) {
+            mask[py * width + x] = 1
+            if (py > 0) {
+                const above = !mask[(py - 1) * width + x] && within((py - 1) * width + x)
+                if (!spanAbove && above) { stack.push((py - 1) * width + x); spanAbove = true }
+                else if (spanAbove && !above) spanAbove = false
+            }
+            if (py < height - 1) {
+                const below = !mask[(py + 1) * width + x] && within((py + 1) * width + x)
+                if (!spanBelow && below) { stack.push((py + 1) * width + x); spanBelow = true }
+                else if (spanBelow && !below) spanBelow = false
+            }
+            x++
+        }
+    }
+    return mask
+}
 
-        data[i + 3] = 0
+/**
+ * 色域選択（連結性を無視）。画像全体で、クリック色と距離 <= tolerance の画素すべてのマスク（0/1）を返す。
+ */
+function globalMask(
+    data: Uint8ClampedArray,
+    width: number,
+    height: number,
+    startX: number,
+    startY: number,
+    tolerance: number
+): Uint8Array {
+    const mask = new Uint8Array(width * height)
+    const i0 = (startY * width + startX) * 4
+    if (data[i0 + 3] === 0) return mask
+    const tr = data[i0], tg = data[i0 + 1], tb = data[i0 + 2]
+    const tol2 = tolerance * tolerance
+    const total = width * height
+    for (let p = 0; p < total; p++) {
+        const i = p * 4
+        if (data[i + 3] === 0) continue
+        const dr = data[i] - tr, dg = data[i + 1] - tg, db = data[i + 2] - tb
+        if (dr * dr + dg * dg + db * db <= tol2) mask[p] = 1
+    }
+    return mask
+}
 
-        const px = pos % width
-        const py = Math.floor(pos / width)
-        if (px > 0)          queue.push(pos - 1)
-        if (px < width - 1)  queue.push(pos + 1)
-        if (py > 0)          queue.push(pos - width)
-        if (py < height - 1) queue.push(pos + width)
+/** 分離ボックスブラー（1ch, Float32, 端はクランプ）。境界フェザー用。 */
+function boxBlur1ch(src: Float32Array, width: number, height: number, radius: number): Float32Array {
+    if (radius < 1) return src
+    const win = radius * 2 + 1
+    const tmp = new Float32Array(src.length)
+    for (let y = 0; y < height; y++) {
+        let sum = 0
+        for (let k = -radius; k <= radius; k++) sum += src[y * width + Math.min(width - 1, Math.max(0, k))]
+        for (let x = 0; x < width; x++) {
+            tmp[y * width + x] = sum / win
+            const xo = Math.min(width - 1, Math.max(0, x - radius))
+            const xi = Math.min(width - 1, Math.max(0, x + radius + 1))
+            sum += src[y * width + xi] - src[y * width + xo]
+        }
+    }
+    const out = new Float32Array(src.length)
+    for (let x = 0; x < width; x++) {
+        let sum = 0
+        for (let k = -radius; k <= radius; k++) sum += tmp[Math.min(height - 1, Math.max(0, k)) * width + x]
+        for (let y = 0; y < height; y++) {
+            out[y * width + x] = sum / win
+            const yo = Math.min(height - 1, Math.max(0, y - radius))
+            const yi = Math.min(height - 1, Math.max(0, y + radius + 1))
+            sum += tmp[yi * width + x] - tmp[yo * width + x]
+        }
+    }
+    return out
+}
+
+/**
+ * マスクをアルファに適用。feather 0 なら二値で透明化。feather>0 はマスクをぼかした被覆率で
+ * アルファを段階的に下げ、切り抜きの縁を柔らかくする。
+ */
+function applyMask(
+    data: Uint8ClampedArray,
+    mask: Uint8Array,
+    width: number,
+    height: number,
+    feather: number
+): void {
+    if (feather <= 0) {
+        for (let p = 0; p < mask.length; p++) if (mask[p]) data[p * 4 + 3] = 0
+        return
+    }
+    const cov = new Float32Array(mask.length)
+    for (let p = 0; p < mask.length; p++) cov[p] = mask[p]
+    const blurred = boxBlur1ch(cov, width, height, Math.round(feather))
+    for (let p = 0; p < mask.length; p++) {
+        const c = blurred[p]
+        if (c <= 0) continue
+        const a = data[p * 4 + 3]
+        data[p * 4 + 3] = Math.round(a * (1 - Math.min(1, c)))
     }
 }
 
@@ -84,9 +178,14 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
 }) => {
     const displayCanvasRef = useRef<HTMLCanvasElement>(null)
     const offscreenRef = useRef<HTMLCanvasElement | null>(null)
+    const scrollRef = useRef<HTMLDivElement>(null)
+    // ホイールズーム時に「カーソル下の画像点」を固定するための一時保存
+    const zoomFocusRef = useRef<{ imgX: number; imgY: number; vpX: number; vpY: number } | null>(null)
 
     const [zoom, setZoom] = useState(1)
     const [tolerance, setTolerance] = useState(30)
+    const [mode, setMode] = useState<WandMode>('contiguous')
+    const [feather, setFeather] = useState(0)
     const [undoStack, setUndoStack] = useState<ImageData[]>([])
     const [saving, setSaving] = useState(false)
     const [loaded, setLoaded] = useState(false)
@@ -121,11 +220,56 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
         if (loaded) redraw()
     }, [loaded, redraw])
 
-    // ズーム変更時に再描画
-    useEffect(() => {
+    // カーソル位置を中心にズーム（ホイール・ボタン共通）。
+    // クリック地点の画像座標を覚えておき、ズーム後にスクロール位置を合わせて
+    // カーソル下の点が動かないようにする。
+    const zoomAtCursor = useCallback((clientX: number, clientY: number, factor: number) => {
+        const display = displayCanvasRef.current
+        const container = scrollRef.current
+        if (!display || !container) return
+        const rect = display.getBoundingClientRect()
+        const containerRect = container.getBoundingClientRect()
+        const imgX = (clientX - rect.left) / zoom
+        const imgY = (clientY - rect.top) / zoom
+        const vpX = clientX - containerRect.left
+        const vpY = clientY - containerRect.top
+        const next = Math.min(8, Math.max(0.25, Math.round(zoom * factor * 100) / 100))
+        if (next === zoom) return
+        zoomFocusRef.current = { imgX, imgY, vpX, vpY }
+        setZoom(next)
+    }, [zoom])
+
+    // ズーム後にスクロールを補正し、カーソル下の画像点を同じ表示位置に保つ。
+    // redraw で canvas がリサイズされた後の実サイズを基に計算するため layout 効果で実行。
+    useLayoutEffect(() => {
         if (!loaded) return
         redraw()
+        const focus = zoomFocusRef.current
+        if (!focus) return
+        zoomFocusRef.current = null
+        const display = displayCanvasRef.current
+        const container = scrollRef.current
+        if (!display || !container) return
+        const displayRect = display.getBoundingClientRect()
+        const containerRect = container.getBoundingClientRect()
+        const canvasLeftInContent = displayRect.left - containerRect.left + container.scrollLeft
+        const canvasTopInContent = displayRect.top - containerRect.top + container.scrollTop
+        container.scrollLeft = canvasLeftInContent + focus.imgX * zoom - focus.vpX
+        container.scrollTop = canvasTopInContent + focus.imgY * zoom - focus.vpY
     }, [zoom, loaded, redraw])
+
+    // ホイールでズーム（preventDefault のため passive:false のネイティブリスナで登録）
+    useEffect(() => {
+        const display = displayCanvasRef.current
+        if (!display || !loaded) return
+        const onWheel = (e: WheelEvent) => {
+            e.preventDefault()
+            const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2
+            zoomAtCursor(e.clientX, e.clientY, factor)
+        }
+        display.addEventListener('wheel', onWheel, { passive: false })
+        return () => display.removeEventListener('wheel', onWheel)
+    }, [loaded, zoomAtCursor])
 
     const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         const display = displayCanvasRef.current
@@ -146,14 +290,18 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
         const octx = off.getContext('2d')!
         const before = octx.getImageData(0, 0, off.width, off.height)
 
-        // 作業用コピーにフラッドフィル
+        // 作業用コピーへ：モードに応じてマスクを作り、フェザー付きで透明化
         const after = new ImageData(new Uint8ClampedArray(before.data), before.width, before.height)
-        floodFill(after.data, off.width, off.height, ix, iy, tolerance)
+        const mask =
+            mode === 'contiguous'
+                ? contiguousMask(after.data, off.width, off.height, ix, iy, tolerance)
+                : globalMask(after.data, off.width, off.height, ix, iy, tolerance)
+        applyMask(after.data, mask, off.width, off.height, feather)
 
         setUndoStack(prev => [...prev.slice(-29), before])
         octx.putImageData(after, 0, 0)
         redraw()
-    }, [zoom, tolerance, redraw])
+    }, [zoom, tolerance, mode, feather, redraw])
 
     const handleUndo = useCallback(() => {
         const off = offscreenRef.current
@@ -201,7 +349,29 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
             {/* ヘッダー */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900 shrink-0">
                 <span className="text-white font-bold text-sm">マジックワンド編集</span>
-                <span className="text-zinc-500 text-xs hidden sm:inline">クリックで同色の連続領域を透明化</span>
+                <span className="text-zinc-500 text-xs hidden lg:inline">
+                    クリックで{mode === 'contiguous' ? '繋がった同色領域' : '画像全体の同色部分'}を透明化・ホイールで拡大縮小
+                </span>
+
+                {/* 選択モード */}
+                <div className="flex items-center gap-0.5 rounded-md border border-zinc-700 p-0.5 ml-2">
+                    <button
+                        type="button"
+                        onClick={() => setMode('contiguous')}
+                        className={`px-2.5 py-1 rounded text-xs ${mode === 'contiguous' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                        title="連結：クリック地点から繋がった同色領域だけを透明化"
+                    >
+                        連結
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMode('global')}
+                        className={`px-2.5 py-1 rounded text-xs ${mode === 'global' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                        title="全域：画像全体でクリック色に近い画素をすべて透明化（連結性を無視）"
+                    >
+                        全域
+                    </button>
+                </div>
 
                 {/* 許容値 */}
                 <div className="flex items-center gap-2 ml-2">
@@ -215,6 +385,20 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
                         className="w-24 sm:w-32 accent-violet-500"
                     />
                     <span className="text-zinc-300 text-xs w-6 tabular-nums">{tolerance}</span>
+                </div>
+
+                {/* 境界フェザー */}
+                <div className="flex items-center gap-2 ml-2">
+                    <label className="text-zinc-400 text-xs shrink-0">フェザー</label>
+                    <input
+                        type="range"
+                        min={0}
+                        max={5}
+                        value={feather}
+                        onChange={(e) => setFeather(Number(e.target.value))}
+                        className="w-16 sm:w-20 accent-violet-500"
+                    />
+                    <span className="text-zinc-300 text-xs w-8 tabular-nums">{feather}px</span>
                 </div>
 
                 {/* ズーム */}
@@ -271,7 +455,7 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
             </div>
 
             {/* キャンバスエリア */}
-            <div className="flex-1 overflow-auto p-6 flex items-start justify-center">
+            <div ref={scrollRef} className="flex-1 overflow-auto p-6 flex items-start justify-center">
                 {!loaded ? (
                     <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
                         読み込み中…

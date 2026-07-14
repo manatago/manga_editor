@@ -60,6 +60,10 @@ export interface Panel {
     /** グレースケール時の明るさ調整（Konva Brighten。-0.5 ほど暗く、+0.5 ほど明るく） */
     grayscaleBrightness?: number
     imageFlipX?: boolean
+    /** 人物画像をコマ枠の外へはみ出させる（背景は枠内クリップのまま、切り抜き人物だけ枠上に再描画）。 */
+    imageProtrude?: boolean
+    /** はみ出し用の人物切り抜き（背景透過）。imagePath は元画像のまま枠内に残す。未設定時は imagePath で代用。 */
+    protrudeImagePath?: string
     backgroundColor?: string
     backgroundOpacity?: number
     bgGradientType?: GradientType
@@ -95,7 +99,7 @@ export interface Panel {
     novelai?: NovelAIPanelConfig
 }
 
-export type NovelAIAspect = 'portrait' | 'square' | 'landscape'
+export type NovelAIAspect = 'portrait' | 'square' | 'landscape' | 'wide' | 'tall'
 export type PreciseRefType = 'character' | 'style' | 'character&style'
 export type PreciseRefSource = 'character-image' | 'composite'
 
@@ -136,6 +140,8 @@ export interface NovelAIHistoryEntry {
     aspect?: NovelAIAspect
     width?: number
     height?: number
+    /** 外部から取り込んだ画像（NovelAI 生成ではない）。seed は持たない。 */
+    imported?: boolean
 }
 
 /** アプリ全体（userData）に登録したカスタムスクリーントーン。custom-tone://{id} で参照 */
@@ -180,6 +186,8 @@ export interface Bubble {
     tailWidth?: number
     spikeCount?: number
     flashLength?: number
+    /** flash（ウニ）背景の不透明で塗る半径（endRadius に対する 0..1）。ここから外へ透明にフェード。既定 0.55 */
+    flashFillRadius?: number
     narrowRatio?: number
     tailType?: 'point' | 'thought'
     isClipped: boolean
@@ -205,6 +213,8 @@ export interface Material {
     /** グレースケール時の明るさ調整（Konva Brighten。-0.5 ほど暗く、+0.5 ほど明るく） */
     grayscaleBrightness?: number
     whiteAlphaThreshold?: number
+    /** モザイクより前面（上）に描画する。D&D で追加した素材は既定で true。 */
+    aboveMosaic?: boolean
 }
 
 export interface Page {

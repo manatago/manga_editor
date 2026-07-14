@@ -4,7 +4,7 @@ import type { MangaState } from '../useMangaStore'
 export type NovelAIConnectionStatus =
     | { state: 'idle' }
     | { state: 'testing' }
-    | { state: 'ok'; anlas: number; fixedAnlas: number; purchasedAnlas: number; tier: number | null; checkedAt: number }
+    | { state: 'ok'; anlas: number | null; fixedAnlas: number | null; purchasedAnlas: number | null; tier: number | null; balanceUnavailable?: boolean; checkedAt: number }
     | { state: 'error'; message: string; checkedAt: number }
 
 const LAST_SUPPLEMENTARY_KEY = 'manga-yarou-novelai-last-supplementary'
@@ -100,6 +100,7 @@ export const createNovelAISlice: StateCreator<MangaState, [], [], NovelAISlice> 
                 fixedAnlas: resp.fixedAnlas,
                 purchasedAnlas: resp.purchasedAnlas,
                 tier: resp.tier,
+                balanceUnavailable: resp.balanceUnavailable,
                 checkedAt: Date.now()
             }
             set({ novelaiConnection: status })
@@ -107,6 +108,7 @@ export const createNovelAISlice: StateCreator<MangaState, [], [], NovelAISlice> 
         }
         const message =
             resp.error === 'token-missing' ? 'トークンが保存されていません' :
+            resp.error === 'token-invalid' ? 'トークンが無効です（生成ホストでも認証されませんでした）。永続 API トークンを再確認してください' :
             resp.error === 'network' ? `ネットワークエラー: ${resp.message ?? ''}` :
             `HTTP ${resp.status ?? resp.error}`
         const status: NovelAIConnectionStatus = { state: 'error', message, checkedAt: Date.now() }

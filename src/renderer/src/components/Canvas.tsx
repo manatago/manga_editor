@@ -3,6 +3,7 @@ import { Stage, Layer, Group, Rect, Line } from 'react-konva'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
 import { PanelItem } from './PanelItem'
+import { PanelProtrudeImage } from './PanelProtrudeImage'
 import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
 import { MaterialItem } from './MaterialItem'
 import { MosaicItem } from './effects/MosaicItem'
@@ -257,6 +258,18 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                             ))}
                         </Group>
 
+                        {/* 3.5 コマ枠からはみ出す人物画像（枠の上・吹き出しの下）。
+                            背景/トーンはコマ側でクリップされ枠内に残り、人物だけ枠外へ突き出る。 */}
+                        <Group>
+                            {panels.filter((p) => p.imageProtrude && p.imagePath).map((p) => (
+                                <PanelProtrudeImage
+                                    key={`protrude-${p.id}`}
+                                    panel={p}
+                                    projectPath={currentProjectPath}
+                                />
+                            ))}
+                        </Group>
+
                         {/* 4. Over-Frame Bubbles Layer (Normal bubbles overlap frames) */}
                         <Group>
                             {overFrameClusters.map((cluster) => (
@@ -400,6 +413,25 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                             if (isMosaicMode) setSelectedMosaicId(id)
                                         }}
                                         isExporting={isExporting}
+                                    />
+                                ))}
+                            </Group>
+                        )}
+
+                        {/* 7.5 モザイクより前面の素材（D&D で追加した素材など）。
+                            モザイクは getImageData で下地をサンプルするため、モザイクの後に
+                            描いた素材はピクセル化されず前面に出る。編集・書き出し両方で描画。 */}
+                        {materials.some((m) => m.aboveMosaic) && (
+                            <Group>
+                                {materials.filter((m) => m.aboveMosaic).map((m) => (
+                                    <MaterialItem
+                                        key={`material-above-mosaic-${m.id}`}
+                                        material={m}
+                                        isSelected={false}
+                                        onSelect={() => { }}
+                                        onUpdate={() => { }}
+                                        renderPass="content"
+                                        clipPoints={m.isClipped ? getClippedPoints(m, panels) : undefined}
                                     />
                                 ))}
                             </Group>

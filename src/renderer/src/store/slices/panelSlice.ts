@@ -7,6 +7,10 @@ export interface PanelSlice {
     selectedPanelId: string | null
     clipboardPanel: Omit<Panel, 'id'> | null
     clipboardPanelCopiedAt: number | null
+    /** マジックワンド編集モーダルの対象コマ ID（null の時は閉じた状態） */
+    panelWandTargetId: string | null
+    openPanelWandEditor: (panelId: string) => void
+    closePanelWandEditor: () => void
     setSelectedPanel: (id: string | null) => void
     addPanel: (props: Partial<Omit<Panel, 'id'>>) => void
     updatePanel: (id: string, updates: Partial<Panel>, undoable?: boolean) => void
@@ -20,6 +24,10 @@ export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (s
     selectedPanelId: null,
     clipboardPanel: null,
     clipboardPanelCopiedAt: null,
+    panelWandTargetId: null,
+
+    openPanelWandEditor: (panelId) => set({ panelWandTargetId: panelId }),
+    closePanelWandEditor: () => set({ panelWandTargetId: null }),
 
     setSelectedPanel: (id) => set({ selectedPanelId: id, selectedBubbleId: null, selectedMaterialId: null }),
 

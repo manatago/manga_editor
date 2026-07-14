@@ -22,21 +22,22 @@ export function registerExportHandlers(): void {
         }
     })
 
-    ipcMain.handle('export-png', async (_, { path, name, data }) => {
+    ipcMain.handle('export-png', async (_, { path, name, data, format }: { path: string; name: string; data: string; format?: 'png' | 'jpeg' }) => {
         const trimmedPath = path.trim()
         const exportDir = pathModule.join(trimmedPath, 'exports')
+        const ext = format === 'jpeg' ? 'jpg' : 'png'
 
         try {
             if (!fs.existsSync(exportDir)) {
                 fs.mkdirSync(exportDir, { recursive: true })
             }
-            const filePath = pathModule.join(exportDir, `${name}.png`)
-            const base64Data = data.replace(/^data:image\/png;base64,/, '')
+            const filePath = pathModule.join(exportDir, `${name}.${ext}`)
+            const base64Data = data.replace(/^data:image\/\w+;base64,/, '')
             fs.writeFileSync(filePath, base64Data, 'base64')
-            console.log('Main: PNG exported to', filePath)
+            console.log('Main: image exported to', filePath)
             return filePath
         } catch (error) {
-            console.error('Main: failed to export png:', error)
+            console.error('Main: failed to export image:', error)
             throw error
         }
     })

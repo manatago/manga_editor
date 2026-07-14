@@ -42,6 +42,8 @@ export const VerticalText: React.FC<{
     const yBlockOffset = Math.max(0, (height - tallestColumnHeight) / 2)
     const heavyStrokeWidth = heavyStrokeWidthFor(weightLevel, fontSize)
     const distress = Math.max(0, Math.min(1, roughness))
+    const outlineW = strokeWidth && strokeWidth > 0 ? strokeWidth : 0
+    const outlineColor = strokeColor ?? '#ffffff'
 
     return (
         <Group y={yBlockOffset}>
@@ -67,6 +69,26 @@ export const VerticalText: React.FC<{
 
                             return (
                                 <Group key={charIdx}>
+                                    {outlineW > 0 && (
+                                        <FilteredText
+                                            text={char}
+                                            x={xOffset}
+                                            y={charIdx * (fontSize + charSpacing) + charYOffset}
+                                            fontSize={fontSize}
+                                            fill={outlineColor}
+                                            stroke={outlineColor}
+                                            strokeWidth={outlineW * 2}
+                                            lineJoin="round"
+                                            fontFamily={fontFamily}
+                                            align="center"
+                                            width={fontSize}
+                                            rotation={rotation}
+                                            fontStyle={fontWeight}
+                                            distressStrength={distress}
+                                            distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                                            enableCache={distress > 0}
+                                        />
+                                    )}
                                     {weightLevel === 2 && (
                                         <FilteredText
                                             text={char}
@@ -93,8 +115,6 @@ export const VerticalText: React.FC<{
                                         y={charIdx * (fontSize + charSpacing) + charYOffset}
                                         fontSize={fontSize}
                                         fill={fontColor}
-                                        stroke={strokeWidth && strokeWidth > 0 ? (strokeColor ?? '#ffffff') : undefined}
-                                        strokeWidth={strokeWidth && strokeWidth > 0 ? strokeWidth : 0}
                                         lineJoin="round"
                                         fontFamily={fontFamily}
                                         align="center"
@@ -137,6 +157,8 @@ export const MegaphoneText: React.FC<{
     const ratio = narrowRatio || 0.3
     const heavyStrokeWidth = heavyStrokeWidthFor(weightLevel, fontSize)
     const distress = Math.max(0, Math.min(1, roughness))
+    const outlineW = strokeWidth && strokeWidth > 0 ? strokeWidth : 0
+    const outlineColor = strokeColor ?? '#ffffff'
 
     if (isVertical) {
         const columnGap = fontSize * lineHeight * 0.6
@@ -181,6 +203,26 @@ export const MegaphoneText: React.FC<{
 
                                 return (
                                     <Group key={charIdx}>
+                                        {outlineW > 0 && (
+                                            <FilteredText
+                                                text={data.char}
+                                                x={xCharOffset}
+                                                y={data.y + yCharOffset}
+                                                fontSize={data.fontSize}
+                                                fill={outlineColor}
+                                                stroke={outlineColor}
+                                                strokeWidth={outlineW * 2}
+                                                lineJoin="round"
+                                                fontFamily={fontFamily}
+                                                fontStyle={fontWeight}
+                                                rotation={charRotation}
+                                                align="center"
+                                                width={data.fontSize}
+                                                distressStrength={distress}
+                                                distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                                                enableCache={distress > 0}
+                                            />
+                                        )}
                                         {weightLevel === 2 && (
                                             <FilteredText
                                                 text={data.char}
@@ -207,8 +249,6 @@ export const MegaphoneText: React.FC<{
                                             y={data.y + yCharOffset}
                                             fontSize={data.fontSize}
                                             fill={fontColor}
-                                            stroke={strokeWidth && strokeWidth > 0 ? (strokeColor ?? '#ffffff') : undefined}
-                                            strokeWidth={strokeWidth && strokeWidth > 0 ? strokeWidth : 0}
                                             lineJoin="round"
                                             fontFamily={fontFamily}
                                             fontStyle={fontWeight}
@@ -245,6 +285,26 @@ export const MegaphoneText: React.FC<{
         <Group y={yOffsetTop}>
             {lineData.map((data, i) => (
                 <Group key={i}>
+                    {outlineW > 0 && (
+                        <FilteredText
+                            text={data.line}
+                            x={(width - data.lineW) / 2}
+                            y={data.y}
+                            width={data.lineW}
+                            fontSize={data.fontSize}
+                            fill={outlineColor}
+                            stroke={outlineColor}
+                            strokeWidth={outlineW * 2}
+                            lineJoin="round"
+                            fontFamily={fontFamily}
+                            fontStyle={fontWeight}
+                            align="center"
+                            letterSpacing={letterSpacing}
+                            distressStrength={distress}
+                            distressScale={BUBBLE_TEXT_DISTRESS_SCALE}
+                            enableCache={distress > 0}
+                        />
+                    )}
                     {weightLevel === 2 && (
                         <FilteredText
                             text={data.line}
@@ -272,8 +332,6 @@ export const MegaphoneText: React.FC<{
                         width={data.lineW}
                         fontSize={data.fontSize}
                         fill={fontColor}
-                        stroke={strokeWidth && strokeWidth > 0 ? (strokeColor ?? '#ffffff') : undefined}
-                        strokeWidth={strokeWidth && strokeWidth > 0 ? strokeWidth : 0}
                         lineJoin="round"
                         fontFamily={fontFamily}
                         fontStyle={fontWeight}

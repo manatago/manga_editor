@@ -11,9 +11,11 @@ import type {
     ReferenceCharacter
 } from '../store/types'
 import { normalizeReferenceImageToBase64Png } from '../utils/novelaiReferenceImage'
+import { getScreenToneDataUrl } from '../utils/screenToneCatalog'
 import { showError } from '../utils/dialogs'
 import {
     ASPECT_DIMS,
+    ASPECT_LABELS,
     estimateBaseAnlas,
     MAX_CHARACTER_REFS,
     MAX_PRECISE_REFS,
@@ -25,6 +27,52 @@ import { CharacterRefSelector } from './NovelAIGeneration/CharacterRefSelector'
 import { PreciseRefList } from './NovelAIGeneration/PreciseRefList'
 import { HistoryGallery } from './NovelAIGeneration/HistoryGallery'
 import { HistoryZoomOverlay } from './NovelAIGeneration/HistoryZoomOverlay'
+
+/** data URL / URL を HTMLImageElement として読み込む */
+function loadImageEl(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
+        img.src = src
+    })
+}
+
+/**
+ * 前景（キャラ）切り抜きを、白い紙にスクリーントーンをタイル敷きした背景へ重ねて合成し、
+ * PNG の data URL を返す。トーンは SVG data URL なので canvas は汚染されず toDataURL できる。
+ */
+async function composeToneBackground(
+    cutoutDataUrl: string,
+    width: number,
+    height: number,
+    toneDataUrl: string,
+    scale: number
+): Promise<string> {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('canvas が使えません')
+    // 紙（白）
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+    // トーンをタイル敷き（scale でタイルの大きさを調整）
+    const toneImg = await loadImageEl(toneDataUrl)
+    const pattern = ctx.createPattern(toneImg, 'repeat')
+    if (pattern) {
+        const s = Math.max(0.1, scale)
+        if (typeof pattern.setTransform === 'function') {
+            pattern.setTransform(new DOMMatrix([s, 0, 0, s, 0, 0]))
+        }
+        ctx.fillStyle = pattern
+        ctx.fillRect(0, 0, width, height)
+    }
+    // 前景（キャラ）を上に重ねる
+    const fgImg = await loadImageEl(cutoutDataUrl)
+    ctx.drawImage(fgImg, 0, 0, width, height)
+    return canvas.toDataURL('image/png')
+}
 
 export const NovelAIGenerationModal: React.FC = () => {
     const targetPanelId = useMangaStore((s) => s.novelaiTargetPanelId)
@@ -418,21 +466,71 @@ export const NovelAIGenerationModal: React.FC = () => {
     }
 
     /**
+     * 外部画像をこのコマの生成履歴に取り込む。
+     * サイズを 64px グリッドへ正規化しつつ novelai/<panelId>/ に複製して独立した履歴
+     * エントリにするので、元のコマ背景や履歴削除（dust 移動）と干渉しない。
+     * 背景だけ再描画などにそのまま使える。
+     */
+    const handleImportToHistory = async (absSourcePath: string): Promise<void> => {
+        if (!panel || !currentProjectPath || !window.electron?.novelaiImportImage) return
+        setBusy(true)
+        try {
+            const resp = await window.electron.novelaiImportImage(currentProjectPath, panel.id, absSourcePath)
+            if (!resp.ok) {
+                await showError(`画像の取り込みに失敗しました: ${resp.error}${resp.message ? ` ${resp.message}` : ''}`)
+                return
+            }
+            const entry: NovelAIHistoryEntry = {
+                relativePath: resp.relativePath,
+                seed: 0,
+                createdAt: Date.now(),
+                width: resp.width,
+                height: resp.height,
+                imported: true
+            }
+            const nextHistory = [...(panel.novelai?.history ?? []), entry]
+            persistForm(form, nextHistory)
+            setSelectedRelativePath(entry.relativePath)
+        } catch (e) {
+            await showError(e instanceof Error ? e.message : String(e))
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    // ファイル選択ダイアログから取り込む
+    const handleImportFromFile = async (): Promise<void> => {
+        if (!window.electron) return
+        const abs = await window.electron.selectFile()
+        if (abs) await handleImportToHistory(abs)
+    }
+
+    // 現在このコマに乗っている画像（ドロップ画像など）を履歴に取り込む
+    const handleImportCurrentPanelImage = async (): Promise<void> => {
+        if (!panel?.imagePath || !currentProjectPath || !window.electron) return
+        const abs = window.electron.resolveAssetPath(currentProjectPath, panel.imagePath)
+        if (abs) await handleImportToHistory(abs)
+    }
+
+    /**
      * 部分再描画（infill）。拡大オーバーレイから呼ばれる。塗ったマスク領域だけを再生成し、
      * 結果を新しい履歴エントリとして追加して選択する。成功時はそのエントリを返す。
      */
     const handleInpaint = async (
         sourceRelativePath: string,
         maskDataUrl: string,
-        inpaintPrompt: string
+        inpaintPrompt: string,
+        backgroundBlur: number
     ): Promise<NovelAIHistoryEntry | null> => {
         if (!window.electron?.novelaiInpaint || !panel || !currentProjectPath) return null
         const charPromptsPayload = selectedCharacters
             .map((c) => ({ prompt: (c.positivePrompt ?? '').trim(), uc: (c.negativePrompt ?? '').trim() }))
             .filter((p) => !!p.prompt)
         const negOverride = (form.negativeOverride ?? '').trim()
-        // 再描画元の画像が持つ seed を使う（構図の一貫性を保つ。見つからなければ直近 seed）
-        const sourceEntry = history.find((h) => h.relativePath === sourceRelativePath)
+        // 部分再描画は毎回ランダムシード（null）にする。元画像の seed を使い回すと、同じマスク・
+        // プロンプトで NovelAI infill が決定的に同じ結果を返し「何度やっても変わらない」ため。
+        // 未マスク領域は add_original_image で元画像から保持されるので、seed 固定の必要はない。
+        const inpaintSeed = null
         const resp = await window.electron.novelaiInpaint({
             projectPath: currentProjectPath,
             panelId: panel.id,
@@ -443,7 +541,8 @@ export const NovelAIGenerationModal: React.FC = () => {
             inpaintPrompt: inpaintPrompt.trim() || undefined,
             characterPrompts: charPromptsPayload,
             negativeOverride: negOverride || undefined,
-            seed: sourceEntry?.seed ?? form.lastSeed ?? null
+            seed: inpaintSeed,
+            backgroundBlur: backgroundBlur > 0 ? backgroundBlur : undefined
         })
         if (!resp.ok) {
             await showError(`部分再描画に失敗しました: ${resp.error}${resp.status ? ` (${resp.status})` : ''}${resp.message ? ` ${resp.message}` : ''}`)
@@ -466,6 +565,67 @@ export const NovelAIGenerationModal: React.FC = () => {
         setSelectedRelativePath(entry.relativePath)
         // 消費した Anlas を残高表示に反映
         testNovelAIConnection().catch(() => { /* ignore */ })
+        return entry
+    }
+
+    // rembg で背景を自動マスク化（白=再描画）。HistoryZoomOverlay の「背景だけ再描画」用。
+    const handleBackgroundMask = async (sourceRelativePath: string): Promise<string | null> => {
+        if (!window.electron?.novelaiBackgroundMask || !currentProjectPath) return null
+        const resp = await window.electron.novelaiBackgroundMask(currentProjectPath, sourceRelativePath)
+        if (!resp.ok) {
+            await showError(`背景マスクの生成に失敗しました: ${resp.error}${resp.message ? ` ${resp.message}` : ''}`)
+            return null
+        }
+        return resp.maskBase64Png
+    }
+
+    /**
+     * 背景をスクリーントーンに差し替える。rembg で前景（キャラ）を切り抜き、選んだトーンを
+     * 敷いた背景へ重ねて合成し、新しい履歴エントリとして保存・選択する。NovelAI は使わない。
+     */
+    const handleToneBackground = async (
+        sourceRelativePath: string,
+        toneId: string,
+        scale: number
+    ): Promise<NovelAIHistoryEntry | null> => {
+        if (!window.electron?.novelaiForegroundCutout || !window.electron?.novelaiSaveImage) return null
+        if (!panel || !currentProjectPath) return null
+        const toneUrl = getScreenToneDataUrl(toneId)
+        if (!toneUrl) {
+            await showError('選択したトーンが見つかりませんでした')
+            return null
+        }
+        const cut = await window.electron.novelaiForegroundCutout(currentProjectPath, sourceRelativePath)
+        if (!cut.ok) {
+            await showError(`前景の切り抜きに失敗しました: ${cut.error}${cut.message ? ` ${cut.message}` : ''}`)
+            return null
+        }
+        let composed: string
+        try {
+            composed = await composeToneBackground(cut.dataUrl, cut.width, cut.height, toneUrl, scale)
+        } catch (e) {
+            await showError(e instanceof Error ? e.message : String(e))
+            return null
+        }
+        const resp = await window.electron.novelaiSaveImage(currentProjectPath, panel.id, composed)
+        if (!resp.ok) {
+            await showError(`背景トーン合成の保存に失敗しました: ${resp.error}${resp.message ? ` ${resp.message}` : ''}`)
+            return null
+        }
+        const entry: NovelAIHistoryEntry = {
+            relativePath: resp.relativePath,
+            seed: 0,
+            createdAt: resp.createdAt,
+            situationPrompt: (form.situationPrompt ?? '').trim() || undefined,
+            supplementaryPrompt: (form.supplementaryPrompt ?? '').trim() || undefined,
+            aspect: form.aspect ?? 'portrait',
+            width: resp.width,
+            height: resp.height,
+            imported: true
+        }
+        const nextHistory = [...(panel.novelai?.history ?? []), entry]
+        persistForm(form, nextHistory)
+        setSelectedRelativePath(entry.relativePath)
         return entry
     }
 
@@ -546,7 +706,7 @@ export const NovelAIGenerationModal: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
-                            {(['portrait', 'square', 'landscape'] as NovelAIAspect[]).map((a) => (
+                            {(['portrait', 'square', 'landscape', 'wide', 'tall'] as NovelAIAspect[]).map((a) => (
                                 <button
                                     key={a}
                                     type="button"
@@ -557,7 +717,7 @@ export const NovelAIGenerationModal: React.FC = () => {
                                             : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
                                     }`}
                                 >
-                                    {a === 'portrait' ? '縦 832×1216' : a === 'square' ? '正方 1024×1024' : '横 1216×832'}
+                                    {ASPECT_LABELS[a]}
                                 </button>
                             ))}
                         </div>
@@ -695,9 +855,14 @@ export const NovelAIGenerationModal: React.FC = () => {
                             selectedRelativePath={selectedRelativePath}
                             adoptedRelativePath={panel.imagePath}
                             busy={busy}
+                            canImportCurrent={
+                                !!panel.imagePath && !history.some((h) => h.relativePath === panel.imagePath)
+                            }
                             onSelect={setSelectedRelativePath}
                             onZoom={setZoomedRelativePath}
                             onDelete={(entry) => void handleDeleteHistory(entry)}
+                            onImportCurrent={() => void handleImportCurrentPanelImage()}
+                            onImportFile={() => void handleImportFromFile()}
                         />
                     </div>
                 </div>
@@ -712,6 +877,8 @@ export const NovelAIGenerationModal: React.FC = () => {
                     onClose={() => setZoomedRelativePath(null)}
                     onSelect={setZoomedRelativePath}
                     onInpaint={handleInpaint}
+                    onBackgroundMask={handleBackgroundMask}
+                    onToneBackground={handleToneBackground}
                 />
             )}
         </div>

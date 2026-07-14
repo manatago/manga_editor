@@ -93,6 +93,10 @@ export type CompositorSnapshot = {
     canvasW: number
     canvasH: number
     bgLibraryId: string | null
+    /** 内蔵スクリーントーン背景の ID（背景ライブラリ画像とは排他）。null で未使用。 */
+    bgToneId: string | null
+    /** トーンのタイル倍率 */
+    bgToneScale: number
     bgT: LayerTransform
     charInstances: CompositorCharInstance[]
     selected: 'bg' | string | null
@@ -106,6 +110,8 @@ export function cloneSnapshot(s: CompositorSnapshot): CompositorSnapshot {
         canvasW: s.canvasW,
         canvasH: s.canvasH,
         bgLibraryId: s.bgLibraryId,
+        bgToneId: s.bgToneId,
+        bgToneScale: s.bgToneScale,
         bgT: { ...s.bgT },
         charInstances: s.charInstances.map((c) => ({
             ...c,

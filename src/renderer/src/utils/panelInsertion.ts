@@ -1,15 +1,16 @@
 import type { PanelType, Page } from '../store/useMangaStore'
 
-export const PANEL_RIGHT_MARGIN = 10
-export const PANEL_LEFT_MARGIN = 10
-export const PANEL_TOP_MARGIN = 10
-export const PANEL_SIDE_GAP = 10
-export const PANEL_VERTICAL_GAP = 10
+export const PANEL_RIGHT_MARGIN = 20
+export const PANEL_LEFT_MARGIN = 20
+export const PANEL_TOP_MARGIN = 20
+export const PANEL_SIDE_GAP = 20
+export const PANEL_VERTICAL_GAP = 20
 export const PANEL_STANDARD_HEIGHT = 300
 export const PANEL_MIN_HEIGHT = 100
 
 export function standardPanelWidth(pageWidth: number): number {
-    return Math.round(pageWidth / 2 - 15)
+    // 2カラムが対称に収まる幅。左右マージン + 中央ギャップ = 20×3 の半分を引く。
+    return Math.round(pageWidth / 2 - 30)
 }
 
 export function computePanelInsertion(
@@ -53,10 +54,27 @@ export function computePanelInsertion(
     if (leftmostBottom.width <= pageWidth * 0.8) {
         const newWidth = leftmostBottom.x - PANEL_LEFT_MARGIN - PANEL_SIDE_GAP
         if (newWidth >= 80) {
-            const fitted = fitShape(newWidth, leftmostBottom.height)
-            const x = PANEL_LEFT_MARGIN
-            const y = leftmostBottom.y + Math.round((leftmostBottom.height - fitted.height) / 2)
-            return { x, y, ...fitted }
+            // 右の縦長コマ(leftmostBottom)の左隣のカラム。既に上部を占めるコマ（縮めた2番目など）が
+            // あれば、その下に積み、下端は右の縦長コマの下端にそろえる。
+            const columnLeft = PANEL_LEFT_MARGIN
+            const columnRight = leftmostBottom.x - PANEL_SIDE_GAP
+            const columnBottom = leftmostBottom.y + leftmostBottom.height
+            // このカラムに水平に重なる既存コマ（右の縦長コマ自身は除く）
+            const overlapping = page.panels.filter(
+                (p) => p !== leftmostBottom && p.x < columnRight && p.x + p.width > columnLeft
+            )
+            const stackTop =
+                overlapping.length > 0
+                    ? Math.max(...overlapping.map((p) => p.y + p.height)) + PANEL_VERTICAL_GAP
+                    : leftmostBottom.y
+            const availableHeight = columnBottom - stackTop
+            // 残り領域が十分あればここに配置（下端そろえ）。狭すぎる場合は下（最下段の下）へフォールスルー。
+            if (availableHeight >= PANEL_MIN_HEIGHT) {
+                const fitted = fitShape(newWidth, availableHeight)
+                const x = PANEL_LEFT_MARGIN
+                const y = stackTop + Math.round((availableHeight - fitted.height) / 2)
+                return { x, y, ...fitted }
+            }
         }
     }
 

@@ -8,10 +8,12 @@ import { useMangaStore } from '../store/useMangaStore'
 import type { Page, Panel, MosaicType } from '../store/types'
 import { confirmMessage } from '../utils/dialogs'
 
+type ExportFormat = 'png' | 'jpeg'
+
 interface SidebarLeftProps {
-    onExportPNG: () => void;
-    onExportAllPagesPNG: () => void;
-    onExportAllPagesPNGNoMosaic: () => void;
+    onExportPNG: (format: ExportFormat) => void;
+    onExportAllPagesPNG: (format: ExportFormat) => void;
+    onExportAllPagesPNGNoMosaic: (format: ExportFormat) => void;
     onExportText: () => void;
     onOpenTemplateModal: () => void;
     handleCreateNew: () => void;
@@ -70,6 +72,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     const [compositorOpen, setCompositorOpen] = useState(false)
     const [novelaiSettingsOpen, setNovelaiSettingsOpen] = useState(false)
     const [toolsOpen, setToolsOpen] = useState(false)
+    const [exportFormat, setExportFormat] = useState<ExportFormat>('png')
     const novelaiConnection = useMangaStore((s) => s.novelaiConnection)
     const novelaiConnectedOk = novelaiConnection.state === 'ok'
 
@@ -120,29 +123,41 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                             </button>
                             {toolsOpen && (
                                 <div className="mt-2 space-y-1.5 px-1">
+                                    {/* 書き出し形式トグル。JPEG はファイルサイズが軽い（透過は不可） */}
+                                    <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-800 border border-zinc-700">
+                                        {(['png', 'jpeg'] as const).map((fmt) => (
+                                            <button
+                                                key={fmt}
+                                                onClick={() => setExportFormat(fmt)}
+                                                className={`flex-1 py-1 rounded-md text-[10px] font-bold transition-colors ${exportFormat === fmt ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                            >
+                                                {fmt === 'png' ? 'PNG' : 'JPEG（軽量）'}
+                                            </button>
+                                        ))}
+                                    </div>
                                     <button
-                                        onClick={onExportPNG}
+                                        onClick={() => onExportPNG(exportFormat)}
                                         disabled={!currentPageId}
                                         className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 transition-colors text-emerald-400 hover:text-emerald-300 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Download size={15} />
-                                        <span>PNG出力（現在ページ）</span>
+                                        <span>{exportFormat === 'jpeg' ? 'JPEG' : 'PNG'}出力（現在ページ）</span>
                                     </button>
                                     <button
-                                        onClick={onExportAllPagesPNG}
+                                        onClick={() => onExportAllPagesPNG(exportFormat)}
                                         disabled={!currentPageId || pages.length === 0}
                                         className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Download size={15} />
-                                        <span>全ページ一括 PNG（モザイクあり）</span>
+                                        <span>全ページ一括 {exportFormat === 'jpeg' ? 'JPEG' : 'PNG'}（モザイクあり）</span>
                                     </button>
                                     <button
-                                        onClick={onExportAllPagesPNGNoMosaic}
+                                        onClick={() => onExportAllPagesPNGNoMosaic(exportFormat)}
                                         disabled={!currentPageId || pages.length === 0}
                                         className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Download size={15} />
-                                        <span>全ページ一括 PNG（モザイクなし）</span>
+                                        <span>全ページ一括 {exportFormat === 'jpeg' ? 'JPEG' : 'PNG'}（モザイクなし）</span>
                                     </button>
                                     <button
                                         onClick={onExportText}

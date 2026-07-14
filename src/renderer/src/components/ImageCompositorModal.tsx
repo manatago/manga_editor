@@ -4,6 +4,7 @@ import useImage from 'use-image'
 import Konva from 'konva'
 import { X, ImagePlus, Download, RotateCcw, FlipHorizontal, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { showError, showInfo, confirmMessage } from '../utils/dialogs'
+import { getScreenToneDataUrl, SCREEN_TONE_CATALOG } from '../utils/screenToneCatalog'
 import { useMangaStore } from '../store/useMangaStore'
 import {
     ASPECT_PRESETS,
@@ -43,6 +44,9 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
     const [canvasH, setCanvasH] = useState(() => canvasSizeFromPreset(ASPECT_PRESETS[0]).h)
 
     const [bgLibraryId, setBgLibraryId] = useState<string | null>(null)
+    // 内蔵スクリーントーン背景（背景ライブラリ画像とは排他）
+    const [bgToneId, setBgToneId] = useState<string | null>(null)
+    const [bgToneScale, setBgToneScale] = useState(1)
     const [charInstances, setCharInstances] = useState<CompositorCharInstance[]>([])
     const [selected, setSelected] = useState<'bg' | string | null>(null)
     const [bgT, setBgT] = useState<LayerTransform>(() => defaultTransform())
@@ -82,6 +86,10 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
     }, [currentProjectPath, bgItem])
     const [bgImg] = useImage(bgUrl, 'anonymous')
 
+    // 内蔵トーンの SVG data URL を画像化（タイル背景に使う）。data URL なので canvas は汚染されない。
+    const toneDataUrl = bgToneId ? (getScreenToneDataUrl(bgToneId) ?? '') : ''
+    const [toneImg] = useImage(toneDataUrl, 'anonymous')
+
     const stageRef = useRef<Konva.Stage>(null)
     const contentLayerRef = useRef<Konva.Layer>(null)
     const trRef = useRef<Konva.Transformer>(null)
@@ -102,6 +110,8 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         setCanvasW(snap.canvasW)
         setCanvasH(snap.canvasH)
         setBgLibraryId(snap.bgLibraryId)
+        setBgToneId(snap.bgToneId)
+        setBgToneScale(snap.bgToneScale)
         setBgT({ ...snap.bgT })
         setCharInstances(
             snap.charInstances.map((c) => ({
@@ -120,6 +130,8 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         canvasW,
         canvasH,
         bgLibraryId,
+        bgToneId,
+        bgToneScale,
         bgT,
         charInstances,
         selected,
@@ -191,6 +203,8 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
         setCharInstances([])
         setSelected(null)
         setBgLibraryId(null)
+        setBgToneId(null)
+        setBgToneScale(1)
         setBgT(defaultTransform())
         resetUndo()
         resetFitScale()
@@ -317,8 +331,8 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
             await showError('プロジェクトを開いた状態でエクスポートしてください')
             return
         }
-        if (!bgImg && charInstances.length === 0) {
-            await showError('背景（背景ライブラリ）またはキャラを少なくとも 1 つ選んでください')
+        if (!bgImg && !bgToneId && charInstances.length === 0) {
+            await showError('背景（背景ライブラリ／内蔵トーン）またはキャラを少なくとも 1 つ選んでください')
             return
         }
         const stage = stageRef.current
@@ -432,7 +446,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                             背景＋人物の合成
                         </h2>
                         <p className="text-zinc-500 text-xs mt-1">
-                            比率を選び、背景ライブラリと参照キャラに登録済みの画像だけを使います。⌘Z / Ctrl+Z
+                            比率を選び、背景ライブラリ画像・内蔵スクリーントーン・参照キャラの画像を使えます。⌘Z / Ctrl+Z
                             で直前の操作を戻せます。Delete / Backspace で選択中の背景またはキャラを外します。
                         </p>
                     </div>
@@ -476,6 +490,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                                                 onClick={() => {
                                                     pushUndo()
                                                     setBgLibraryId(item.id)
+                                                    setBgToneId(null)
                                                     bgInitRef.current = false
                                                 }}
                                                 className={`aspect-square rounded-md border overflow-hidden p-0 ${
@@ -495,6 +510,65 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                                         )
                                     })}
                                 </div>
+                            )}
+                        </div>
+
+                        <div className="border-t border-zinc-800 pt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-zinc-400">背景（内蔵トーン）</span>
+                                {bgToneId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            pushUndo()
+                                            setBgToneId(null)
+                                        }}
+                                        className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                                    >
+                                        トーンを外す
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-6 gap-1 max-h-36 overflow-y-auto manga-scrollbar">
+                                {SCREEN_TONE_CATALOG.map((tone) => {
+                                    const active = bgToneId === tone.id
+                                    return (
+                                        <button
+                                            key={tone.id}
+                                            type="button"
+                                            title={tone.name}
+                                            onClick={() => {
+                                                pushUndo()
+                                                setBgToneId(tone.id)
+                                                setBgLibraryId(null)
+                                                setSelected(null)
+                                            }}
+                                            className={`aspect-square rounded-md border overflow-hidden bg-white p-0 ${
+                                                active
+                                                    ? 'border-sky-500 ring-1 ring-sky-500'
+                                                    : 'border-zinc-700 hover:border-zinc-500'
+                                            }`}
+                                        >
+                                            <img src={tone.dataUrl} alt="" className="w-full h-full object-cover" />
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            {bgToneId && (
+                                <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+                                    <span className="shrink-0 w-16">タイルの大きさ</span>
+                                    <input
+                                        type="range"
+                                        min={0.3}
+                                        max={3}
+                                        step={0.1}
+                                        value={bgToneScale}
+                                        onPointerDown={() => pushUndo()}
+                                        onChange={(e) => setBgToneScale(Number(e.target.value))}
+                                        className="flex-1 accent-sky-500"
+                                    />
+                                    <span className="w-9 text-right font-mono text-zinc-500">{Math.round(bgToneScale * 100)}%</span>
+                                </label>
                             )}
                         </div>
 
@@ -710,6 +784,27 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                                         listening
                                         onMouseDown={() => setSelected(null)}
                                     />
+                                    {bgToneId && toneImg ? (
+                                        <>
+                                            {/* 紙（白）の上にトーンをタイル敷き */}
+                                            <Rect
+                                                width={canvasW}
+                                                height={canvasH}
+                                                fill="#ffffff"
+                                                listening
+                                                onMouseDown={() => setSelected(null)}
+                                            />
+                                            <Rect
+                                                width={canvasW}
+                                                height={canvasH}
+                                                fillPatternImage={toneImg}
+                                                fillPatternRepeat="repeat"
+                                                fillPatternScale={{ x: bgToneScale, y: bgToneScale }}
+                                                listening
+                                                onMouseDown={() => setSelected(null)}
+                                            />
+                                        </>
+                                    ) : null}
                                     {bgImg && iwBg > 0 && ihBg > 0 ? (
                                         <KonvaImage
                                             ref={bgRef}

@@ -11,7 +11,7 @@ declare global {
             getTemplates: () => Promise<PageTemplate[]>
             saveTemplate: (template: { name: string; panels: unknown[] }) => Promise<PageTemplate[]>
             deleteTemplate: (id: string) => Promise<PageTemplate[]>
-            exportPNG: (path: string, name: string, data: string) => Promise<string>
+            exportPNG: (path: string, name: string, data: string, format?: 'png' | 'jpeg') => Promise<string>
             exportText: (path: string, data: string) => Promise<string>
             /** 合成ツール用: assets/composites/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
@@ -59,8 +59,18 @@ declare global {
             novelaiClearToken: () => Promise<{ cleared: boolean }>
             /** NovelAI /user/subscription で疎通確認。token 省略時は保存済みを使用 */
             novelaiTestConnection: (token?: string) => Promise<
-                | { ok: true; anlas: number; fixedAnlas: number; purchasedAnlas: number; tier: number | null; active: boolean | null }
-                | { ok: false; error: 'token-missing' | 'network' | `http-${number}`; status?: number; message?: string }
+                | {
+                      ok: true
+                      // 永続トークン（pst-…）は残高を取得できないため null になりうる
+                      anlas: number | null
+                      fixedAnlas: number | null
+                      purchasedAnlas: number | null
+                      tier: number | null
+                      active: boolean | null
+                      /** 残高（Anlas）が取得できなかった（永続トークン等）。接続自体は有効。 */
+                      balanceUnavailable?: boolean
+                  }
+                | { ok: false; error: 'token-missing' | 'token-invalid' | 'network' | `http-${number}`; status?: number; message?: string }
             >
             /**
              * NovelAI 画像生成。
@@ -71,7 +81,7 @@ declare global {
                 projectPath: string
                 panelId?: string
                 outputSubPath?: string
-                aspect?: 'portrait' | 'square' | 'landscape'
+                aspect?: 'portrait' | 'square' | 'landscape' | 'wide' | 'tall'
                 situationPrompt?: string
                 supplementaryPrompt?: string
                 characterPrompts?: Array<{ prompt: string; uc?: string }>
@@ -104,9 +114,57 @@ declare global {
                 characterPrompts?: Array<{ prompt: string; uc?: string }>
                 negativeOverride?: string
                 seed?: number | null
+                /** 背景（マスク領域）のぼかし強度 0..1。0 で無効。 */
+                backgroundBlur?: number
             }) => Promise<
                 | { ok: true; relativePath: string; seed: number; width: number; height: number; createdAt: number }
                 | { ok: false; error: string; status?: number; message?: string }
+            >
+            /**
+             * 背景マスク自動生成。rembg のアルファから「背景＝白(再描画)」の PNG マスク
+             * （data URL）を作って返す。部分再描画(infill)に渡すと背景だけ描き直せる。
+             */
+            novelaiBackgroundMask: (
+                projectPath: string,
+                sourceRelativePath: string
+            ) => Promise<
+                | { ok: true; maskBase64Png: string; width: number; height: number }
+                | { ok: false; error: string; message?: string }
+            >
+            /**
+             * 外部画像をこのコマの生成履歴に取り込む。サイズを 64px グリッドへ正規化して
+             * novelai/<panelId>/ に PNG 保存し、相対パスと正規化後サイズを返す。
+             */
+            novelaiImportImage: (
+                projectPath: string,
+                panelId: string,
+                sourcePath: string
+            ) => Promise<
+                | { ok: true; relativePath: string; width: number; height: number }
+                | { ok: false; error: string; message?: string }
+            >
+            /**
+             * 前景（キャラ）切り抜き取得。rembg で背景を透過させた PNG を data URL で返す。
+             * これを好きな背景（スクリーントーン等）に重ねて背景差し替え合成できる。
+             */
+            novelaiForegroundCutout: (
+                projectPath: string,
+                sourceRelativePath: string
+            ) => Promise<
+                | { ok: true; dataUrl: string; width: number; height: number }
+                | { ok: false; error: string; message?: string }
+            >
+            /**
+             * レンダラで合成した PNG（data URL）をこのコマの生成履歴フォルダに保存する。
+             * NovelAI を介さず作った画像（トーン背景合成など）を履歴に載せる用途。
+             */
+            novelaiSaveImage: (
+                projectPath: string,
+                panelId: string,
+                dataUrl: string
+            ) => Promise<
+                | { ok: true; relativePath: string; width: number; height: number; createdAt: number }
+                | { ok: false; error: string; message?: string }
             >
             /** 生成履歴を 1 件削除（assets/dust/ へ物理移動） */
             novelaiDeleteGeneration: (projectPath: string, relativePath: string) => Promise<

@@ -102,7 +102,8 @@ export function useDropImage({
                     width: w,
                     height: h,
                     isClipped: true,
-                    panelId: targetPanel.id
+                    panelId: targetPanel.id,
+                    aboveMosaic: true
                 })
             } else {
                 // Dropped on empty canvas: Create Material (unclipped)
@@ -112,7 +113,8 @@ export function useDropImage({
                     y,
                     width: w,
                     height: h,
-                    isClipped: false
+                    isClipped: false,
+                    aboveMosaic: true
                 })
             }
         } catch (error) {

@@ -130,6 +130,20 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                             onChange={(e) => updateBubble(bubble.id, { flashLength: parseFloat(e.target.value) })}
                             className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
+                        <div className="flex justify-between mb-1 mt-3">
+                            <label className="text-xs text-zinc-400">背景の塗り広がり</label>
+                            <span className="text-xs text-blue-500 font-mono">{Math.round((bubble.flashFillRadius ?? 0.55) * 100)}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0.05"
+                            max="0.99"
+                            step="0.01"
+                            value={bubble.flashFillRadius ?? 0.55}
+                            onChange={(e) => updateBubble(bubble.id, { flashFillRadius: parseFloat(e.target.value) })}
+                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <p className="text-[10px] text-zinc-500 mt-1">大きくすると中心以外の透明フェードが減り、ほぼベタ塗りになります。</p>
                     </div>
                 )}
 

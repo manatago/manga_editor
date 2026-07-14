@@ -86,7 +86,7 @@ if (process.contextIsolated) {
             getTemplates: () => ipcRenderer.invoke('get-templates'),
             saveTemplate: (template: unknown) => ipcRenderer.invoke('save-template', template),
             deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
-            exportPNG: (path: string, name: string, data: string) => ipcRenderer.invoke('export-png', { path, name, data }),
+            exportPNG: (path: string, name: string, data: string, format?: 'png' | 'jpeg') => ipcRenderer.invoke('export-png', { path, name, data, format }),
             exportText: (path: string, data: string) => ipcRenderer.invoke('export-text', { path, data }),
             saveCompositePng: (projectPath: string, data: string) =>
                 ipcRenderer.invoke('save-composite-png', { projectPath, data }),
@@ -127,6 +127,14 @@ if (process.contextIsolated) {
             novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
             novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
             novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
+            novelaiBackgroundMask: (projectPath: string, sourceRelativePath: string) =>
+                ipcRenderer.invoke('novelai:background-mask', { projectPath, sourceRelativePath }),
+            novelaiImportImage: (projectPath: string, panelId: string, sourcePath: string) =>
+                ipcRenderer.invoke('novelai:import-image', { projectPath, panelId, sourcePath }),
+            novelaiForegroundCutout: (projectPath: string, sourceRelativePath: string) =>
+                ipcRenderer.invoke('novelai:foreground-cutout', { projectPath, sourceRelativePath }),
+            novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
+                ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
             novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
                 ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
         })
@@ -144,7 +152,7 @@ if (process.contextIsolated) {
         getTemplates: () => ipcRenderer.invoke('get-templates'),
         saveTemplate: (template) => ipcRenderer.invoke('save-template', template),
         deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
-        exportPNG: (path, name, data) => ipcRenderer.invoke('export-png', { path, name, data }),
+        exportPNG: (path, name, data, format) => ipcRenderer.invoke('export-png', { path, name, data, format }),
         exportText: (path, data) => ipcRenderer.invoke('export-text', { path, data }),
         saveCompositePng: (projectPath, data) =>
             ipcRenderer.invoke('save-composite-png', { projectPath, data }),
@@ -184,6 +192,14 @@ if (process.contextIsolated) {
         novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
         novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
         novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
+        novelaiBackgroundMask: (projectPath: string, sourceRelativePath: string) =>
+            ipcRenderer.invoke('novelai:background-mask', { projectPath, sourceRelativePath }),
+        novelaiImportImage: (projectPath: string, panelId: string, sourcePath: string) =>
+            ipcRenderer.invoke('novelai:import-image', { projectPath, panelId, sourcePath }),
+        novelaiForegroundCutout: (projectPath: string, sourceRelativePath: string) =>
+            ipcRenderer.invoke('novelai:foreground-cutout', { projectPath, sourceRelativePath }),
+        novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
+            ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
         novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
             ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
     }

@@ -29,10 +29,22 @@ const waitForImagesAfterPageSwitch = async (stage: Konva.Stage | null) => {
     await waitFrames(2)
 }
 
+export type ExportFormat = 'png' | 'jpeg'
+
+// JPEG 品質（0..1）。ファイルサイズと画質のバランスで既定 0.9。
+const JPEG_QUALITY = 0.9
+
+const toDataUrlForFormat = (stage: any, format: ExportFormat): string =>
+    stage.toDataURL(
+        format === 'jpeg'
+            ? { pixelRatio: 2, mimeType: 'image/jpeg', quality: JPEG_QUALITY }
+            : { pixelRatio: 2 }
+    )
+
 export const useExport = () => {
     const stageRef = useRef<any>(null)
 
-    const handleExportPNG = async () => {
+    const handleExportPNG = async (format: ExportFormat = 'png') => {
         const { currentPageId, currentProjectPath, pages, setExporting } = useMangaStore.getState()
         if (!stageRef.current || !currentPageId || !currentProjectPath) return
 
@@ -40,13 +52,11 @@ export const useExport = () => {
 
         try {
             await prepareStageForCapture(stageRef.current)
-            const dataUrl = stageRef.current.toDataURL({
-                pixelRatio: 2
-            })
+            const dataUrl = toDataUrlForFormat(stageRef.current, format)
             const pageName = pages.find((p) => p.id === currentPageId)?.name || 'page'
             if (window.electron) {
-                await window.electron.exportPNG(currentProjectPath, pageName, dataUrl)
-                console.log('useExport: PNG exported successfully')
+                await window.electron.exportPNG(currentProjectPath, pageName, dataUrl, format)
+                console.log('useExport: image exported successfully', format)
             }
         } catch (error) {
             console.error('useExport: export failed', error)
@@ -56,7 +66,8 @@ export const useExport = () => {
         }
     }
 
-    const handleExportAllPagesPNG = async (options?: { hideMosaic?: boolean }) => {
+    const handleExportAllPagesPNG = async (options?: { hideMosaic?: boolean; format?: ExportFormat }) => {
+        const format: ExportFormat = options?.format ?? 'png'
         const {
             pages,
             currentPageId,
@@ -85,16 +96,15 @@ export const useExport = () => {
                     selectPage(page.id, { skipAutosave: true })
                 })
                 await waitForImagesAfterPageSwitch(stageRef.current)
-                const dataUrl = stageRef.current.toDataURL({
-                    pixelRatio: 2
-                })
+                const dataUrl = toDataUrlForFormat(stageRef.current, format)
                 if (window.electron) {
-                    await window.electron.exportPNG(currentProjectPath, page.name, dataUrl)
+                    await window.electron.exportPNG(currentProjectPath, page.name, dataUrl, format)
                 }
             }
             console.log('useExport: all pages exported', pages.length, options)
+            const label = format === 'jpeg' ? 'JPEG' : 'PNG'
             const suffix = options?.hideMosaic ? '（モザイクなし）' : ''
-            await showInfo(`全 ${pages.length} ページを PNG 出力しました${suffix}（exports/）`)
+            await showInfo(`全 ${pages.length} ページを ${label} 出力しました${suffix}（exports/）`)
         } catch (error) {
             console.error('useExport: batch export failed', error)
             await showError('一括エクスポートに失敗しました')

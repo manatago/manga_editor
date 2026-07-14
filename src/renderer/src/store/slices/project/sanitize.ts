@@ -14,7 +14,7 @@ import type {
 } from '../../types'
 import { toRelativeAssetPath } from '../../../utils/projectAssets'
 
-const NOVELAI_ASPECTS: readonly NovelAIAspect[] = ['portrait', 'square', 'landscape']
+const NOVELAI_ASPECTS: readonly NovelAIAspect[] = ['portrait', 'square', 'landscape', 'wide', 'tall']
 const PRECISE_REF_TYPES: readonly PreciseRefType[] = ['character', 'style', 'character&style']
 const PRECISE_REF_SOURCES: readonly PreciseRefSource[] = ['character-image', 'composite']
 const FADE_DIRECTIONS: readonly string[] = [
@@ -78,6 +78,7 @@ export function sanitizeNovelAIPanelConfig(raw: unknown): NovelAIPanelConfig | u
             }
             if (typeof e.width === 'number' && Number.isFinite(e.width)) entry.width = Math.floor(e.width)
             if (typeof e.height === 'number' && Number.isFinite(e.height)) entry.height = Math.floor(e.height)
+            if (e.imported === true) entry.imported = true
             hist.push(entry)
         }
         if (hist.length) out.history = hist
@@ -115,6 +116,7 @@ function sanitizeBubble(bubble: Bubble): Bubble {
         spikeCount: bubble.spikeCount || 36,
         narrowRatio: bubble.narrowRatio ?? 0.3,
         flashLength: bubble.flashLength || 1,
+        flashFillRadius: bubble.flashFillRadius ?? 0.55,
         tailType: bubble.tailType || 'point',
         rotation: bubble.rotation ?? 0,
         autoFitMode:
@@ -171,11 +173,13 @@ function sanitizePanel(panel: Panel, projectPath: string | null): Panel {
                 ? Math.max(-0.5, Math.min(0.5, panel.grayscaleBrightness))
                 : 0,
         imageFlipX: panel.imageFlipX ?? false,
+        imageProtrude: panel.imageProtrude ?? false,
         blurRadius: panel.blurRadius ?? 0,
         hasRainEffect: panel.hasRainEffect ?? false,
         rainDensity: panel.rainDensity ?? 100,
         rainOpacity: panel.rainOpacity ?? 0.3,
         imagePath: relativizeAsset(projectPath, panel.imagePath),
+        protrudeImagePath: relativizeAsset(projectPath, panel.protrudeImagePath),
         backgroundImagePath: relativizeWithProtocol(projectPath, panel.backgroundImagePath, ['builtin://', 'custom-tone://']),
         backgroundImageOpacity:
             panel.backgroundImageOpacity != null
@@ -264,6 +268,7 @@ function sanitizeMaterial(mat: Material, projectPath: string | null): Material {
         ...mat,
         opacity: mat.opacity ?? 1,
         isClipped: mat.isClipped ?? false,
+        aboveMosaic: mat.aboveMosaic ?? false,
         isGrayscale: mat.isGrayscale ?? false,
         grayscaleBrightness:
             typeof mat.grayscaleBrightness === 'number' && !Number.isNaN(mat.grayscaleBrightness)

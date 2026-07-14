@@ -72,6 +72,10 @@ const ImageEditModeTabs: React.FC<{
     rembgEnabled?: boolean
     rembgBusy?: boolean
     onRembg?: () => void
+    onWand?: () => void
+    imageProtrude?: boolean
+    protrudeBusy?: boolean
+    onToggleProtrude?: () => void
     novelaiActive: boolean
     onNovelAI: () => void
 }> = ({
@@ -85,6 +89,10 @@ const ImageEditModeTabs: React.FC<{
     rembgEnabled,
     rembgBusy,
     onRembg,
+    onWand,
+    imageProtrude,
+    protrudeBusy,
+    onToggleProtrude,
     novelaiActive,
     onNovelAI
 }) => {
@@ -95,7 +103,17 @@ const ImageEditModeTabs: React.FC<{
     ]
 
     const showRembg = hasImage && !!rembgEnabled && !!onRembg
-    const novelaiY = hasImage ? (showRembg ? 70 : 38) : 0
+    const showWand = hasImage && !!onWand
+    const showProtrude = hasImage && !!onToggleProtrude
+    // rembg（自動）→ ワンド（手動）→ はみ出し → NovelAI の順に縦積み。各行 28px + 余白 4px = 32px。
+    let stackY = 38
+    const rembgY = stackY
+    if (showRembg) stackY += 32
+    const wandY = stackY
+    if (showWand) stackY += 32
+    const protrudeY = stackY
+    if (showProtrude) stackY += 32
+    const novelaiY = hasImage ? stackY : 0
 
     return (
         <Group>
@@ -214,7 +232,7 @@ const ImageEditModeTabs: React.FC<{
                 <Line points={[14, 8, 14, 18]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={1.5} dash={[2, 2]} listening={false} />
             </Group>
             {showRembg ? (
-                <Group y={38}>
+                <Group y={rembgY}>
                     <Rect
                         x={0}
                         y={0}
@@ -247,6 +265,82 @@ const ImageEditModeTabs: React.FC<{
                         text={rembgBusy ? '背景除去中…' : '背景除去 (rembg)'}
                         fontSize={11}
                         fill={rembgBusy ? '#71717a' : '#e4e4e7'}
+                        listening={false}
+                    />
+                </Group>
+            ) : null}
+            {showWand ? (
+                <Group y={wandY}>
+                    <Rect
+                        x={0}
+                        y={0}
+                        width={170}
+                        height={28}
+                        cornerRadius={6}
+                        fill="rgba(24,24,27,0.95)"
+                        stroke="#3f3f46"
+                        strokeWidth={1}
+                        onMouseDown={(e) => {
+                            e.cancelBubble = true
+                        }}
+                        onMouseUp={(e) => {
+                            e.cancelBubble = true
+                        }}
+                        onClick={(e) => {
+                            e.cancelBubble = true
+                            onWand!()
+                        }}
+                        onTap={(e) => {
+                            e.cancelBubble = true
+                            onWand!()
+                        }}
+                    />
+                    <Text
+                        x={0}
+                        y={7}
+                        width={170}
+                        align="center"
+                        text="手動で背景消し（ワンド）"
+                        fontSize={11}
+                        fill="#e4e4e7"
+                        listening={false}
+                    />
+                </Group>
+            ) : null}
+            {showProtrude ? (
+                <Group y={protrudeY}>
+                    <Rect
+                        x={0}
+                        y={0}
+                        width={170}
+                        height={28}
+                        cornerRadius={6}
+                        fill={imageProtrude ? 'rgba(37,99,235,0.95)' : 'rgba(24,24,27,0.95)'}
+                        stroke={imageProtrude ? '#3b82f6' : '#3f3f46'}
+                        strokeWidth={1}
+                        onMouseDown={(e) => {
+                            e.cancelBubble = true
+                        }}
+                        onMouseUp={(e) => {
+                            e.cancelBubble = true
+                        }}
+                        onClick={(e) => {
+                            e.cancelBubble = true
+                            if (!protrudeBusy) onToggleProtrude!()
+                        }}
+                        onTap={(e) => {
+                            e.cancelBubble = true
+                            if (!protrudeBusy) onToggleProtrude!()
+                        }}
+                    />
+                    <Text
+                        x={0}
+                        y={7}
+                        width={170}
+                        align="center"
+                        text={protrudeBusy ? 'はみ出し用に切り抜き中…' : imageProtrude ? 'コマからはみ出す：ON' : 'コマからはみ出す'}
+                        fontSize={11}
+                        fill={protrudeBusy ? '#71717a' : imageProtrude ? '#ffffff' : '#e4e4e7'}
                         listening={false}
                     />
                 </Group>
@@ -302,6 +396,8 @@ export const PanelItem: React.FC<{
     const [isShiftPressed, setIsShiftPressed] = React.useState(false)
     const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>('move')
     const [rembgBusy, setRembgBusy] = useState(false)
+    const [protrudeBusy, setProtrudeBusy] = useState(false)
+    const openPanelWandEditor = useMangaStore((s) => s.openPanelWandEditor)
     const points = getPanelPoints(panel)
     const setActiveAlignmentGuides = useMangaStore((s) => s.setActiveAlignmentGuides)
     const clearActiveAlignmentGuides = useMangaStore((s) => s.clearActiveAlignmentGuides)
@@ -386,6 +482,32 @@ export const PanelItem: React.FC<{
             await showError(msg)
         } finally {
             setRembgBusy(false)
+        }
+    }
+
+    // 「コマからはみ出す」トグル。ON にした時、まだ切り抜きが無ければ
+    // 元画像(imagePath)を壊さずに rembg で切り抜きを作り protrudeImagePath に入れる。
+    // （枠内は元画像のまま背景を残し、枠外へは切り抜き人物だけを出すため）
+    const handleToggleProtrude = async () => {
+        const next = !panel.imageProtrude
+        if (!next) {
+            onUpdate(panel.id, { imageProtrude: false })
+            return
+        }
+        onUpdate(panel.id, { imageProtrude: true })
+        // 既に切り抜き済み、またはプロジェクト外画像なら自動生成しない（ワンドで手動可）
+        if (panel.protrudeImagePath || protrudeBusy || !currentProjectPath || !panel.imagePath || !window.electron) return
+        const abs = window.electron.resolveAssetPath(currentProjectPath, panel.imagePath)
+        if (!abs) return
+        setProtrudeBusy(true)
+        try {
+            const { relativePath } = await window.electron.rembgRemoveBackground(currentProjectPath, panel.imagePath)
+            onUpdate(panel.id, { protrudeImagePath: relativePath }, true)
+        } catch (e: unknown) {
+            console.error('PanelItem: protrude rembg', e)
+            await showError('はみ出し用の切り抜き生成に失敗しました。手動（ワンド）で調整してください。')
+        } finally {
+            setProtrudeBusy(false)
         }
     }
 
@@ -570,6 +692,10 @@ export const PanelItem: React.FC<{
                         rembgEnabled={!!currentProjectPath && !!panel.imagePath}
                         rembgBusy={rembgBusy}
                         onRembg={handlePanelRembg}
+                        onWand={!!currentProjectPath && !!panel.imagePath ? () => openPanelWandEditor(panel.id) : undefined}
+                        imageProtrude={!!panel.imageProtrude}
+                        protrudeBusy={protrudeBusy}
+                        onToggleProtrude={handleToggleProtrude}
                         novelaiActive={novelaiActive}
                         onNovelAI={() => openNovelAIForPanel(panel.id)}
                     />

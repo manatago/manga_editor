@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { Page, Panel } from '../store/useMangaStore'
 import {
     PANEL_RIGHT_MARGIN,
+    PANEL_LEFT_MARGIN,
     PANEL_TOP_MARGIN,
     PANEL_VERTICAL_GAP,
     PANEL_STANDARD_HEIGHT,
@@ -104,9 +105,41 @@ describe('computePanelInsertion', () => {
         // 右寄せの幅 400 のコマ（80% = 672 以下）。左端 x=300 → 280px の余白
         const right = panel({ x: 300, y: 100, width: 400, height: 200 })
         const result = computePanelInsertion(makePage([right]), 'rect', defaultWidth, defaultHeight)
-        expect(result.x).toBe(10) // PANEL_LEFT_MARGIN
+        expect(result.x).toBe(PANEL_LEFT_MARGIN)
         expect(result.y).toBeLessThanOrEqual(right.y + right.height) // 同じ行に並ぶ
         expect(result.width).toBeGreaterThanOrEqual(80) // newWidth ≥ 80 の条件
+    })
+
+    it('左カラム上部に縮めたコマがある時、その下に積み下端を右の縦長コマにそろえる', () => {
+        // 1番目: 右の縦長コマ、2番目: 左上に縮めたコマ
+        const tallRight = panel({ x: 430, y: PANEL_TOP_MARGIN, width: 390, height: 800 })
+        const shortLeft = panel({ x: PANEL_LEFT_MARGIN, y: PANEL_TOP_MARGIN, width: 390, height: 300 })
+        const result = computePanelInsertion(
+            makePage([tallRight, shortLeft]),
+            'rect',
+            defaultWidth,
+            defaultHeight
+        )
+        // 2番目の下に積む
+        expect(result.x).toBe(PANEL_LEFT_MARGIN)
+        expect(result.y).toBe(shortLeft.y + shortLeft.height + PANEL_VERTICAL_GAP)
+        // 下端が右の縦長コマ(1番目)の下端にそろう
+        expect(result.y + result.height).toBe(tallRight.y + tallRight.height)
+    })
+
+    it('左カラムの残りが狭すぎる場合は最下段（右の縦長コマ）の下へ回す', () => {
+        const tallRight = panel({ x: 430, y: PANEL_TOP_MARGIN, width: 390, height: 800 })
+        // 左上のコマがほぼ下端まで占め、残りが PANEL_MIN_HEIGHT 未満
+        const almostFullLeft = panel({ x: PANEL_LEFT_MARGIN, y: PANEL_TOP_MARGIN, width: 390, height: 760 })
+        const result = computePanelInsertion(
+            makePage([tallRight, almostFullLeft]),
+            'rect',
+            defaultWidth,
+            defaultHeight
+        )
+        const maxBottomEdge = tallRight.y + tallRight.height
+        // 左カラムに積まず、最下段の下（1番目の下）に置く
+        expect(result.y).toBe(maxBottomEdge + PANEL_VERTICAL_GAP)
     })
 
     it('circle タイプは正方形に丸められる', () => {

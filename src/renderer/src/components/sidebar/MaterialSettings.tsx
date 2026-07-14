@@ -67,6 +67,13 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
 
                 <div className="pt-2 border-t border-zinc-800 space-y-3">
                     <button
+                        onClick={() => updateMaterial(material.id, { aboveMosaic: !material.aboveMosaic })}
+                        className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${material.aboveMosaic ? 'bg-zinc-100 border-zinc-200 text-zinc-900' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                    >
+                        <span>モザイクより前面</span>
+                        <div className={`w-2 h-2 rounded-full ${material.aboveMosaic ? 'bg-zinc-900' : 'bg-zinc-700'} `} />
+                    </button>
+                    <button
                         onClick={() => updateMaterial(material.id, { isGrayscale: !material.isGrayscale })}
                         className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${material.isGrayscale ? 'bg-zinc-100 border-zinc-200 text-zinc-900' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
                     >
