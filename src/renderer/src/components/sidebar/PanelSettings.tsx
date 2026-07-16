@@ -591,9 +591,30 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                                         🎲 配置を変える
                                     </button>
                                 </div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[8px] text-zinc-500 uppercase">点の色</span>
+                                    <div className="flex items-center gap-0.5 rounded-md border border-zinc-700 p-0.5">
+                                        <button
+                                            onClick={() => updatePanel(panel.id, { dotCircleColor: 'black' })}
+                                            className={`px-2.5 py-1 rounded text-[10px] font-bold ${(panel.dotCircleColor ?? 'black') === 'black' ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                                        >
+                                            黒
+                                        </button>
+                                        <button
+                                            onClick={() => updatePanel(panel.id, { dotCircleColor: 'white' })}
+                                            className={`px-2.5 py-1 rounded text-[10px] font-bold ${panel.dotCircleColor === 'white' ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                                        >
+                                            白
+                                        </button>
+                                    </div>
+                                </div>
                                 <div>
                                     <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">大きさ (Size)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.dotCircleSize ?? 0.5) * 100)}%</span></div>
                                     <input type="range" min="0.1" max="1.5" step="0.05" value={panel.dotCircleSize ?? 0.5} onChange={(e) => updatePanel(panel.id, { dotCircleSize: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">きめ細かさ (Density)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.dotCircleDensity ?? 1) * 100)}%</span></div>
+                                    <input type="range" min="0.3" max="4" step="0.1" value={panel.dotCircleDensity ?? 1} onChange={(e) => updatePanel(panel.id, { dotCircleDensity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                                 </div>
                                 <div>
                                     <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">数 (Count)</label><span className="text-[8px] text-blue-500 font-mono">{panel.dotCircleCount ?? 8}</span></div>

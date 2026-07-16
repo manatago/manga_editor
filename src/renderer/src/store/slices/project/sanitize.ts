@@ -191,6 +191,8 @@ function sanitizePanel(panel: Panel, projectPath: string | null): Panel {
         dotCircleOpacity: panel.dotCircleOpacity ?? 0.85,
         dotCircleSeed: panel.dotCircleSeed ?? 0,
         dotCircleSize: panel.dotCircleSize ?? 0.5,
+        dotCircleDensity: panel.dotCircleDensity ?? 1,
+        dotCircleColor: panel.dotCircleColor ?? 'black',
         hasSandStorm: panel.hasSandStorm ?? false,
         sandStormDensity: panel.sandStormDensity ?? 0.5,
         sandStormOpacity: panel.sandStormOpacity ?? 0.6,

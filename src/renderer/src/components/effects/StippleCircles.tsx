@@ -18,6 +18,7 @@ export const StippleCircles: React.FC<{ panel: Panel; points: number[] }> = ({ p
     const height = panel.height || 1
     const opacity = panel.dotCircleOpacity ?? 0.85
     const count = Math.min(Math.max(1, panel.dotCircleCount ?? 8), 60)
+    const density = Math.min(Math.max(0.3, panel.dotCircleDensity ?? 1), 4)
 
     // panel.id 由来の固定シード + ユーザー指定シード（変えると配置が変わる）
     const seed =
@@ -57,11 +58,12 @@ export const StippleCircles: React.FC<{ panel: Panel; points: number[] }> = ({ p
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const c: CanvasRenderingContext2D = (context as any)._context
                     c.save()
-                    c.fillStyle = '#111'
+                    c.fillStyle = panel.dotCircleColor === 'white' ? '#fff' : '#111'
                     for (const circle of circles) {
                         const R = circle.r
-                        // 縁の周長に比例した点数（面積ではないのでリングになる）
-                        const samples = Math.min(3500, Math.max(60, Math.floor(2 * Math.PI * R * 2.6)))
+                        // 縁の周長に比例した点数（面積ではないのでリングになる）。
+                        // 細かい砂目にするため係数を大きくし、密度倍率で調整可。
+                        const samples = Math.min(24000, Math.max(120, Math.floor(2 * Math.PI * R * 9 * density)))
                         // 縁の外側へどこまで点が広がるか（縁に密集し外へフェード）
                         const bandOut = R * 0.3
                         for (let j = 0; j < samples; j++) {
@@ -75,7 +77,8 @@ export const StippleCircles: React.FC<{ panel: Panel; points: number[] }> = ({ p
                             if (rnd(circle.k + j * 5.3 + 2) > keep) continue
                             const px = circle.cx + Math.cos(a) * rr
                             const py = circle.cy + Math.sin(a) * rr
-                            const size = rnd(circle.k + j * 3.3 + 4) < 0.22 ? 1.3 : 0.8
+                            // 粒を小さく（0.5〜0.9px）。細かい点が重なって滑らかな砂目に見える。
+                            const size = 0.5 + rnd(circle.k + j * 3.3 + 4) * 0.4
                             c.fillRect(px, py, size, size)
                         }
                     }
