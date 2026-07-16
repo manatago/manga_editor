@@ -382,14 +382,10 @@ export const BubbleItem: React.FC<{
                 const cg = parseInt(hexColor.slice(3, 5), 16)
                 const cb = parseInt(hexColor.slice(5, 7), 16)
                 const bgAlpha = isMask ? 1 : actualBackgroundOpacity
-                const endRadius = Math.max(bubble.width, bubble.height) / 2 * 0.9
                 // 不透明で塗る半径（0..1）。ここまでベタ塗り、そこから外周へ透明にフェード。
                 // 大きくするほど「真ん中以外が透明」が減り、ほぼベタ塗りになる。
                 const fillR = Math.min(0.99, Math.max(0.05, bubble.flashFillRadius ?? 0.55))
                 const solid = `rgba(${cr},${cg},${cb},${bgAlpha})`
-                const colorStops = isMask
-                    ? [0, 'black', 1, 'black']
-                    : [0, solid, fillR, solid, 1, `rgba(${cr},${cg},${cb},0)`]
                 return (
                     <>
                         {shouldRenderFills && (
@@ -398,13 +394,12 @@ export const BubbleItem: React.FC<{
                                 height={bubble.height}
                                 opacity={isMask ? 1 : passOpacity}
                                 perfectDrawEnabled={false}
-                                fillRadialGradientStartPoint={{ x: bubble.width / 2, y: bubble.height / 2 }}
-                                fillRadialGradientEndPoint={{ x: bubble.width / 2, y: bubble.height / 2 }}
-                                fillRadialGradientStartRadius={0}
-                                fillRadialGradientEndRadius={endRadius}
-                                fillRadialGradientColorStops={colorStops}
                                 sceneFunc={(ctx, shape) => {
                                     const w = shape.width(), h = shape.height()
+                                    if (w <= 0 || h <= 0) return
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    const raw = (ctx as any)._context as CanvasRenderingContext2D
+                                    // 楕円パス（コマの幅高に一致）
                                     ctx.beginPath()
                                     for (let i = 0; i <= 64; i++) {
                                         const angle = (i / 64) * Math.PI * 2
@@ -414,7 +409,25 @@ export const BubbleItem: React.FC<{
                                         else ctx.lineTo(px, py)
                                     }
                                     ctx.closePath()
-                                    ctx.fillShape(shape)
+                                    raw.save()
+                                    raw.clip()
+                                    if (isMask) {
+                                        raw.fillStyle = 'black'
+                                        raw.fillRect(0, 0, w, h)
+                                    } else {
+                                        // 円形グラデを w×h の楕円へスケール。塗り広がり(fillR)が
+                                        // 上下左右で均等になり、縦長でも上下だけ空く問題を解消。
+                                        const Rc = Math.max(w, h) / 2
+                                        raw.translate(w / 2, h / 2)
+                                        raw.scale((w / 2) / Rc, (h / 2) / Rc)
+                                        const g = raw.createRadialGradient(0, 0, 0, 0, 0, Rc)
+                                        g.addColorStop(0, solid)
+                                        g.addColorStop(fillR, solid)
+                                        g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`)
+                                        raw.fillStyle = g
+                                        raw.fillRect(-Rc, -Rc, Rc * 2, Rc * 2)
+                                    }
+                                    raw.restore()
                                 }}
                             />
                         )}
