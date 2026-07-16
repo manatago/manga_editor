@@ -2,6 +2,15 @@ import React from 'react'
 import { Group, Shape } from 'react-konva'
 import { Panel } from '../../store/useMangaStore'
 
+/** 点の色（黒〜白の5段階）。UI と描画で共有 */
+export const DOT_CIRCLE_COLORS: { key: NonNullable<Panel['dotCircleColor']>; hex: string; label: string }[] = [
+    { key: 'black', hex: '#111111', label: '黒' },
+    { key: 'dark-gray', hex: '#444444', label: '濃灰' },
+    { key: 'gray', hex: '#808080', label: '灰' },
+    { key: 'light-gray', hex: '#b5b5b5', label: '淡灰' },
+    { key: 'white', hex: '#ffffff', label: '白' }
+]
+
 /**
  * 点描（砂目）サークル。漫画でよくある「円の内側は完全に空（白抜き）で、円の外側・
  * とくに縁のすぐ外に点が集中し、外へ向かってフェードする」表現。円は重なって配置される。
@@ -58,7 +67,8 @@ export const StippleCircles: React.FC<{ panel: Panel; points: number[] }> = ({ p
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const c: CanvasRenderingContext2D = (context as any)._context
                     c.save()
-                    c.fillStyle = panel.dotCircleColor === 'white' ? '#fff' : '#111'
+                    c.fillStyle =
+                        DOT_CIRCLE_COLORS.find((d) => d.key === (panel.dotCircleColor ?? 'black'))?.hex ?? '#111111'
                     for (const circle of circles) {
                         const R = circle.r
                         // 縁の周長に比例した点数（面積ではないのでリングになる）。

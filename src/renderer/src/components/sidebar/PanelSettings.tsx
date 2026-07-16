@@ -3,6 +3,7 @@ import { Trash2, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpLeft,
 import { FadeDirection, Panel } from '../../store/useMangaStore'
 import type { GradientType } from '../../store/types'
 import { PanelTypeIcon } from '../icons/PanelTypeIcon'
+import { DOT_CIRCLE_COLORS } from '../effects/StippleCircles'
 
 const SECTION_TITLE_CLASS = 'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
 
@@ -593,19 +594,19 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                                 </div>
                                 <div className="flex items-center justify-between gap-2">
                                     <span className="text-[8px] text-zinc-500 uppercase">点の色</span>
-                                    <div className="flex items-center gap-0.5 rounded-md border border-zinc-700 p-0.5">
-                                        <button
-                                            onClick={() => updatePanel(panel.id, { dotCircleColor: 'black' })}
-                                            className={`px-2.5 py-1 rounded text-[10px] font-bold ${(panel.dotCircleColor ?? 'black') === 'black' ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
-                                        >
-                                            黒
-                                        </button>
-                                        <button
-                                            onClick={() => updatePanel(panel.id, { dotCircleColor: 'white' })}
-                                            className={`px-2.5 py-1 rounded text-[10px] font-bold ${panel.dotCircleColor === 'white' ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
-                                        >
-                                            白
-                                        </button>
+                                    <div className="flex items-center gap-1">
+                                        {DOT_CIRCLE_COLORS.map((d) => {
+                                            const active = (panel.dotCircleColor ?? 'black') === d.key
+                                            return (
+                                                <button
+                                                    key={d.key}
+                                                    onClick={() => updatePanel(panel.id, { dotCircleColor: d.key })}
+                                                    title={d.label}
+                                                    className={`w-5 h-5 rounded-full border transition-all ${active ? 'border-blue-500 ring-2 ring-blue-500/40 scale-110' : 'border-zinc-600 hover:border-zinc-400'}`}
+                                                    style={{ backgroundColor: d.hex }}
+                                                />
+                                            )
+                                        })}
                                     </div>
                                 </div>
                                 <div>

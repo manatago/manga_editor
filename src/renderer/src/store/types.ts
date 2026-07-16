@@ -100,8 +100,8 @@ export interface Panel {
     dotCircleSize?: number
     /** 点の密度倍率（既定 1。上げるほど点が細かく多くなり滑らかになる） */
     dotCircleDensity?: number
-    /** 点の色（既定 black）。white は濃い背景・トーン上で使う */
-    dotCircleColor?: 'black' | 'white'
+    /** 点の色（既定 black）。黒〜白の5段階。white/淡色は濃い背景・トーン上で使う */
+    dotCircleColor?: 'black' | 'dark-gray' | 'gray' | 'light-gray' | 'white'
     /** 砂嵐（ノイズ）エフェクト */
     hasSandStorm?: boolean
     sandStormDensity?: number
