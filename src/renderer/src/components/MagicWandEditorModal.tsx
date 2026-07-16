@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Minus, Plus, RotateCcw, Save, X } from 'lucide-react'
+import { Brush, Eraser, Minus, Plus, RotateCcw, Save, Sparkles, Undo2, X } from 'lucide-react'
 
 interface MagicWandEditorModalProps {
     isOpen: boolean
@@ -178,14 +178,22 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
 }) => {
     const displayCanvasRef = useRef<HTMLCanvasElement>(null)
     const offscreenRef = useRef<HTMLCanvasElement | null>(null)
+    // 復元ブラシ用に読み込み時の元画像を保持
+    const originalRef = useRef<HTMLCanvasElement | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
     // ホイールズーム時に「カーソル下の画像点」を固定するための一時保存
     const zoomFocusRef = useRef<{ imgX: number; imgY: number; vpX: number; vpY: number } | null>(null)
+    // ブラシのストローク状態
+    const paintingRef = useRef(false)
+    const lastPtRef = useRef<{ x: number; y: number } | null>(null)
 
     const [zoom, setZoom] = useState(1)
     const [tolerance, setTolerance] = useState(30)
     const [mode, setMode] = useState<WandMode>('contiguous')
     const [feather, setFeather] = useState(0)
+    const [tool, setTool] = useState<'wand' | 'brush'>('wand')
+    const [brushMode, setBrushMode] = useState<'erase' | 'restore'>('erase')
+    const [brushSize, setBrushSize] = useState(20)
     const [undoStack, setUndoStack] = useState<ImageData[]>([])
     const [saving, setSaving] = useState(false)
     const [loaded, setLoaded] = useState(false)
@@ -203,6 +211,12 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
             off.height = img.naturalHeight
             off.getContext('2d')!.drawImage(img, 0, 0)
             offscreenRef.current = off
+            // 元画像のコピー（復元ブラシ用）
+            const orig = document.createElement('canvas')
+            orig.width = img.naturalWidth
+            orig.height = img.naturalHeight
+            orig.getContext('2d')!.drawImage(img, 0, 0)
+            originalRef.current = orig
             setLoaded(true)
         }
         img.src = imageUrl
@@ -271,7 +285,97 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
         return () => display.removeEventListener('wheel', onWheel)
     }, [loaded, zoomAtCursor])
 
+    // クライアント座標 → 画像ピクセル座標
+    const clientToImage = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
+        const display = displayCanvasRef.current
+        const off = offscreenRef.current
+        if (!display || !off) return null
+        const rect = display.getBoundingClientRect()
+        const scaleX = display.width / rect.width
+        const scaleY = display.height / rect.height
+        const cx = (clientX - rect.left) * scaleX
+        const cy = (clientY - rect.top) * scaleY
+        return { x: cx / zoom, y: cy / zoom }
+    }, [zoom])
+
+    // ブラシ 1 スタンプ。erase=強制透明化、restore=元画像に戻す。
+    const stampAt = useCallback((ix: number, iy: number) => {
+        const off = offscreenRef.current
+        if (!off) return
+        const octx = off.getContext('2d')!
+        octx.save()
+        if (brushMode === 'erase') {
+            octx.globalCompositeOperation = 'destination-out'
+            octx.fillStyle = '#000'
+            octx.beginPath()
+            octx.arc(ix, iy, brushSize, 0, Math.PI * 2)
+            octx.fill()
+        } else {
+            const orig = originalRef.current
+            if (orig) {
+                octx.beginPath()
+                octx.arc(ix, iy, brushSize, 0, Math.PI * 2)
+                octx.clip()
+                // 円内を一旦クリアしてから元画像を描き直す（元の透明も忠実に復元）
+                octx.globalCompositeOperation = 'destination-out'
+                octx.fillStyle = '#000'
+                octx.fillRect(ix - brushSize, iy - brushSize, brushSize * 2, brushSize * 2)
+                octx.globalCompositeOperation = 'source-over'
+                octx.drawImage(orig, 0, 0)
+            }
+        }
+        octx.restore()
+    }, [brushMode, brushSize])
+
+    // 直前の点から現在の点まで、ブラシ間隔で補間しながらスタンプ（速いドラッグの隙間を埋める）
+    const paintLine = useCallback((x0: number, y0: number, x1: number, y1: number) => {
+        const dist = Math.hypot(x1 - x0, y1 - y0)
+        const step = Math.max(1, brushSize / 2)
+        const n = Math.max(1, Math.ceil(dist / step))
+        for (let i = 0; i <= n; i++) {
+            const t = i / n
+            stampAt(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
+        }
+    }, [brushSize, stampAt])
+
+    const snapshotForUndo = useCallback(() => {
+        const off = offscreenRef.current
+        if (!off) return
+        const octx = off.getContext('2d')!
+        const before = octx.getImageData(0, 0, off.width, off.height)
+        setUndoStack(prev => [...prev.slice(-29), before])
+    }, [])
+
+    const handleBrushDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (tool !== 'brush') return
+        const p = clientToImage(e.clientX, e.clientY)
+        if (!p) return
+        e.preventDefault()
+        snapshotForUndo()
+        paintingRef.current = true
+        lastPtRef.current = p
+        stampAt(p.x, p.y)
+        redraw()
+    }, [tool, clientToImage, snapshotForUndo, stampAt, redraw])
+
+    const handleBrushMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!paintingRef.current) return
+        const p = clientToImage(e.clientX, e.clientY)
+        if (!p) return
+        const last = lastPtRef.current
+        if (last) paintLine(last.x, last.y, p.x, p.y)
+        else stampAt(p.x, p.y)
+        lastPtRef.current = p
+        redraw()
+    }, [clientToImage, paintLine, stampAt, redraw])
+
+    const endBrushStroke = useCallback(() => {
+        paintingRef.current = false
+        lastPtRef.current = null
+    }, [])
+
     const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (tool !== 'wand') return
         const display = displayCanvasRef.current
         const off = offscreenRef.current
         if (!display || !off) return
@@ -301,7 +405,7 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
         setUndoStack(prev => [...prev.slice(-29), before])
         octx.putImageData(after, 0, 0)
         redraw()
-    }, [zoom, tolerance, mode, feather, redraw])
+    }, [tool, zoom, tolerance, mode, feather, redraw])
 
     const handleUndo = useCallback(() => {
         const off = offscreenRef.current
@@ -349,57 +453,122 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
             {/* ヘッダー */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900 shrink-0">
                 <span className="text-white font-bold text-sm">マジックワンド編集</span>
-                <span className="text-zinc-500 text-xs hidden lg:inline">
-                    クリックで{mode === 'contiguous' ? '繋がった同色領域' : '画像全体の同色部分'}を透明化・ホイールで拡大縮小
+                <span className="text-zinc-500 text-xs hidden xl:inline">
+                    {tool === 'wand'
+                        ? `クリックで${mode === 'contiguous' ? '繋がった同色領域' : '画像全体の同色部分'}を透明化`
+                        : brushMode === 'erase'
+                            ? 'ドラッグで塗った範囲を強制的に透明化'
+                            : 'ドラッグで塗った範囲を元画像に復元'}
+                    ・ホイールで拡大縮小
                 </span>
 
-                {/* 選択モード */}
+                {/* ツール切替: ワンド / ブラシ */}
                 <div className="flex items-center gap-0.5 rounded-md border border-zinc-700 p-0.5 ml-2">
                     <button
                         type="button"
-                        onClick={() => setMode('contiguous')}
-                        className={`px-2.5 py-1 rounded text-xs ${mode === 'contiguous' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
-                        title="連結：クリック地点から繋がった同色領域だけを透明化"
+                        onClick={() => setTool('wand')}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs ${tool === 'wand' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                        title="ワンド：クリックで同色領域を透明化"
                     >
-                        連結
+                        <Sparkles size={12} /> ワンド
                     </button>
                     <button
                         type="button"
-                        onClick={() => setMode('global')}
-                        className={`px-2.5 py-1 rounded text-xs ${mode === 'global' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
-                        title="全域：画像全体でクリック色に近い画素をすべて透明化（連結性を無視）"
+                        onClick={() => setTool('brush')}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs ${tool === 'brush' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                        title="ブラシ：塗った範囲を強制的に背景（透明）にする。ワンドで拾えない箇所用。"
                     >
-                        全域
+                        <Brush size={12} /> ブラシ
                     </button>
                 </div>
 
-                {/* 許容値 */}
-                <div className="flex items-center gap-2 ml-2">
-                    <label className="text-zinc-400 text-xs shrink-0">許容値</label>
-                    <input
-                        type="range"
-                        min={0}
-                        max={150}
-                        value={tolerance}
-                        onChange={(e) => setTolerance(Number(e.target.value))}
-                        className="w-24 sm:w-32 accent-violet-500"
-                    />
-                    <span className="text-zinc-300 text-xs w-6 tabular-nums">{tolerance}</span>
-                </div>
+                {tool === 'wand' ? (
+                    <>
+                        {/* 選択モード */}
+                        <div className="flex items-center gap-0.5 rounded-md border border-zinc-700 p-0.5 ml-2">
+                            <button
+                                type="button"
+                                onClick={() => setMode('contiguous')}
+                                className={`px-2.5 py-1 rounded text-xs ${mode === 'contiguous' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                                title="連結：クリック地点から繋がった同色領域だけを透明化"
+                            >
+                                連結
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode('global')}
+                                className={`px-2.5 py-1 rounded text-xs ${mode === 'global' ? 'bg-violet-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                                title="全域：画像全体でクリック色に近い画素をすべて透明化（連結性を無視）"
+                            >
+                                全域
+                            </button>
+                        </div>
 
-                {/* 境界フェザー */}
-                <div className="flex items-center gap-2 ml-2">
-                    <label className="text-zinc-400 text-xs shrink-0">フェザー</label>
-                    <input
-                        type="range"
-                        min={0}
-                        max={5}
-                        value={feather}
-                        onChange={(e) => setFeather(Number(e.target.value))}
-                        className="w-16 sm:w-20 accent-violet-500"
-                    />
-                    <span className="text-zinc-300 text-xs w-8 tabular-nums">{feather}px</span>
-                </div>
+                        {/* 許容値 */}
+                        <div className="flex items-center gap-2 ml-2">
+                            <label className="text-zinc-400 text-xs shrink-0">許容値</label>
+                            <input
+                                type="range"
+                                min={0}
+                                max={150}
+                                value={tolerance}
+                                onChange={(e) => setTolerance(Number(e.target.value))}
+                                className="w-24 sm:w-32 accent-violet-500"
+                            />
+                            <span className="text-zinc-300 text-xs w-6 tabular-nums">{tolerance}</span>
+                        </div>
+
+                        {/* 境界フェザー */}
+                        <div className="flex items-center gap-2 ml-2">
+                            <label className="text-zinc-400 text-xs shrink-0">フェザー</label>
+                            <input
+                                type="range"
+                                min={0}
+                                max={5}
+                                value={feather}
+                                onChange={(e) => setFeather(Number(e.target.value))}
+                                className="w-16 sm:w-20 accent-violet-500"
+                            />
+                            <span className="text-zinc-300 text-xs w-8 tabular-nums">{feather}px</span>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* ブラシモード: 消す / 戻す */}
+                        <div className="flex items-center gap-0.5 rounded-md border border-zinc-700 p-0.5 ml-2">
+                            <button
+                                type="button"
+                                onClick={() => setBrushMode('erase')}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs ${brushMode === 'erase' ? 'bg-rose-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                                title="消す：塗った範囲を強制的に透明化（背景扱い）"
+                            >
+                                <Eraser size={12} /> 消す
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setBrushMode('restore')}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs ${brushMode === 'restore' ? 'bg-emerald-600 text-white' : 'text-zinc-300 hover:bg-white/10'}`}
+                                title="戻す：塗りすぎた箇所を元画像に復元"
+                            >
+                                <Undo2 size={12} /> 戻す
+                            </button>
+                        </div>
+
+                        {/* ブラシサイズ */}
+                        <div className="flex items-center gap-2 ml-2">
+                            <label className="text-zinc-400 text-xs shrink-0">サイズ</label>
+                            <input
+                                type="range"
+                                min={2}
+                                max={200}
+                                value={brushSize}
+                                onChange={(e) => setBrushSize(Number(e.target.value))}
+                                className="w-24 sm:w-32 accent-violet-500"
+                            />
+                            <span className="text-zinc-300 text-xs w-10 tabular-nums">{brushSize}px</span>
+                        </div>
+                    </>
+                )}
 
                 {/* ズーム */}
                 <div className="flex items-center gap-1 ml-2">
@@ -464,6 +633,10 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
                     <canvas
                         ref={displayCanvasRef}
                         onClick={handleCanvasClick}
+                        onMouseDown={handleBrushDown}
+                        onMouseMove={handleBrushMove}
+                        onMouseUp={endBrushStroke}
+                        onMouseLeave={endBrushStroke}
                         style={{ cursor: 'crosshair', imageRendering: zoom >= 2 ? 'pixelated' : 'auto' }}
                         className="shadow-2xl"
                     />

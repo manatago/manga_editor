@@ -64,6 +64,10 @@ export interface Panel {
     imageProtrude?: boolean
     /** はみ出し用の人物切り抜き（背景透過）。imagePath は元画像のまま枠内に残す。未設定時は imagePath で代用。 */
     protrudeImagePath?: string
+    /** はみ出し時、コマ内に残る背景（元画像）の不透明度 0..1（既定 1）。下げると背景が薄くなる。 */
+    protrudeBgOpacity?: number
+    /** はみ出し時、コマ内に残る背景（元画像）のぼかし半径（既定 0）。 */
+    protrudeBgBlur?: number
     backgroundColor?: string
     backgroundOpacity?: number
     bgGradientType?: GradientType
@@ -74,6 +78,30 @@ export interface Panel {
     hasRainEffect?: boolean
     rainDensity?: number
     rainOpacity?: number
+    /** 集中線・雨・スピード線・シャボン玉などのエフェクトを、人物画像の背面
+        （背景と人物の間）に描画する。人物が切り抜き（背景透過）の時に効果的。 */
+    effectsBehindImage?: boolean
+    /** スピード線（流線）エフェクト */
+    hasSpeedLines?: boolean
+    speedLineDensity?: number
+    speedLineOpacity?: number
+    speedLineDirection?: 'horizontal' | 'vertical'
+    /** シャボン玉エフェクト */
+    hasBubbleEffect?: boolean
+    bubbleEffectDensity?: number
+    bubbleEffectOpacity?: number
+    /** 点描（砂目）サークル エフェクト */
+    hasDotCircles?: boolean
+    dotCircleCount?: number
+    dotCircleOpacity?: number
+    /** 円の大きさ・位置を決める乱数シード（変えると配置が変わる） */
+    dotCircleSeed?: number
+    /** 円の大きさ倍率（既定 0.5。大きいほど円が大きい） */
+    dotCircleSize?: number
+    /** 砂嵐（ノイズ）エフェクト */
+    hasSandStorm?: boolean
+    sandStormDensity?: number
+    sandStormOpacity?: number
     /** コマ内の人物画像の下に重ねるトーン／画像（ページ背景とは独立） */
     backgroundImagePath?: string
     backgroundImageOpacity?: number

@@ -187,6 +187,26 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                             const panelMaterials = materials.filter((m) => m.isClipped && m.panelId === panel.id)
                             const panelUnderFrameClusters = getVisualClusters(panelBubbles, panels)
 
+                            const underFrameBubbleNodes = panelUnderFrameClusters.map((cluster) => (
+                                <BubbleClusterGroup key={`cluster-under-${panel.id}-${cluster.id}`} members={cluster.members} />
+                            ))
+                            const underFrameMaterialNodes = panelMaterials.map((m) => (
+                                <MaterialItem
+                                    key={`material-under-${panel.id}-${m.id}`}
+                                    material={m}
+                                    isSelected={false}
+                                    onSelect={() => { }}
+                                    onUpdate={() => { }}
+                                    renderPass="content"
+                                    clipPoints={getClippedPoints(m, panels)}
+                                />
+                            ))
+                            // はみ出し人物。ループ内に置くことで z 順（配列順）を尊重し、
+                            // 後(前面)のコマの裏に回る。吹き出し等は下でこれより前面に描く。
+                            const protrudeNode = panel.imageProtrude && panel.imagePath ? (
+                                <PanelProtrudeImage panel={panel} projectPath={currentProjectPath} />
+                            ) : null
+
                             return (
                                 <Group key={`panel-stack-${panel.id}`}>
                                     {/* Content layer for this panel */}
@@ -207,22 +227,9 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                         onUpdate={() => { }}
                                         renderPass="effects"
                                     />
-                                    {/* Under-Frame Bubbles for this panel */}
-                                    {panelUnderFrameClusters.map((cluster) => (
-                                        <BubbleClusterGroup key={`cluster-under-${panel.id}-${cluster.id}`} members={cluster.members} />
-                                    ))}
-                                    {/* Under-Frame Materials for this panel */}
-                                    {panelMaterials.map((m) => (
-                                        <MaterialItem
-                                            key={`material-under-${panel.id}-${m.id}`}
-                                            material={m}
-                                            isSelected={false}
-                                            onSelect={() => { }}
-                                            onUpdate={() => { }}
-                                            renderPass="content"
-                                            clipPoints={getClippedPoints(m, panels)}
-                                        />
-                                    ))}
+                                    {/* 通常時: クリップ吹き出し／素材は枠線の下に描く */}
+                                    {!protrudeNode && underFrameBubbleNodes}
+                                    {!protrudeNode && underFrameMaterialNodes}
                                     {/* Stroke layer for this panel */}
                                     <PanelItem
                                         panel={panel}
@@ -232,6 +239,11 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                         onUpdate={() => { }}
                                         renderPass="strokes"
                                     />
+                                    {protrudeNode}
+                                    {/* はみ出し時: クリップ吹き出し／素材ははみ出し人物より前面に描く
+                                        （吹き出しが人物の裏に隠れないように） */}
+                                    {protrudeNode && underFrameBubbleNodes}
+                                    {protrudeNode && underFrameMaterialNodes}
                                 </Group>
                             )
                         })}
@@ -254,18 +266,6 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                     onUpdate={() => { }}
                                     renderPass="content"
                                     clipPoints={getClippedPoints(m, panels)}
-                                />
-                            ))}
-                        </Group>
-
-                        {/* 3.5 コマ枠からはみ出す人物画像（枠の上・吹き出しの下）。
-                            背景/トーンはコマ側でクリップされ枠内に残り、人物だけ枠外へ突き出る。 */}
-                        <Group>
-                            {panels.filter((p) => p.imageProtrude && p.imagePath).map((p) => (
-                                <PanelProtrudeImage
-                                    key={`protrude-${p.id}`}
-                                    panel={p}
-                                    projectPath={currentProjectPath}
                                 />
                             ))}
                         </Group>

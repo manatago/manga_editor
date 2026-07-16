@@ -10,6 +10,10 @@ import { computePanelAlignment } from '../utils/panelAlignment'
 import { FadeOverlay } from './effects/FadeOverlay'
 import { FocusLines } from './effects/FocusLines'
 import { RainEffect } from './effects/RainEffect'
+import { SpeedLines } from './effects/SpeedLines'
+import { SoapBubbles } from './effects/SoapBubbles'
+import { StippleCircles } from './effects/StippleCircles'
+import { SandStorm } from './effects/SandStorm'
 import { PanelStrokes } from './PanelStrokes'
 import { PanelBackgroundImageLayer } from './PanelBackgroundImageLayer'
 import { PanelForegroundToneLayer } from './PanelForegroundToneLayer'
@@ -415,7 +419,8 @@ export const PanelItem: React.FC<{
     useEffect(() => {
         if (lineRef.current) {
             lineRef.current.clearCache()
-            if (image && (panel.isGrayscale || (panel.blurRadius ?? 0) > 0)) {
+            const effBlur = (panel.blurRadius ?? 0) + (panel.imageProtrude ? (panel.protrudeBgBlur ?? 0) : 0)
+            if (image && (panel.isGrayscale || effBlur > 0)) {
                 lineRef.current.cache()
             }
         }
@@ -423,6 +428,9 @@ export const PanelItem: React.FC<{
         panel.isGrayscale,
         panel.grayscaleBrightness,
         panel.blurRadius,
+        panel.imageProtrude,
+        panel.protrudeBgBlur,
+        panel.protrudeBgOpacity,
         image,
         panel.imageFlipX,
         panel.imageScale,
@@ -454,6 +462,18 @@ export const PanelItem: React.FC<{
     const shouldRenderContent = renderPass === 'content' || !renderPass;
     const shouldRenderEffects = renderPass === 'effects' || !renderPass;
     const shouldRenderStrokes = renderPass === 'strokes' || !renderPass;
+    // 集中線・雨・スピード線・シャボン玉。effectsBehindImage の時は content パス内で
+    // 人物画像の背面に、そうでない時は effects パスで前面に描く（下の JSX で出し分け）。
+    const effectNodes = (
+        <>
+            <FocusLines panel={panel} points={points} />
+            <RainEffect panel={panel} points={points} />
+            <SpeedLines panel={panel} points={points} />
+            <SoapBubbles panel={panel} points={points} />
+            <StippleCircles panel={panel} points={points} />
+            <SandStorm panel={panel} points={points} />
+        </>
+    )
     const shouldShowImageTabs = isInteractive && isSelected && isShiftPressed
     const novelaiConnection = useMangaStore((s) => s.novelaiConnection)
     const openNovelAIForPanel = useMangaStore((s) => s.openNovelAIForPanel)
@@ -757,12 +777,20 @@ export const PanelItem: React.FC<{
                         {panel.backgroundImagePath ? (
                             <PanelBackgroundImageLayer panel={panel} projectPath={currentProjectPath} />
                         ) : null}
-                        {panel.imagePath && (
+                        {/* 人物の背面にエフェクト（背景と人物の間）。人物が切り抜きなら透過部から見える。 */}
+                        {panel.effectsBehindImage && effectNodes}
+                        {panel.imagePath && (() => {
+                            // はみ出し時、コマ内に残る背景（＝この床画像）だけを薄く／ぼかせる。
+                            // 人物ははみ出しオーバーレイ側で鮮明に再描画されるため影響しない。
+                            const bgFade = panel.imageProtrude ? (panel.protrudeBgOpacity ?? 1) : 1
+                            const effBlur = (panel.blurRadius ?? 0) + (panel.imageProtrude ? (panel.protrudeBgBlur ?? 0) : 0)
+                            return (
                             <Line
                                 id={`panel-${panel.id}-image`}
                                 ref={lineRef}
                                 points={points}
                                 closed={true}
+                                opacity={bgFade}
                                 fillPatternImage={image}
                                 fillPatternX={panel.imageX ?? 0}
                                 fillPatternY={panel.imageY ?? 0}
@@ -774,12 +802,13 @@ export const PanelItem: React.FC<{
                                 fillPatternRepeat="no-repeat"
                                 filters={[
                                     ...(panel.isGrayscale ? [Konva.Filters.Grayscale, Konva.Filters.Brighten] : []),
-                                    ...((panel.blurRadius ?? 0) > 0 ? [Konva.Filters.Blur] : [])
+                                    ...(effBlur > 0 ? [Konva.Filters.Blur] : [])
                                 ]}
                                 brightness={panel.isGrayscale ? (panel.grayscaleBrightness ?? 0) : 0}
-                                blurRadius={panel.blurRadius ?? 0}
+                                blurRadius={effBlur}
                             />
-                        )}
+                            )
+                        })()}
                         {panel.fgTonePath ? (
                             <PanelForegroundToneLayer panel={panel} projectPath={currentProjectPath} />
                         ) : null}
@@ -788,8 +817,7 @@ export const PanelItem: React.FC<{
             })()}
 
             {shouldRenderStrokes && <PanelStrokes panel={panel} points={points} page={page} />}
-            {shouldRenderEffects && <FocusLines panel={panel} points={points} />}
-            {shouldRenderEffects && <RainEffect panel={panel} points={points} />}
+            {shouldRenderEffects && !panel.effectsBehindImage && effectNodes}
             {shouldRenderEffects && <FadeOverlay panel={panel} points={points} backgroundColor={page?.backgroundColor || '#ffffff'} />}
             {isInteractive && panel.isAdjustingFocus && <FocusAdjustmentHandle panel={panel} onUpdate={onUpdate} />}
             {/* 角ハンドル（slanted/trapezoid）は <PanelSelectionHandles> として

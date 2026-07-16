@@ -381,6 +381,20 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                         </p>
                     </div>
                 )}
+                {panel.imageProtrude && panel.imagePath && (
+                    <div className="mt-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
+                        <h4 className="text-[10px] font-bold text-blue-400 tracking-wide">はみ出し時のコマ内背景</h4>
+                        <div>
+                            <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">背景の濃さ (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.protrudeBgOpacity ?? 1) * 100)}%</span></div>
+                            <input type="range" min="0" max="1" step="0.05" value={panel.protrudeBgOpacity ?? 1} onChange={(e) => updatePanel(panel.id, { protrudeBgOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        </div>
+                        <div>
+                            <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">背景のぼかし (Blur)</label><span className="text-[8px] text-blue-500 font-mono">{panel.protrudeBgBlur ?? 0}px</span></div>
+                            <input type="range" min="0" max="40" value={panel.protrudeBgBlur ?? 0} onChange={(e) => updatePanel(panel.id, { protrudeBgBlur: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        </div>
+                        <p className="text-[9px] text-zinc-500 leading-relaxed">人物（はみ出し）は鮮明なまま、コマ内に残る背景だけを薄く／ぼかします。</p>
+                    </div>
+                )}
                 <div>
                     <h4 className="text-xs font-bold text-zinc-200 tracking-wide mb-3">フェードアウト（複数選択可）</h4>
                     {(() => {
@@ -429,6 +443,17 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                 </div>
 
                 <div className="pt-2 space-y-4">
+                    <div>
+                        <button
+                            onClick={() => updatePanel(panel.id, { effectsBehindImage: !panel.effectsBehindImage })}
+                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${panel.effectsBehindImage ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                            title="集中線・雨・スピード線・シャボン玉を人物画像の背面（背景と人物の間）に描画します。人物が切り抜き（背景透過）の時に効果的。"
+                        >
+                            <span>エフェクトを人物の背面に</span>
+                            <div className={`w-2 h-2 rounded-full ${panel.effectsBehindImage ? 'bg-blue-400' : 'bg-zinc-700'} `} />
+                        </button>
+                    </div>
+
                     <div>
                         <button
                             onClick={() => updatePanel(panel.id, { hasFocusLines: !panel.hasFocusLines })}
@@ -480,6 +505,126 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                                 <div>
                                     <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">不透明度 (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.rainOpacity ?? 0.3) * 100)}%</span></div>
                                     <input type="range" min="0" max="1" step="0.05" value={panel.rainOpacity ?? 0.3} onChange={(e) => updatePanel(panel.id, { rainOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <button
+                            onClick={() => updatePanel(panel.id, { hasSpeedLines: !panel.hasSpeedLines })}
+                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${panel.hasSpeedLines ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                        >
+                            <span>スピード線（流線）</span>
+                            <div className={`w-2 h-2 rounded-full ${panel.hasSpeedLines ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'} `} />
+                        </button>
+
+                        {panel.hasSpeedLines && (
+                            <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="grid grid-cols-2 gap-1">
+                                    <button
+                                        onClick={() => updatePanel(panel.id, { speedLineDirection: 'horizontal' })}
+                                        className={`py-1.5 rounded text-[10px] font-bold transition-all ${(panel.speedLineDirection ?? 'horizontal') === 'horizontal' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-400 hover:text-white'} `}
+                                    >
+                                        横
+                                    </button>
+                                    <button
+                                        onClick={() => updatePanel(panel.id, { speedLineDirection: 'vertical' })}
+                                        className={`py-1.5 rounded text-[10px] font-bold transition-all ${panel.speedLineDirection === 'vertical' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-400 hover:text-white'} `}
+                                    >
+                                        縦
+                                    </button>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">密度 (Density)</label><span className="text-[8px] text-blue-500 font-mono">{panel.speedLineDensity ?? 120}</span></div>
+                                    <input type="range" min="20" max="800" value={panel.speedLineDensity ?? 120} onChange={(e) => updatePanel(panel.id, { speedLineDensity: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">不透明度 (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.speedLineOpacity ?? 0.85) * 100)}%</span></div>
+                                    <input type="range" min="0" max="1" step="0.05" value={panel.speedLineOpacity ?? 0.85} onChange={(e) => updatePanel(panel.id, { speedLineOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <button
+                            onClick={() => updatePanel(panel.id, { hasBubbleEffect: !panel.hasBubbleEffect })}
+                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${panel.hasBubbleEffect ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                        >
+                            <span>シャボン玉</span>
+                            <div className={`w-2 h-2 rounded-full ${panel.hasBubbleEffect ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'} `} />
+                        </button>
+
+                        {panel.hasBubbleEffect && (
+                            <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">数 (Count)</label><span className="text-[8px] text-blue-500 font-mono">{panel.bubbleEffectDensity ?? 20}</span></div>
+                                    <input type="range" min="3" max="120" value={panel.bubbleEffectDensity ?? 20} onChange={(e) => updatePanel(panel.id, { bubbleEffectDensity: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">不透明度 (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.bubbleEffectOpacity ?? 0.5) * 100)}%</span></div>
+                                    <input type="range" min="0.1" max="1" step="0.05" value={panel.bubbleEffectOpacity ?? 0.5} onChange={(e) => updatePanel(panel.id, { bubbleEffectOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <button
+                            onClick={() => updatePanel(panel.id, { hasDotCircles: !panel.hasDotCircles })}
+                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${panel.hasDotCircles ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                        >
+                            <span>点描サークル（砂目）</span>
+                            <div className={`w-2 h-2 rounded-full ${panel.hasDotCircles ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'} `} />
+                        </button>
+
+                        {panel.hasDotCircles && (
+                            <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[8px] text-zinc-500 uppercase">配置シード <span className="text-blue-500 font-mono normal-case">{panel.dotCircleSeed ?? 0}</span></span>
+                                    <button
+                                        onClick={() => updatePanel(panel.id, { dotCircleSeed: Math.floor(Math.random() * 100000) })}
+                                        className="px-2 py-1 rounded text-[10px] font-bold bg-zinc-700 text-zinc-200 hover:bg-zinc-600"
+                                        title="円の大きさ・位置をランダムに再配置します"
+                                    >
+                                        🎲 配置を変える
+                                    </button>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">大きさ (Size)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.dotCircleSize ?? 0.5) * 100)}%</span></div>
+                                    <input type="range" min="0.1" max="1.5" step="0.05" value={panel.dotCircleSize ?? 0.5} onChange={(e) => updatePanel(panel.id, { dotCircleSize: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">数 (Count)</label><span className="text-[8px] text-blue-500 font-mono">{panel.dotCircleCount ?? 8}</span></div>
+                                    <input type="range" min="1" max="40" value={panel.dotCircleCount ?? 8} onChange={(e) => updatePanel(panel.id, { dotCircleCount: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">濃さ (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.dotCircleOpacity ?? 0.85) * 100)}%</span></div>
+                                    <input type="range" min="0.1" max="1" step="0.05" value={panel.dotCircleOpacity ?? 0.85} onChange={(e) => updatePanel(panel.id, { dotCircleOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <button
+                            onClick={() => updatePanel(panel.id, { hasSandStorm: !panel.hasSandStorm })}
+                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${panel.hasSandStorm ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                        >
+                            <span>砂嵐（ノイズ）</span>
+                            <div className={`w-2 h-2 rounded-full ${panel.hasSandStorm ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'} `} />
+                        </button>
+
+                        {panel.hasSandStorm && (
+                            <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">密度 (Density)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.sandStormDensity ?? 0.5) * 100)}%</span></div>
+                                    <input type="range" min="0.05" max="1" step="0.05" value={panel.sandStormDensity ?? 0.5} onChange={(e) => updatePanel(panel.id, { sandStormDensity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">濃さ (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.sandStormOpacity ?? 0.6) * 100)}%</span></div>
+                                    <input type="range" min="0.1" max="1" step="0.05" value={panel.sandStormOpacity ?? 0.6} onChange={(e) => updatePanel(panel.id, { sandStormOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                                 </div>
                             </div>
                         )}
