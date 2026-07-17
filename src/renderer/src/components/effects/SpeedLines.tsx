@@ -1,6 +1,7 @@
 import React from 'react'
 import { Group, Line } from 'react-konva'
 import { Panel } from '../../store/useMangaStore'
+import { hashStringSeed, sinRandom } from '../../utils/seededRandom'
 
 /**
  * スピード線（流線）エフェクト。漫画でよくある「横にバーっと入った線」。
@@ -17,11 +18,8 @@ export const SpeedLines: React.FC<{ panel: Panel; points: number[] }> = ({ panel
     const vertical = panel.speedLineDirection === 'vertical'
     const lineCount = Math.min(Math.max(10, panel.speedLineDensity ?? 120), 800)
 
-    const seed = panel.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const random = (s: number): number => {
-        const x = Math.sin(s) * 10000
-        return x - Math.floor(x)
-    }
+    const seed = hashStringSeed(panel.id)
+    const random = sinRandom
 
     // 主方向の全長（横なら幅、縦なら高さ）と直交方向の広がり
     const span = vertical ? height : width

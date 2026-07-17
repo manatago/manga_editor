@@ -1,6 +1,7 @@
 import React from 'react'
 import { Group, Shape } from 'react-konva'
 import { Panel } from '../../store/useMangaStore'
+import { hashStringSeed, sinRandom } from '../../utils/seededRandom'
 
 /**
  * 砂嵐（ノイズ）エフェクト。コマ全体に細かい点を一様に撒く、ざらついた質感。
@@ -17,11 +18,8 @@ export const SandStorm: React.FC<{ panel: Panel; points: number[] }> = ({ panel,
     const density = panel.sandStormDensity ?? 0.5
     const opacity = panel.sandStormOpacity ?? 0.6
 
-    const seed = panel.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-    const rnd = (s: number): number => {
-        const x = Math.sin(s) * 10000
-        return x - Math.floor(x)
-    }
+    const seed = hashStringSeed(panel.id)
+    const rnd = sinRandom
 
     return (
         <Group

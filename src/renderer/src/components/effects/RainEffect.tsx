@@ -1,6 +1,7 @@
 import React from 'react'
 import { Group, Line } from 'react-konva'
 import { Panel } from '../../store/useMangaStore'
+import { hashStringSeed, sinRandom } from '../../utils/seededRandom'
 
 export const RainEffect: React.FC<{ panel: Panel; points: number[] }> = ({ panel, points }) => {
     if (!panel.hasRainEffect) return null
@@ -12,11 +13,8 @@ export const RainEffect: React.FC<{ panel: Panel; points: number[] }> = ({ panel
     const opacity = panel.rainOpacity ?? 0.3
 
     // Generate fixed random lines based on panel id to avoid flickering
-    const seed = panel.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const random = (s: number) => {
-        const x = Math.sin(s) * 10000
-        return x - Math.floor(x)
-    }
+    const seed = hashStringSeed(panel.id)
+    const random = sinRandom
 
     const lines: React.ReactNode[] = []
     for (let i = 0; i < lineCount; i++) {

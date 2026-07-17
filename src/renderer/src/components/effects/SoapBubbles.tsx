@@ -1,6 +1,7 @@
 import React from 'react'
 import { Group, Circle, Arc } from 'react-konva'
 import { Panel } from '../../store/useMangaStore'
+import { hashStringSeed, sinRandom } from '../../utils/seededRandom'
 
 /**
  * シャボン玉エフェクト。半透明の円をふわりと浮かべ、上部にハイライトを添える。
@@ -15,11 +16,8 @@ export const SoapBubbles: React.FC<{ panel: Panel; points: number[] }> = ({ pane
     const opacity = panel.bubbleEffectOpacity ?? 0.5
     const count = Math.min(Math.max(3, panel.bubbleEffectDensity ?? 20), 200)
 
-    const seed = panel.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const random = (s: number): number => {
-        const x = Math.sin(s) * 10000
-        return x - Math.floor(x)
-    }
+    const seed = hashStringSeed(panel.id)
+    const random = sinRandom
 
     const shapes: React.ReactNode[] = []
     for (let i = 0; i < count; i++) {

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Group, Shape } from 'react-konva'
 import { Panel } from '../../store/useMangaStore'
+import { hashStringSeed, sinRandom } from '../../utils/seededRandom'
 
 /** 点の色（黒〜白の5段階）。UI と描画で共有 */
 export const DOT_CIRCLE_COLORS: { key: NonNullable<Panel['dotCircleColor']>; hex: string; label: string }[] = [
@@ -30,12 +31,8 @@ export const StippleCircles: React.FC<{ panel: Panel; points: number[] }> = ({ p
     const density = Math.min(Math.max(0.3, panel.dotCircleDensity ?? 1), 4)
 
     // panel.id 由来の固定シード + ユーザー指定シード（変えると配置が変わる）
-    const seed =
-        panel.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) + (panel.dotCircleSeed ?? 0) * 101.3
-    const rnd = (s: number): number => {
-        const x = Math.sin(s) * 10000
-        return x - Math.floor(x)
-    }
+    const seed = hashStringSeed(panel.id) + (panel.dotCircleSeed ?? 0) * 101.3
+    const rnd = sinRandom
 
     // 円のパラメータを事前生成（中心・半径・個別シード）
     const minDim = Math.min(width, height)
