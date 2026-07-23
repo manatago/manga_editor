@@ -14,6 +14,7 @@ import { SpeedLines } from './effects/SpeedLines'
 import { SoapBubbles } from './effects/SoapBubbles'
 import { StippleCircles } from './effects/StippleCircles'
 import { SandStorm } from './effects/SandStorm'
+import { GloomLines } from './effects/GloomLines'
 import { PanelStrokes } from './PanelStrokes'
 import { PanelBackgroundImageLayer } from './PanelBackgroundImageLayer'
 import { PanelForegroundToneLayer } from './PanelForegroundToneLayer'
@@ -472,6 +473,7 @@ export const PanelItem: React.FC<{
             <SoapBubbles panel={panel} points={points} />
             <StippleCircles panel={panel} points={points} />
             <SandStorm panel={panel} points={points} />
+            <GloomLines panel={panel} points={points} />
         </>
     )
     const shouldShowImageTabs = isInteractive && isSelected && isShiftPressed

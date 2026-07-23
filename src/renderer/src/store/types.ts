@@ -106,6 +106,12 @@ export interface Panel {
     hasSandStorm?: boolean
     sandStormDensity?: number
     sandStormOpacity?: number
+    /** ドヨーン（憂鬱）エフェクト。上端から垂れる細い縦線 */
+    hasGloomLines?: boolean
+    gloomLineDensity?: number
+    gloomLineOpacity?: number
+    /** 縦線が垂れ下がる長さ（コマ高さに対する割合、既定 0.6） */
+    gloomLineLength?: number
     /** コマ内の人物画像の下に重ねるトーン／画像（ページ背景とは独立） */
     backgroundImagePath?: string
     backgroundImageOpacity?: number

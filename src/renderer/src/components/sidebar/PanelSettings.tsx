@@ -651,6 +651,33 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                             </div>
                         )}
                     </div>
+
+                    <div>
+                        <button
+                            onClick={() => updatePanel(panel.id, { hasGloomLines: !panel.hasGloomLines })}
+                            className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${panel.hasGloomLines ? 'bg-blue-600/10 border-blue-600/50 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                        >
+                            <span>ドヨーン（縦線）</span>
+                            <div className={`w-2 h-2 rounded-full ${panel.hasGloomLines ? 'bg-blue-400 animate-pulse' : 'bg-zinc-700'} `} />
+                        </button>
+
+                        {panel.hasGloomLines && (
+                            <div className="mt-4 space-y-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">本数 (Density)</label><span className="text-[8px] text-blue-500 font-mono">{panel.gloomLineDensity ?? 60}</span></div>
+                                    <input type="range" min="10" max="400" value={panel.gloomLineDensity ?? 60} onChange={(e) => updatePanel(panel.id, { gloomLineDensity: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">長さ (Length)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.gloomLineLength ?? 0.6) * 100)}%</span></div>
+                                    <input type="range" min="0.1" max="1" step="0.05" value={panel.gloomLineLength ?? 0.6} onChange={(e) => updatePanel(panel.id, { gloomLineLength: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">濃さ (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.gloomLineOpacity ?? 0.6) * 100)}%</span></div>
+                                    <input type="range" min="0.1" max="1" step="0.05" value={panel.gloomLineOpacity ?? 0.6} onChange={(e) => updatePanel(panel.id, { gloomLineOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
