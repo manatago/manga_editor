@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
-import { limitHistory, deepClone, type HistoryEntry } from '../helpers'
+import { limitHistory, snapshot, type HistoryEntry } from '../helpers'
 
 export interface HistorySlice {
     past: HistoryEntry[]
@@ -19,8 +19,9 @@ export const createHistorySlice: StateCreator<MangaState, [], [], HistorySlice> 
         const newPast = state.past.slice(0, -1)
         return {
             past: newPast,
-            future: [{ pages: deepClone(state.pages), currentPageId: state.currentPageId }, ...state.future],
+            future: [snapshot(state), ...state.future],
             pages: previous.pages,
+            archivedPages: previous.archivedPages ?? [],
             currentPageId: previous.currentPageId,
             selectedPanelId: null,
             selectedBubbleId: null
@@ -32,9 +33,10 @@ export const createHistorySlice: StateCreator<MangaState, [], [], HistorySlice> 
         const next = state.future[0]
         const newFuture = state.future.slice(1)
         return {
-            past: limitHistory([...state.past, { pages: deepClone(state.pages), currentPageId: state.currentPageId }]),
+            past: limitHistory([...state.past, snapshot(state)]),
             future: limitHistory(newFuture),
             pages: next.pages,
+            archivedPages: next.archivedPages ?? [],
             currentPageId: next.currentPageId,
             selectedPanelId: null,
             selectedBubbleId: null,

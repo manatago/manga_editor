@@ -17,6 +17,7 @@ export interface ProjectSlice {
     setCurrentProject: (path: string) => void
     setProjectData: (data: {
         pages: Page[]
+        archivedPages?: Page[]
         lastPageId?: string | null
         referenceCharacters?: MangaProjectData['referenceCharacters']
         backgroundLibrary?: MangaProjectData['backgroundLibrary']
@@ -29,6 +30,31 @@ export interface ProjectSlice {
     removeTemplate: (id: string) => Promise<void>
     setExporting: (val: boolean) => void
     cleanupAssets: () => Promise<void>
+}
+
+/** ページ内のアセットパスを保存用に相対パスへ変換する（pages / archivedPages 共通） */
+function relativizePageAssets(pp: string, page: Page): Page {
+    return {
+        ...page,
+        panels: page.panels.map((p) => ({
+            ...p,
+            imagePath: toRelativeAssetPath(pp, p.imagePath) ?? p.imagePath,
+            backgroundImagePath: p.backgroundImagePath?.startsWith('builtin://')
+                ? p.backgroundImagePath
+                : p.backgroundImagePath
+                  ? toRelativeAssetPath(pp, p.backgroundImagePath) ?? p.backgroundImagePath
+                  : undefined
+        })),
+        materials: (page.materials || []).map((m) => ({
+            ...m,
+            imagePath: toRelativeAssetPath(pp, m.imagePath) ?? m.imagePath
+        })),
+        backgroundImagePath: page.backgroundImagePath?.startsWith('builtin://')
+            ? page.backgroundImagePath
+            : page.backgroundImagePath
+              ? toRelativeAssetPath(pp, page.backgroundImagePath) ?? page.backgroundImagePath
+              : undefined
+    }
 }
 
 export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> = (set, get) => ({
@@ -49,9 +75,14 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             ...p,
             name: String(i + 1).padStart(3, '0')
         }))
+        // 保管ページも同じ sanitize でアセットパスを解決（ページ番号は付け替えない）
+        const sanitizedArchived = (data.archivedPages || []).map((page) =>
+            sanitizePage(page, projectPathForAssets)
+        )
 
         set({
             pages: normalizedPages,
+            archivedPages: sanitizedArchived,
             currentPageId: data.lastPageId || normalizedPages[0]?.id || null,
             selectedPanelId: null,
             selectedBubbleId: null,
@@ -70,35 +101,18 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
         if (!pp) {
             return {
                 pages: state.pages,
+                archivedPages: state.archivedPages,
                 lastPageId: state.currentPageId,
                 referenceCharacters: state.referenceCharacters,
                 backgroundLibrary: state.backgroundLibrary,
                 manuscript: state.manuscript
             }
         }
-        const pages = state.pages.map((page) => ({
-            ...page,
-            panels: page.panels.map((p) => ({
-                ...p,
-                imagePath: toRelativeAssetPath(pp, p.imagePath) ?? p.imagePath,
-                backgroundImagePath: p.backgroundImagePath?.startsWith('builtin://')
-                    ? p.backgroundImagePath
-                    : p.backgroundImagePath
-                      ? toRelativeAssetPath(pp, p.backgroundImagePath) ?? p.backgroundImagePath
-                      : undefined
-            })),
-            materials: (page.materials || []).map((m) => ({
-                ...m,
-                imagePath: toRelativeAssetPath(pp, m.imagePath) ?? m.imagePath
-            })),
-            backgroundImagePath: page.backgroundImagePath?.startsWith('builtin://')
-                ? page.backgroundImagePath
-                : page.backgroundImagePath
-                  ? toRelativeAssetPath(pp, page.backgroundImagePath) ?? page.backgroundImagePath
-                  : undefined
-        }))
+        const pages = state.pages.map((page) => relativizePageAssets(pp, page))
+        const archivedPages = state.archivedPages.map((page) => relativizePageAssets(pp, page))
         return {
             pages,
+            archivedPages,
             lastPageId: state.currentPageId,
             referenceCharacters: state.referenceCharacters,
             backgroundLibrary: state.backgroundLibrary,
@@ -191,7 +205,9 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
         try {
             const referencedPaths = new Set<string>()
             const pp = state.currentProjectPath
-            state.pages.forEach((page) => {
+            // 保管ページ（アーカイブ）の画像も「使用中」として保護し、勝手にゴミ箱へ送らない
+            const allPagesForRefs = [...state.pages, ...state.archivedPages]
+            allPagesForRefs.forEach((page) => {
                 page.panels.forEach((panel) => {
                     if (panel.imagePath) {
                         const rel = toRelativeAssetPath(pp, panel.imagePath) ?? panel.imagePath
@@ -220,7 +236,7 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                 const rel = toRelativeAssetPath(pp, bg.relativePath) ?? bg.relativePath
                 referencedPaths.add(rel)
             })
-            state.pages.forEach((page) => {
+            allPagesForRefs.forEach((page) => {
                 const bp = page.backgroundImagePath
                 if (bp && !bp.startsWith('builtin://')) {
                     const rel = toRelativeAssetPath(pp, bp) ?? bp

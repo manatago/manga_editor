@@ -25,6 +25,7 @@ function App(): React.JSX.Element {
     const {
         currentProjectPath,
         pages,
+        archivedPages,
         currentPageId,
         selectPage,
         addPage,
@@ -142,7 +143,7 @@ function App(): React.JSX.Element {
 
     // Auto-save logic
     useEffect(() => {
-        if (currentProjectPath && pages.length > 0) {
+        if (currentProjectPath && (pages.length > 0 || archivedPages.length > 0)) {
             if (autoSaveTimerRef.current !== null) {
                 window.clearTimeout(autoSaveTimerRef.current)
             }
@@ -157,7 +158,7 @@ function App(): React.JSX.Element {
                 autoSaveTimerRef.current = null
             }
         }
-    }, [pages, currentProjectPath, referenceCharacters, backgroundLibrary, manuscript])
+    }, [pages, archivedPages, currentProjectPath, referenceCharacters, backgroundLibrary, manuscript])
 
     // Flush pending debounce save to avoid data loss on app close.
     useEffect(() => {

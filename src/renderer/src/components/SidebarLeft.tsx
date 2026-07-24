@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles, Archive, RotateCcw } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
@@ -47,11 +47,14 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
 }) => {
     const {
         pages,
+        archivedPages,
         currentPageId,
         selectPage,
         addPage,
         movePage,
         removePage,
+        restorePage,
+        deleteArchivedPage,
         cleanupAssets,
         mosaicType,
         mosaicVisible,
@@ -72,6 +75,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     const [compositorOpen, setCompositorOpen] = useState(false)
     const [novelaiSettingsOpen, setNovelaiSettingsOpen] = useState(false)
     const [toolsOpen, setToolsOpen] = useState(false)
+    const [archiveOpen, setArchiveOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<ExportFormat>('png')
     const novelaiConnection = useMangaStore((s) => s.novelaiConnection)
     const novelaiConnectedOk = novelaiConnection.state === 'ok'
@@ -325,13 +329,13 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                                 <button
                                                     onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        const ok = await confirmMessage('このページを削除しますか？')
+                                                        const ok = await confirmMessage('このページを保管（アーカイブ）へ移動しますか？\nあとで「保管ページ」から復元できます。')
                                                         if (ok) {
                                                             removePage(page.id);
                                                         }
                                                     }}
                                                     className="p-1 text-zinc-500 hover:text-red-500 transition-colors"
-                                                    title="ページを削除"
+                                                    title="ページを保管（アーカイブ）へ移動"
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>
@@ -339,6 +343,55 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                         </div>
                                     );
                                 })}
+                            </div>
+
+                            <div className="pt-4 mt-4 border-t border-zinc-800">
+                                <button
+                                    onClick={() => setArchiveOpen((v) => !v)}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700 transition-all text-zinc-400 hover:text-zinc-200"
+                                >
+                                    <Archive size={16} />
+                                    <span className="text-sm font-bold flex-1 text-left">保管ページ</span>
+                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-700/70 text-zinc-300">{archivedPages.length}</span>
+                                    {archiveOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </button>
+
+                                {archiveOpen && (
+                                    <div className="mt-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                                        {archivedPages.length === 0 ? (
+                                            <p className="px-3 py-2 text-[11px] text-zinc-600">
+                                                削除したページはここに保管されます。
+                                            </p>
+                                        ) : (
+                                            archivedPages.map((page) => (
+                                                <div key={page.id} className="group/arch flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/40 border border-transparent hover:border-zinc-700">
+                                                    <Archive size={13} className="text-zinc-600 shrink-0" />
+                                                    <span className="truncate flex-1 text-left text-xs text-zinc-400">
+                                                        元 {page.name}
+                                                        <span className="text-zinc-600"> ・ {page.panels.length}コマ</span>
+                                                    </span>
+                                                    <button
+                                                        onClick={() => restorePage(page.id)}
+                                                        className="p-1 text-zinc-500 hover:text-blue-400 transition-colors"
+                                                        title="このページを復元（末尾に挿入）"
+                                                    >
+                                                        <RotateCcw size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const ok = await confirmMessage('この保管ページを完全に削除しますか？\nこの操作は取り消せません。')
+                                                            if (ok) deleteArchivedPage(page.id)
+                                                        }}
+                                                        className="p-1 text-zinc-500 hover:text-red-500 transition-colors"
+                                                        title="完全に削除"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-4 mt-4 border-t border-zinc-800">

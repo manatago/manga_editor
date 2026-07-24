@@ -10,16 +10,23 @@ export interface SelectPageOptions {
 
 export interface PageSlice {
     pages: Page[]
+    /** 削除せず保管したページ（完全削除の代わり）。新しい順で保持 */
+    archivedPages: Page[]
     currentPageId: string | null
     addPage: (panels?: Omit<Panel, 'id'>[]) => void
     selectPage: (id: string, options?: SelectPageOptions) => void
     removePage: (id: string) => void
+    /** 保管ページを本編末尾に復元する */
+    restorePage: (id: string) => void
+    /** 保管ページを完全に削除する */
+    deleteArchivedPage: (id: string) => void
     updatePage: (id: string, updates: Partial<Page>) => void
     movePage: (id: string, direction: 'up' | 'down') => void
 }
 
 export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set, get) => ({
     pages: [],
+    archivedPages: [],
     currentPageId: null,
 
     addPage: (panels = []) => set((state) => {
@@ -64,6 +71,7 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
         if (index === -1) return state
 
         const history = saveHistory(state)
+        const removed = state.pages[index]
         const newPages = state.pages.filter((p) => p.id !== id)
         const normalizedPages = newPages.map((p, i) => ({
             ...p,
@@ -76,14 +84,58 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
             newCurrentPageId = normalizedPages[nextIdx]?.id || null
         }
 
+        // 完全削除せず保管（アーカイブ）へ。あとで復元できる。
+        const archived: Page = { ...removed, archivedAt: new Date().getTime() }
+
         return {
             ...state,
             ...history,
             pages: normalizedPages,
+            archivedPages: [archived, ...state.archivedPages],
             currentPageId: newCurrentPageId,
             selectedPanelId: null,
             selectedBubbleId: null,
             selectedMaterialId: null
+        }
+    }),
+
+    restorePage: (id) => set((state) => {
+        const archived = state.archivedPages.find((p) => p.id === id)
+        if (!archived) return state
+
+        const history = saveHistory(state)
+        // id の衝突を避けて末尾へ復元
+        const existingIds = new Set(state.pages.map((p) => p.id))
+        const restoredId = existingIds.has(archived.id)
+            ? `page_${new Date().getTime()}`
+            : archived.id
+        const { archivedAt: _archivedAt, ...rest } = archived
+        const restored: Page = { ...rest, id: restoredId }
+
+        const newPages = [...state.pages, restored].map((p, i) => ({
+            ...p,
+            name: String(i + 1).padStart(3, '0')
+        }))
+
+        return {
+            ...state,
+            ...history,
+            pages: newPages,
+            archivedPages: state.archivedPages.filter((p) => p.id !== id),
+            currentPageId: restoredId,
+            selectedPanelId: null,
+            selectedBubbleId: null,
+            selectedMaterialId: null
+        }
+    }),
+
+    deleteArchivedPage: (id) => set((state) => {
+        if (!state.archivedPages.some((p) => p.id === id)) return state
+        const history = saveHistory(state)
+        return {
+            ...state,
+            ...history,
+            archivedPages: state.archivedPages.filter((p) => p.id !== id)
         }
     }),
 

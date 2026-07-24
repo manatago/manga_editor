@@ -278,6 +278,8 @@ export interface Page {
     backgroundImageOpacity?: number
     /** 未指定時: 内蔵は tile、assets は stretch */
     backgroundImageFit?: PageBackgroundImageFit
+    /** アーカイブ（保管）に移動した日時（ms）。保管一覧の表示用 */
+    archivedAt?: number
 }
 
 export interface PageTemplate {
@@ -314,6 +316,8 @@ export interface BackgroundLibraryImage {
 
 export interface MangaProjectData {
     pages: Page[]
+    /** 削除せず保管したページ（完全削除の代わり。いつでも復元できる） */
+    archivedPages?: Page[]
     lastPageId: string | null
     /** 漫画ページ以外の参照キャラ管理（manga.json に保存） */
     referenceCharacters?: ReferenceCharacter[]
