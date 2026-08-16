@@ -20,6 +20,43 @@ export interface PanelSlice {
     pastePanel: () => void
 }
 
+/** デフォルト値を埋めた Panel を id 付きで生成する（addPanel / 台本生成で共有） */
+export function createPanel(props: Partial<Omit<Panel, 'id'>>): Panel {
+    return {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'rect',
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 150,
+        rotation: 0,
+        strokeWidth: 1,
+        strokeColor: '#000000',
+        slant: 0,
+        offsetB: 0,
+        offsetC: 0,
+        offsetD: 0,
+        imageX: 0,
+        imageY: 0,
+        imageScale: 1,
+        imageRotation: 0,
+        imageFlipX: false,
+        fadeDirection: 'none',
+        hasFocusLines: false,
+        focusCenterX: 0.5,
+        focusCenterY: 0.5,
+        focusDensity: 100,
+        focusWidth: 1,
+        focusRadius: 50,
+        fadeStrength: 0.4,
+        blurRadius: 0,
+        hasRainEffect: false,
+        rainDensity: 100,
+        rainOpacity: 0.3,
+        ...props
+    }
+}
+
 export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (set) => ({
     selectedPanelId: null,
     clipboardPanel: null,
@@ -33,39 +70,7 @@ export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (s
 
     addPanel: (props) => set((state) => {
         if (!state.currentPageId) return state
-        const newPanel: Panel = {
-            id: Math.random().toString(36).substr(2, 9),
-            type: 'rect',
-            x: 100,
-            y: 100,
-            width: 200,
-            height: 150,
-            rotation: 0,
-            strokeWidth: 1,
-            strokeColor: '#000000',
-            slant: 0,
-            offsetB: 0,
-            offsetC: 0,
-            offsetD: 0,
-            imageX: 0,
-            imageY: 0,
-            imageScale: 1,
-            imageRotation: 0,
-            imageFlipX: false,
-            fadeDirection: 'none',
-            hasFocusLines: false,
-            focusCenterX: 0.5,
-            focusCenterY: 0.5,
-            focusDensity: 100,
-            focusWidth: 1,
-            focusRadius: 50,
-            fadeStrength: 0.4,
-            blurRadius: 0,
-            hasRainEffect: false,
-            rainDensity: 100,
-            rainOpacity: 0.3,
-            ...props
-        }
+        const newPanel: Panel = createPanel(props)
         const history = saveHistory(state)
         return {
             ...state,

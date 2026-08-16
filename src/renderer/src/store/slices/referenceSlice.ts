@@ -10,7 +10,12 @@ export interface ReferenceSlice {
     removeReferenceCharacter: (id: string) => Promise<void>
     updateReferenceCharacter: (
         id: string,
-        patch: Partial<Pick<ReferenceCharacter, 'name' | 'positivePrompt' | 'negativePrompt'>>
+        patch: Partial<
+            Pick<
+                ReferenceCharacter,
+                'name' | 'positivePrompt' | 'negativePrompt' | 'gender' | 'defaultFontFamily'
+            >
+        >
     ) => void
     /** 取り込み済みの相対パスをキャラに追加 */
     registerReferenceCharacterImage: (characterId: string, relativePath: string) => void

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors, ImageIcon, Sparkles } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 import { referenceAssetsSubdir } from '../utils/referenceCharacters'
+import { FONT_OPTIONS, characterFontFor } from '../data/fontFamilies'
 import { showError } from '../utils/dialogs'
 import { MagicWandEditorModal } from './MagicWandEditorModal'
 import { ReferenceCharacterAIGenerationPanel } from './ReferenceCharacterAIGenerationPanel'
@@ -285,6 +286,64 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                             >
                                                 <Trash2 size={18} />
                                             </button>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <label className="block">
+                                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                                    性別（台本の既定フォント推定）
+                                                </span>
+                                                <select
+                                                    value={selected.gender ?? ''}
+                                                    onChange={(e) =>
+                                                        updateReferenceCharacter(selected.id, {
+                                                            gender: (e.target.value || undefined) as
+                                                                | 'male'
+                                                                | 'female'
+                                                                | 'other'
+                                                                | undefined
+                                                        })
+                                                    }
+                                                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                                                >
+                                                    <option value="">未設定</option>
+                                                    <option value="male">男性（既定＝ヒラギノ明朝）</option>
+                                                    <option value="female">女性（既定＝よもぎ手書き）</option>
+                                                    <option value="other">その他</option>
+                                                </select>
+                                            </label>
+                                            <label className="block">
+                                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                                    セリフの既定フォント
+                                                </span>
+                                                <select
+                                                    value={selected.defaultFontFamily ?? ''}
+                                                    onChange={(e) =>
+                                                        updateReferenceCharacter(selected.id, {
+                                                            defaultFontFamily: e.target.value || undefined
+                                                        })
+                                                    }
+                                                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                                                >
+                                                    <option value="">（未設定：性別から自動）</option>
+                                                    {FONT_OPTIONS.filter((o) => !o.group).map((o) => (
+                                                        <option key={o.value} value={o.value}>
+                                                            {o.label}
+                                                        </option>
+                                                    ))}
+                                                    <optgroup label="手書き風">
+                                                        {FONT_OPTIONS.filter((o) => o.group).map((o) => (
+                                                            <option key={o.value} value={o.value}>
+                                                                {o.label}
+                                                            </option>
+                                                        ))}
+                                                    </optgroup>
+                                                </select>
+                                                <span className="mt-1 block text-[10px] text-zinc-500">
+                                                    生成時のフォント:{' '}
+                                                    {FONT_OPTIONS.find((o) => o.value === characterFontFor(selected))?.label ??
+                                                        '既定（明朝）'}
+                                                </span>
+                                            </label>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <label className="block">

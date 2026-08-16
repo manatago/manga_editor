@@ -22,6 +22,55 @@ export interface BubbleSlice {
     pasteBubble: () => void
 }
 
+/** デフォルト値（＋任意の直近スタイル）を埋めた Bubble を id 付きで生成する（addBubble / 台本生成で共有） */
+export function createBubble(
+    props: Partial<Omit<Bubble, 'id'>>,
+    lastStyle: Partial<Bubble> = {}
+): Bubble {
+    return {
+        type: 'rounded',
+        x: 200,
+        y: 200,
+        width: 150,
+        height: 100,
+        fontSize: 18,
+        fontFamily: "'Hiragino Mincho ProN', 'MS PMincho', serif",
+        lineHeight: 1.0,
+        letterSpacing: 0,
+        textStrokeColor: '#ffffff',
+        textStrokeWidth: 0,
+        textWeightLevel: 1,
+        textRoughness: 0,
+        fontColor: '#000000',
+        fontWeight: 'bold',
+        isVertical: true,
+        backgroundColor: '#ffffff',
+        backgroundOpacity: 1,
+        borderColor: '#000000',
+        borderWidth: 0.5,
+        opacity: 1,
+        textOffsetX: 0,
+        textOffsetY: 0,
+        deformation: 1,
+        isClipped: false,
+        panelId: undefined,
+        tailX: 0,
+        tailY: 0,
+        tailControlX: 0,
+        tailControlY: 0,
+        tailWidth: 20,
+        spikeCount: 36,
+        flashLength: 1,
+        tailType: 'point',
+        rotation: 0,
+        autoFitMode: 'expand-bubble',
+        ...lastStyle,
+        ...props,
+        id: Math.random().toString(36).substr(2, 9),
+        text: props.text ?? 'テキストを入力'
+    }
+}
+
 export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = (set) => ({
     selectedBubbleId: null,
     clipboardBubble: null,
@@ -34,48 +83,7 @@ export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = 
         if (!state.currentPageId) return state
         const kind = (props.type ?? 'rounded') as BubbleType
         const lastStyle = state.bubbleLastStyleByType[kind] ?? {}
-        const newBubble: Bubble = {
-            type: 'rounded',
-            x: 200,
-            y: 200,
-            width: 150,
-            height: 100,
-            fontSize: 18,
-            fontFamily: "'Hiragino Mincho ProN', 'MS PMincho', serif",
-            lineHeight: 1.0,
-            letterSpacing: 0,
-            textStrokeColor: '#ffffff',
-            textStrokeWidth: 0,
-            textWeightLevel: 1,
-            textRoughness: 0,
-            fontColor: '#000000',
-            fontWeight: 'bold',
-            isVertical: true,
-            backgroundColor: '#ffffff',
-            backgroundOpacity: 1,
-            borderColor: '#000000',
-            borderWidth: 0.5,
-            opacity: 1,
-            textOffsetX: 0,
-            textOffsetY: 0,
-            deformation: 1,
-            isClipped: false,
-            panelId: undefined,
-            tailX: 0,
-            tailY: 0,
-            tailControlX: 0,
-            tailControlY: 0,
-            tailWidth: 20,
-            spikeCount: 36,
-            flashLength: 1,
-            tailType: 'point',
-            rotation: 0,
-            autoFitMode: 'expand-bubble',
-            ...lastStyle,
-            ...props,
-            id: Math.random().toString(36).substr(2, 9),
-            text: props.text ?? 'テキストを入力'
-        }
+        const newBubble: Bubble = createBubble(props, lastStyle)
         const history = saveHistory(state)
         return {
             ...state,

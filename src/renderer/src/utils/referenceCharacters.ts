@@ -1,4 +1,6 @@
-import type { ReferenceCharacter, ReferenceCharacterImage } from '../store/types'
+import type { CharacterGender, ReferenceCharacter, ReferenceCharacterImage } from '../store/types'
+
+const VALID_GENDERS: CharacterGender[] = ['male', 'female', 'other']
 import { referenceCharacterAssetsSubpath } from './assetsLayout'
 
 export function newReferenceCharacterId(): string {
@@ -32,7 +34,15 @@ export function normalizeReferenceCharacters(input: unknown): ReferenceCharacter
                 if (iid && rel) images.push({ id: iid, relativePath: rel.replace(/\\/g, '/'), addedAt })
             }
         }
-        out.push({ id, name, positivePrompt, negativePrompt, images })
+        const gender =
+            typeof r.gender === 'string' && VALID_GENDERS.includes(r.gender as CharacterGender)
+                ? (r.gender as CharacterGender)
+                : undefined
+        const defaultFontFamily =
+            typeof r.defaultFontFamily === 'string' && r.defaultFontFamily.trim()
+                ? r.defaultFontFamily
+                : undefined
+        out.push({ id, name, positivePrompt, negativePrompt, images, gender, defaultFontFamily })
     }
     return out
 }

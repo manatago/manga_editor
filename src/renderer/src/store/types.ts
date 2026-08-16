@@ -135,6 +135,8 @@ export interface Panel {
     fgToneFadeStrength?: number
     /** NovelAI 生成用の入力保存（コマ単位） */
     novelai?: NovelAIPanelConfig
+    /** 構造化台本から生成されたコマの逆リンク用キー（第2弾の台本連動で使う） */
+    scriptPanelKey?: string
 }
 
 export type NovelAIAspect = 'portrait' | 'square' | 'landscape' | 'wide' | 'tall'
@@ -230,6 +232,10 @@ export interface Bubble {
     tailType?: 'point' | 'thought'
     isClipped: boolean
     panelId?: string
+    /** この吹き出しの元になった台本の行キー（第2弾の台本連動で使う） */
+    scriptLineId?: string
+    /** 台本の話者名（キャンバス→台本 書き戻しで話者を復元するため生成時に保存） */
+    scriptSpeaker?: string
     rotation: number
     /** undefined / 'off' は従来通り手動。'shrink-font' は枠を保ったまま文字を縮める。
      *  'expand-bubble' は文字サイズを保ったまま枠を広げる。MVP は横書き矩形系のみ対応 */
@@ -280,6 +286,8 @@ export interface Page {
     backgroundImageFit?: PageBackgroundImageFit
     /** アーカイブ（保管）に移動した日時（ms）。保管一覧の表示用 */
     archivedAt?: number
+    /** このページに適用したコマ割りレイアウト名（構造化エディタで保持） */
+    layoutName?: string
 }
 
 export interface PageTemplate {
@@ -296,6 +304,8 @@ export interface ReferenceCharacterImage {
     addedAt: string
 }
 
+export type CharacterGender = 'male' | 'female' | 'other'
+
 /** AI 参照・整理用のキャラクター単位メタデータ */
 export interface ReferenceCharacter {
     id: string
@@ -303,6 +313,10 @@ export interface ReferenceCharacter {
     positivePrompt: string
     negativePrompt: string
     images: ReferenceCharacterImage[]
+    /** 性別（台本生成時の既定フォント推定に使う） */
+    gender?: CharacterGender
+    /** このキャラのセリフに使う既定フォント（未設定なら gender から推定） */
+    defaultFontFamily?: string
 }
 
 /** 背景ライブラリに登録した自作画像 */

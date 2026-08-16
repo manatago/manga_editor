@@ -7,6 +7,8 @@ import { ExportOverlay } from './components/ExportOverlay'
 import { NovelAIGenerationModal } from './components/NovelAIGenerationModal'
 import { PanelWandEditor } from './components/PanelWandEditor'
 import { ManuscriptPanel } from './components/ManuscriptPanel'
+import { ScriptEditor } from './components/ScriptEditor/ScriptEditor'
+import { ModeToggle } from './components/ModeToggle'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
 import {
     PANEL_STANDARD_HEIGHT,
@@ -267,6 +269,7 @@ function App(): React.JSX.Element {
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 justify-between shrink-0 min-w-0 gap-2 overflow-x-auto">
                     <div className="flex items-center gap-2 min-w-0">
+                        {currentProjectPath && <ModeToggle />}
                         {currentPageId && (
                             <>
                                 <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
@@ -349,6 +352,8 @@ function App(): React.JSX.Element {
             <NovelAIGenerationModal />
 
             <PanelWandEditor />
+
+            <ScriptEditor />
         </div>
     )
 }
