@@ -349,14 +349,35 @@ export function registerGitHandlers(): void {
         const cwd = String(projectPath ?? '').trim()
         if (!cwd || !fs.existsSync(cwd)) throw new Error('プロジェクトフォルダが見つかりません')
         await seedLfsCredential(cwd)
+        const logs: string[] = []
+        // git-lfs が使えるか確認（未インストールだと画像がポインタのままになる）
+        const lfsVer = await runGit(cwd, ['lfs', 'version'])
+        if (lfsVer.code !== 0) {
+            return {
+                ok: false,
+                log:
+                    '⚠ この端末に git-lfs が見つかりません。画像は LFS で管理されているため、git-lfs が必要です。\n' +
+                    '`brew install git-lfs` でインストール後、もう一度プルしてください。\n\n' +
+                    logOf('lfs version', lfsVer),
+                status: await getStatus(cwd)
+            }
+        }
+        // 念のためローカルに LFS フィルタを導入（clone直後などで未設定のケース対策）
+        await runGit(cwd, ['lfs', 'install', '--local'])
+        // 通常コミットの取得
         const pull = await runGit(cwd, ['pull', '--rebase'])
+        logs.push(logOf('pull --rebase', pull))
+        // 画像(LFS実体)を確実にダウンロード＆チェックアウト（ポインタのままの分も後追い取得）
+        const lfsPull = await runGit(cwd, ['lfs', 'pull'])
+        logs.push(logOf('lfs pull', lfsPull))
         const status = await getStatus(cwd)
-        let log = logOf('pull --rebase', pull)
-        if (pull.code !== 0) {
+        let log = logs.join('\n\n')
+        const ok = pull.code === 0 && lfsPull.code === 0
+        if (!ok) {
             const hint = authHint(log)
             if (hint) log = hint + '\n\n' + log
         }
-        return { ok: pull.code === 0, log, status }
+        return { ok, log, status }
     })
 
     ipcMain.handle(
