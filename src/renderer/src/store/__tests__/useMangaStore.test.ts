@@ -50,10 +50,10 @@ describe('useMangaStore', () => {
         const projectData = useMangaStore.getState().getProjectData()
 
         expect(projectData).toHaveProperty('pages')
-        expect(projectData).toHaveProperty('lastPageId')
+        // lastPageId は端末ローカル(localStorage)へ移行し manga.json には保存しない
+        expect(projectData).not.toHaveProperty('lastPageId')
         expect(projectData).toHaveProperty('referenceCharacters')
         expect(projectData.pages).toEqual(testPages)
-        expect(projectData.lastPageId).toBe('page-1')
         expect(projectData.referenceCharacters).toEqual([])
         expect(projectData.backgroundLibrary).toEqual([])
     })

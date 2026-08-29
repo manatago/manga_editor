@@ -336,7 +336,8 @@ export interface MangaProjectData {
     pages: Page[]
     /** 削除せず保管したページ（完全削除の代わり。いつでも復元できる） */
     archivedPages?: Page[]
-    lastPageId: string | null
+    /** @deprecated 「最後に見ていたページ」は端末ローカル(localStorage)に保持。manga.json には保存しない（同期のノイズ防止）。旧データ読込の後方互換のため任意で残す */
+    lastPageId?: string | null
     /** 漫画ページ以外の参照キャラ管理（manga.json に保存） */
     referenceCharacters?: ReferenceCharacter[]
     /** 背景用に登録した自作画像一覧 */

@@ -7,6 +7,9 @@ import { normalizeBackgroundLibrary } from '../../utils/backgroundLibrary'
 import { confirmMessage, showError, showInfo } from '../../utils/dialogs'
 import { sanitizePage } from './project/sanitize'
 
+/** 「最後に見ていたページ」を端末ローカルに保持するための localStorage キー（プロジェクト単位） */
+export const lastPageKey = (projectPath: string): string => `mango:lastPage:${projectPath}`
+
 export interface ProjectSlice {
     currentProjectPath: string | null
     templates: PageTemplate[]
@@ -80,10 +83,26 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             sanitizePage(page, projectPathForAssets)
         )
 
+        // 「最後に見ていたページ」は端末ローカル(localStorage)から復元。無ければ旧データの
+        // lastPageId（後方互換）→ 先頭ページ の順。存在しないIDは無視。
+        let restoredPageId: string | null = null
+        try {
+            const stored = projectPathForAssets
+                ? localStorage.getItem(lastPageKey(projectPathForAssets))
+                : null
+            if (stored && normalizedPages.some((p) => p.id === stored)) restoredPageId = stored
+        } catch {
+            /* localStorage 不可なら無視 */
+        }
+        const legacyPageId =
+            data.lastPageId && normalizedPages.some((p) => p.id === data.lastPageId)
+                ? data.lastPageId
+                : null
+
         set({
             pages: normalizedPages,
             archivedPages: sanitizedArchived,
-            currentPageId: data.lastPageId || normalizedPages[0]?.id || null,
+            currentPageId: restoredPageId || legacyPageId || normalizedPages[0]?.id || null,
             selectedPanelId: null,
             selectedBubbleId: null,
             currentProjectPath: get().currentProjectPath,
@@ -102,7 +121,6 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             return {
                 pages: state.pages,
                 archivedPages: state.archivedPages,
-                lastPageId: state.currentPageId,
                 referenceCharacters: state.referenceCharacters,
                 backgroundLibrary: state.backgroundLibrary,
                 manuscript: state.manuscript
@@ -113,7 +131,6 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
         return {
             pages,
             archivedPages,
-            lastPageId: state.currentPageId,
             referenceCharacters: state.referenceCharacters,
             backgroundLibrary: state.backgroundLibrary,
             manuscript: state.manuscript

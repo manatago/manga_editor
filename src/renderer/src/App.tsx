@@ -12,6 +12,7 @@ import { ModeToggle } from './components/ModeToggle'
 import { TranslationModal } from './components/TranslationModal/TranslationModal'
 import { GitSyncModal } from './components/GitSyncModal/GitSyncModal'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
+import { lastPageKey } from './store/slices/projectSlice'
 import {
     PANEL_STANDARD_HEIGHT,
     standardPanelWidth,
@@ -241,6 +242,16 @@ function App(): React.JSX.Element {
             cancelled = true
         }
     }, [currentProjectPath])
+
+    // 「最後に見ていたページ」を端末ローカルへ保存（manga.json/同期は汚さない）
+    useEffect(() => {
+        if (!currentProjectPath || !currentPageId) return
+        try {
+            localStorage.setItem(lastPageKey(currentProjectPath), currentPageId)
+        } catch {
+            /* localStorage 不可なら無視 */
+        }
+    }, [currentPageId, currentProjectPath])
 
     const handleOpenPull = async () => {
         const path = useMangaStore.getState().currentProjectPath
