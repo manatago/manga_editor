@@ -238,6 +238,10 @@ declare global {
                 projectPath: string,
                 hash: string
             ) => Promise<{ ok: boolean; log: string; status: GitRepoStatus }>
+            /** リモートを fetch して最新状態を確認（開いた時のプル案内用。behind>0 なら新着あり） */
+            gitFetchStatus: (
+                projectPath: string
+            ) => Promise<{ status: GitRepoStatus; fetched: boolean }>
             /** アプリを閉じようとした時に呼ばれる（同期確認用）。返り値で購読解除 */
             onAppBeforeClose: (cb: () => void) => () => void
             /** 閉じてよいと確定（ウィンドウを実際に閉じる） */

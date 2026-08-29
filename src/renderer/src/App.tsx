@@ -80,6 +80,8 @@ function App(): React.JSX.Element {
     const [isGitSyncModalOpen, setIsGitSyncModalOpen] = useState(false)
     const [closePrompt, setClosePrompt] = useState<GitRepoStatus | null>(null)
     const [closeBusy, setCloseBusy] = useState(false)
+    const [openPullPrompt, setOpenPullPrompt] = useState<GitRepoStatus | null>(null)
+    const [openPullBusy, setOpenPullBusy] = useState(false)
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(() => {
         try {
             return localStorage.getItem('manga-yarou-left-sidebar') !== 'false'
@@ -220,6 +222,44 @@ function App(): React.JSX.Element {
         })
         return off
     }, [])
+
+    // プロジェクトを開いた時: リモートを確認し、新しい変更があればプルを案内
+    useEffect(() => {
+        const path = currentProjectPath
+        if (!path || !window.electron?.gitFetchStatus) return
+        let cancelled = false
+        void (async () => {
+            try {
+                const { status } = await window.electron.gitFetchStatus(path)
+                if (cancelled) return
+                if (status.isRepo && status.behind > 0) setOpenPullPrompt(status)
+            } catch {
+                /* オフライン等は黙ってスキップ */
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [currentProjectPath])
+
+    const handleOpenPull = async () => {
+        const path = useMangaStore.getState().currentProjectPath
+        if (!path || !window.electron) return
+        setOpenPullBusy(true)
+        try {
+            const res = await window.electron.gitPull(path)
+            if (res.ok) {
+                await openProjectByPath(path)
+                setOpenPullPrompt(null)
+            } else {
+                await showError('プルに失敗しました:\n\n' + res.log)
+            }
+        } catch (e) {
+            await showError('プルに失敗しました:\n' + (e instanceof Error ? e.message : String(e)))
+        } finally {
+            setOpenPullBusy(false)
+        }
+    }
 
     const handleCloseSync = async () => {
         const path = useMangaStore.getState().currentProjectPath
@@ -486,6 +526,48 @@ function App(): React.JSX.Element {
                                     キャンセル
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {openPullPrompt && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
+                    <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-5">
+                        <div className="flex items-center gap-2 text-white mb-2">
+                            <GitBranch size={18} className="text-indigo-400" />
+                            <h2 className="text-base font-semibold">新しい変更があります</h2>
+                        </div>
+                        <p className="text-sm text-zinc-400 leading-relaxed mb-1">
+                            リモートに、この作品のより新しいバージョンがあります。取り込み（プル）しますか？
+                        </p>
+                        <div className="text-xs text-zinc-500 mb-4">
+                            未取得 {openPullPrompt.behind} コミット
+                            {openPullPrompt.ahead > 0 && ` / ローカル未プッシュ ${openPullPrompt.ahead} コミット`}
+                        </div>
+                        {openPullPrompt.ahead > 0 && (
+                            <div className="flex items-start gap-1.5 text-xs text-amber-400 mb-3">
+                                <GitBranch size={13} className="mt-0.5 shrink-0" />
+                                こちらにも未プッシュの変更があります。プルは rebase で取り込みます。
+                            </div>
+                        )}
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={handleOpenPull}
+                                disabled={openPullBusy}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40"
+                            >
+                                {openPullBusy ? '取り込み中…' : 'プルする'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setOpenPullPrompt(null)}
+                                disabled={openPullBusy}
+                                className="flex-1 px-3 py-2 rounded-md text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-40"
+                            >
+                                あとで
+                            </button>
                         </div>
                     </div>
                 </div>

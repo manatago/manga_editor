@@ -155,6 +155,8 @@ if (process.contextIsolated) {
                 ipcRenderer.invoke('git-log', { projectPath, limit }),
             gitRestoreTo: (projectPath: string, hash: string) =>
                 ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
+            gitFetchStatus: (projectPath: string) =>
+                ipcRenderer.invoke('git-fetch-status', { projectPath }),
             onAppBeforeClose: (cb: () => void) => {
                 const listener = (): void => cb()
                 ipcRenderer.on('app-before-close', listener)
@@ -244,6 +246,8 @@ if (process.contextIsolated) {
             ipcRenderer.invoke('git-log', { projectPath, limit }),
         gitRestoreTo: (projectPath: string, hash: string) =>
             ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
+        gitFetchStatus: (projectPath: string) =>
+            ipcRenderer.invoke('git-fetch-status', { projectPath }),
         onAppBeforeClose: (cb: () => void) => {
             const listener = (): void => cb()
             ipcRenderer.on('app-before-close', listener)

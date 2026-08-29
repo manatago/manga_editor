@@ -413,6 +413,20 @@ export function registerGitHandlers(): void {
         }
     )
 
+    // リモートを fetch して最新状態を確認（開いた時のプル案内用。LFS実体は取得しない軽量チェック）
+    ipcMain.handle('git-fetch-status', async (_, { projectPath }: { projectPath: string }) => {
+        const cwd = String(projectPath ?? '').trim()
+        if (!cwd || !fs.existsSync(cwd)) return { status: await getStatus(cwd || '.'), fetched: false }
+        const inside = await runGit(cwd, ['rev-parse', '--is-inside-work-tree'])
+        if (inside.code !== 0 || inside.stdout.trim() !== 'true') {
+            return { status: await getStatus(cwd), fetched: false }
+        }
+        // origin(GitHub, SSH) から git オブジェクトのみ取得。上流未設定/オフラインでも失敗は握りつぶす
+        const fetch = await runGit(cwd, ['fetch', '--quiet'])
+        const status = await getStatus(cwd)
+        return { status, fetched: fetch.code === 0 }
+    })
+
     // 現在ブランチのコミット履歴
     ipcMain.handle('git-log', async (_, { projectPath, limit }: { projectPath: string; limit?: number }) => {
         const cwd = String(projectPath ?? '').trim()
