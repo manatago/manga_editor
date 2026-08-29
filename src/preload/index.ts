@@ -136,7 +136,21 @@ if (process.contextIsolated) {
             novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
                 ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
             novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
-                ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
+                ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath }),
+            exportTranslationSheet: (defaultName: string, content: string) =>
+                ipcRenderer.invoke('export-translation-sheet', { defaultName, content }),
+            selectTranslationSheet: () => ipcRenderer.invoke('select-translation-sheet'),
+            createLocalizedProject: (sourcePath: string, folderName: string, data: unknown) =>
+                ipcRenderer.invoke('create-localized-project', { sourcePath, folderName, data }),
+            gitRepoStatus: (projectPath: string) => ipcRenderer.invoke('git-repo-status', { projectPath }),
+            gitInitConfig: (projectPath: string, remoteUrl: string, lfsUrl: string) =>
+                ipcRenderer.invoke('git-init-config', { projectPath, remoteUrl, lfsUrl }),
+            gitPush: (projectPath: string, message: string) =>
+                ipcRenderer.invoke('git-push', { projectPath, message }),
+            gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
+            gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
+                ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
+            gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults')
         })
     } catch (error) {
         console.error(error)
@@ -201,6 +215,20 @@ if (process.contextIsolated) {
         novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
             ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
         novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
-            ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath })
+            ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath }),
+        exportTranslationSheet: (defaultName: string, content: string) =>
+            ipcRenderer.invoke('export-translation-sheet', { defaultName, content }),
+        selectTranslationSheet: () => ipcRenderer.invoke('select-translation-sheet'),
+        createLocalizedProject: (sourcePath: string, folderName: string, data: unknown) =>
+            ipcRenderer.invoke('create-localized-project', { sourcePath, folderName, data }),
+        gitRepoStatus: (projectPath: string) => ipcRenderer.invoke('git-repo-status', { projectPath }),
+        gitInitConfig: (projectPath: string, remoteUrl: string, lfsUrl: string) =>
+            ipcRenderer.invoke('git-init-config', { projectPath, remoteUrl, lfsUrl }),
+        gitPush: (projectPath: string, message: string) =>
+            ipcRenderer.invoke('git-push', { projectPath, message }),
+        gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
+        gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
+            ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
+        gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults')
     }
 }

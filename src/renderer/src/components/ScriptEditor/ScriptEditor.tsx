@@ -333,13 +333,33 @@ const LineRow: React.FC<{ bubble: Bubble }> = ({ bubble }) => {
                     ))}
                 </select>
             </div>
-            <textarea
-                value={bubble.text ?? ''}
-                onChange={(e) => updateLine(bubble.id, { text: e.target.value })}
-                rows={2}
-                placeholder="セリフ（改行OK）"
-                className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-white resize-y"
-            />
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <textarea
+                    value={bubble.text ?? ''}
+                    onChange={(e) => updateLine(bubble.id, { text: e.target.value })}
+                    rows={2}
+                    placeholder="セリフ（改行OK）"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-white resize-y"
+                />
+                <div className="flex gap-1">
+                    <input
+                        type="text"
+                        value={bubble.scriptAddressee ?? ''}
+                        onChange={(e) => updateLine(bubble.id, { addressee: e.target.value })}
+                        placeholder="宛先（誰/何に向けて）"
+                        title="翻訳注釈: 誰/何に向けたセリフか。訳し分けの手がかりになります"
+                        className="w-1/3 min-w-0 bg-zinc-900/60 border border-zinc-800 rounded px-1.5 py-1 text-[11px] text-zinc-300"
+                    />
+                    <input
+                        type="text"
+                        value={bubble.scriptNote ?? ''}
+                        onChange={(e) => updateLine(bubble.id, { note: e.target.value })}
+                        placeholder="ニュアンス注釈（言い回し・含意）"
+                        title="翻訳注釈: 日本語独特の言い回しや含意のメモ。翻訳時の判断材料に使います"
+                        className="flex-1 min-w-0 bg-zinc-900/60 border border-zinc-800 rounded px-1.5 py-1 text-[11px] text-zinc-300"
+                    />
+                </div>
+            </div>
             <button
                 type="button"
                 onClick={(e) => {

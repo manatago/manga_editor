@@ -1,6 +1,24 @@
 import type { PageTemplate } from './store/types'
 
 declare global {
+    interface GitRepoStatus {
+        isRepo: boolean
+        branch: string
+        dirty: number
+        ahead: number
+        behind: number
+        remoteUrl: string
+        lfsUrl: string
+        hasCred: boolean
+        lfsUsername: string
+    }
+
+    interface GitConnDefaults {
+        lfsUrl?: string
+        remoteUrl?: string
+        username?: string
+    }
+
     interface Window {
         electron: {
             selectFolder: () => Promise<string | null>
@@ -171,6 +189,37 @@ declare global {
                 | { moved: true; relativePath: string }
                 | { moved: false; reason: 'missing' | 'invalid' | 'out-of-project' }
             >
+            /** 翻訳シート(JSON)を保存ダイアログで書き出す。返り値は保存パス（キャンセル時 null） */
+            exportTranslationSheet: (defaultName: string, content: string) => Promise<string | null>
+            /** 翻訳シート(JSON)を選択して中身を返す（キャンセル時 null） */
+            selectTranslationSheet: () => Promise<{ path: string; content: string } | null>
+            /** 翻訳版プロジェクトを元プロジェクトの隣に生成（assets コピー＋翻訳済み manga.json）。返り値は新フォルダの絶対パス */
+            createLocalizedProject: (sourcePath: string, folderName: string, data: unknown) => Promise<string>
+            /** 作品フォルダの Git/LFS 同期状態を取得 */
+            gitRepoStatus: (projectPath: string) => Promise<GitRepoStatus>
+            /** git init ＋ .gitattributes/.lfsconfig/.gitignore 配置 ＋ lfs install ＋ remote 設定 ＋ 初回コミット */
+            gitInitConfig: (
+                projectPath: string,
+                remoteUrl: string,
+                lfsUrl: string
+            ) => Promise<{ ok: boolean; log: string; status: GitRepoStatus }>
+            /** add -A → commit（変更あれば）→ push */
+            gitPush: (
+                projectPath: string,
+                message: string
+            ) => Promise<{ ok: boolean; log: string; status: GitRepoStatus }>
+            /** pull --rebase */
+            gitPull: (
+                projectPath: string
+            ) => Promise<{ ok: boolean; log: string; status: GitRepoStatus }>
+            /** LFS Basic 認証を safeStorage に暗号化保存（空で削除） */
+            gitSaveLfsCredential: (
+                lfsUrl: string,
+                username: string,
+                password: string
+            ) => Promise<{ ok: boolean; host: string }>
+            /** 直近に使った接続デフォルト（LFS URL / GitHub URL / ユーザー名。パスワードは含まない） */
+            gitConnDefaults: () => Promise<GitConnDefaults>
         }
     }
 }

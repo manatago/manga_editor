@@ -9,13 +9,15 @@ import { PanelWandEditor } from './components/PanelWandEditor'
 import { ManuscriptPanel } from './components/ManuscriptPanel'
 import { ScriptEditor } from './components/ScriptEditor/ScriptEditor'
 import { ModeToggle } from './components/ModeToggle'
+import { TranslationModal } from './components/TranslationModal/TranslationModal'
+import { GitSyncModal } from './components/GitSyncModal/GitSyncModal'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
 import {
     PANEL_STANDARD_HEIGHT,
     standardPanelWidth,
     computePanelInsertion
 } from './utils/panelInsertion'
-import { PanelTop, PanelLeft } from 'lucide-react'
+import { PanelTop, PanelLeft, Languages, GitBranch } from 'lucide-react'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
 import { useExport } from './hooks/useExport'
@@ -68,11 +70,13 @@ function App(): React.JSX.Element {
 
     // Custom Hooks
     useKeyboardShortcuts()
-    const { handleCreateNew, handleOpenProject, handleUseTemplate, handleSaveAsTemplate } = useProjectActions()
+    const { handleCreateNew, handleOpenProject, openProjectByPath, handleUseTemplate, handleSaveAsTemplate } = useProjectActions()
     const { stageRef, handleExportPNG, handleExportAllPagesPNG, handleExportText } = useExport()
 
     // Local UI State
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
+    const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false)
+    const [isGitSyncModalOpen, setIsGitSyncModalOpen] = useState(false)
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(() => {
         try {
             return localStorage.getItem('manga-yarou-left-sidebar') !== 'false'
@@ -270,6 +274,28 @@ function App(): React.JSX.Element {
                 <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 justify-between shrink-0 min-w-0 gap-2 overflow-x-auto">
                     <div className="flex items-center gap-2 min-w-0">
                         {currentProjectPath && <ModeToggle />}
+                        {currentProjectPath && (
+                            <button
+                                type="button"
+                                onClick={() => setIsTranslationModalOpen(true)}
+                                title="翻訳版を作成"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-white shrink-0"
+                            >
+                                <Languages size={16} />
+                                <span className="hidden md:inline">翻訳版</span>
+                            </button>
+                        )}
+                        {currentProjectPath && (
+                            <button
+                                type="button"
+                                onClick={() => setIsGitSyncModalOpen(true)}
+                                title="同期（Git / LFS）"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-white shrink-0"
+                            >
+                                <GitBranch size={16} />
+                                <span className="hidden md:inline">同期</span>
+                            </button>
+                        )}
                         {currentPageId && (
                             <>
                                 <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
@@ -354,6 +380,17 @@ function App(): React.JSX.Element {
             <PanelWandEditor />
 
             <ScriptEditor />
+
+            <TranslationModal
+                isOpen={isTranslationModalOpen}
+                onClose={() => setIsTranslationModalOpen(false)}
+                onOpenProject={openProjectByPath}
+            />
+
+            <GitSyncModal
+                isOpen={isGitSyncModalOpen}
+                onClose={() => setIsGitSyncModalOpen(false)}
+            />
         </div>
     )
 }

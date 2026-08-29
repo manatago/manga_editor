@@ -44,6 +44,21 @@ export const useProjectActions = () => {
         }
     }
 
+    /** パス指定でプロジェクトを開く（翻訳版の生成直後に開くなど、ダイアログを介さない用途） */
+    const openProjectByPath = async (folderPath: string) => {
+        if (!window.electron || !folderPath) return null
+        try {
+            const projectData = await window.electron.loadProject(folderPath)
+            setCurrentProject(folderPath)
+            setProjectData(projectData)
+            return folderPath
+        } catch (error) {
+            console.error('useProjectActions: openProjectByPath error:', error)
+            await showError('プロジェクトの読み込みに失敗しました')
+            return null
+        }
+    }
+
     const handleUseTemplate = async (templateId: string) => {
         if (!currentProjectPath || !window.electron) return
         const { templates } = useMangaStore.getState()
@@ -71,6 +86,7 @@ export const useProjectActions = () => {
     return {
         handleCreateNew,
         handleOpenProject,
+        openProjectByPath,
         handleUseTemplate,
         handleSaveAsTemplate
     }

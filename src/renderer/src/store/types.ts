@@ -236,6 +236,10 @@ export interface Bubble {
     scriptLineId?: string
     /** 台本の話者名（キャンバス→台本 書き戻しで話者を復元するため生成時に保存） */
     scriptSpeaker?: string
+    /** 台本注釈: このセリフの宛先（誰/何に向けて言っているか）。翻訳精度向上のための任意メモ */
+    scriptAddressee?: string
+    /** 台本注釈: 言い回し・ニュアンスの補足（翻訳時の判断材料）。任意メモ */
+    scriptNote?: string
     rotation: number
     /** undefined / 'off' は従来通り手動。'shrink-font' は枠を保ったまま文字を縮める。
      *  'expand-bubble' は文字サイズを保ったまま枠を広げる。MVP は横書き矩形系のみ対応 */

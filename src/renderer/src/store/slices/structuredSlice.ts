@@ -12,12 +12,18 @@ export interface AddLineOptions {
     speaker?: string
     text?: string
     kind?: LineKind
+    addressee?: string
+    note?: string
 }
 
 export interface UpdateLinePatch {
     speaker?: string
     text?: string
     kind?: LineKind
+    /** 宛先注釈（空文字でクリア） */
+    addressee?: string
+    /** ニュアンス注釈（空文字でクリア） */
+    note?: string
 }
 
 export interface StructuredSlice {
@@ -138,6 +144,8 @@ export const createStructuredSlice: StateCreator<MangaState, [], [], StructuredS
                 isClipped: false,
                 text: opts?.text ?? '',
                 scriptSpeaker: speaker,
+                ...(opts?.addressee?.trim() ? { scriptAddressee: opts.addressee.trim() } : {}),
+                ...(opts?.note?.trim() ? { scriptNote: opts.note.trim() } : {}),
                 ...(font ? { fontFamily: font } : {})
             })
             const history = saveHistory(state)
@@ -167,6 +175,8 @@ export const createStructuredSlice: StateCreator<MangaState, [], [], StructuredS
                         if (font) updates.fontFamily = font
                     }
                     if (patch.kind === 'narration') updates.scriptSpeaker = undefined
+                    if (patch.addressee !== undefined) updates.scriptAddressee = patch.addressee.trim() || undefined
+                    if (patch.note !== undefined) updates.scriptNote = patch.note.trim() || undefined
                     return { ...b, ...updates }
                 })
             }))
