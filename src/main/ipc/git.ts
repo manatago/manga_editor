@@ -372,9 +372,9 @@ export function registerGitHandlers(): void {
         }
         // 念のためローカルに LFS フィルタを導入（clone直後などで未設定のケース対策）
         await runGit(cwd, ['lfs', 'install', '--local'])
-        // 通常コミットの取得
-        const pull = await runGit(cwd, ['pull', '--rebase'])
-        logs.push(logOf('pull --rebase', pull))
+        // 通常コミットの取得（未コミット変更があっても止まらないよう自動退避→復元）
+        const pull = await runGit(cwd, ['pull', '--rebase', '--autostash'])
+        logs.push(logOf('pull --rebase --autostash', pull))
         // 画像(LFS実体)を確実にダウンロード＆チェックアウト（ポインタのままの分も後追い取得）
         const lfsPull = await runGit(cwd, ['lfs', 'pull'])
         logs.push(logOf('lfs pull', lfsPull))
