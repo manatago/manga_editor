@@ -42,12 +42,17 @@ function createWindow(): void {
     let allowClose = false
     mainWindow.on('close', (e) => {
         if (allowClose) return
+        if (mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return
         e.preventDefault()
         mainWindow.webContents.send('app-before-close')
     })
-    ipcMain.on('app-confirm-close', () => {
+    const onConfirmClose = (): void => {
         allowClose = true
-        mainWindow.close()
+        if (!mainWindow.isDestroyed()) mainWindow.close()
+    }
+    ipcMain.on('app-confirm-close', onConfirmClose)
+    mainWindow.on('closed', () => {
+        ipcMain.removeListener('app-confirm-close', onConfirmClose)
     })
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
