@@ -8,21 +8,37 @@ import {
     Loader2,
     CheckCircle2,
     AlertTriangle,
-    RefreshCw
+    RefreshCw,
+    History,
+    RotateCcw
 } from 'lucide-react'
 import { useMangaStore } from '../../store/useMangaStore'
-import { showError } from '../../utils/dialogs'
+import { showError, confirmMessage } from '../../utils/dialogs'
 
 interface GitSyncModalProps {
     isOpen: boolean
     onClose: () => void
+    /** プル/復元でディスク上の manga.json が変わった後、メモリ状態を最新へ再読込する */
+    onReloadProject: (path: string) => Promise<unknown>
 }
 
 function basename(p: string): string {
     return p.split('/').filter(Boolean).pop() ?? p
 }
 
-export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) => {
+function fmtDate(iso: string): string {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso
+    return d.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
+export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose, onReloadProject }) => {
     const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
     const projectName = currentProjectPath ? basename(currentProjectPath) : ''
 
@@ -34,6 +50,9 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
     const [commitMsg, setCommitMsg] = useState('')
     const [busy, setBusy] = useState<string | null>(null)
     const [log, setLog] = useState('')
+    const [commits, setCommits] = useState<GitCommit[]>([])
+    const [headHash, setHeadHash] = useState('')
+    const [selectedHash, setSelectedHash] = useState('')
 
     const refresh = async () => {
         if (!currentProjectPath || !window.electron) return
@@ -47,8 +66,21 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
             setRemoteUrl((prev) => prev || st.remoteUrl || defs.remoteUrl || '')
             setLfsUrl((prev) => prev || st.lfsUrl || defs.lfsUrl || '')
             setLfsUser((prev) => prev || st.lfsUsername || defs.username || '')
+            if (st.isRepo) void loadHistory()
         } catch (e) {
             await showError('状態の取得に失敗しました:\n' + (e instanceof Error ? e.message : String(e)))
+        }
+    }
+
+    const loadHistory = async () => {
+        if (!currentProjectPath || !window.electron) return
+        try {
+            const { commits: cs, headHash: hh } = await window.electron.gitLog(currentProjectPath, 100)
+            setCommits(cs)
+            setHeadHash(hh)
+        } catch {
+            setCommits([])
+            setHeadHash('')
         }
     }
 
@@ -116,8 +148,36 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
             const res = await window.electron.gitPull(currentProjectPath!)
             setStatus(res.status)
             setLog(res.log)
+            await loadHistory()
+            // ディスクが更新されたので、アプリのメモリ状態を最新へ再読込
+            if (res.ok) await onReloadProject(currentProjectPath!)
         } catch (e) {
             await showError('プルに失敗しました:\n' + (e instanceof Error ? e.message : String(e)))
+        } finally {
+            setBusy(null)
+        }
+    }
+
+    const handleRestore = async () => {
+        if (!guard() || !selectedHash) return
+        const target = commits.find((c) => c.hash === selectedHash)
+        const ok = await confirmMessage(
+            `「${target?.short} ${target?.subject ?? ''}」の状態に復元します。\n\n` +
+                'この内容を新しいコミットとして記録します（履歴は巻き戻しません）。\n' +
+                '⚠ 未コミットの変更は失われます。よろしいですか？'
+        )
+        if (!ok) return
+        setBusy('restore')
+        try {
+            const res = await window.electron.gitRestoreTo(currentProjectPath!, selectedHash)
+            setStatus(res.status)
+            setLog(res.log)
+            setSelectedHash('')
+            await loadHistory()
+            // 復元でディスクが変わったのでメモリ状態を再読込
+            if (res.ok) await onReloadProject(currentProjectPath!)
+        } catch (e) {
+            await showError('復元に失敗しました:\n' + (e instanceof Error ? e.message : String(e)))
         } finally {
             setBusy(null)
         }
@@ -286,6 +346,80 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
                             GitHub 側は SSH 鍵、LFS 側は上の認証情報を使います（新PCでは一度だけ入力）。
                         </p>
                     </div>
+
+                    {/* 履歴（現在ブランチ） */}
+                    {status?.isRepo && (
+                        <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="text-sm font-medium text-zinc-200 flex items-center gap-1.5">
+                                    <History size={15} /> 履歴（{status.branch || 'current'}）
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => void loadHistory()}
+                                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white"
+                                >
+                                    <RefreshCw size={13} /> 更新
+                                </button>
+                            </div>
+                            <div className="text-xs text-zinc-500 mb-2">
+                                戻したいコミットを選んで「この状態に復元」。履歴は巻き戻さず、選んだ状態を新しいコミットとして記録します。
+                            </div>
+                            <div className="max-h-56 overflow-y-auto rounded-md border border-zinc-800 divide-y divide-zinc-800/70">
+                                {commits.length === 0 ? (
+                                    <div className="px-3 py-4 text-xs text-zinc-600">コミットがありません</div>
+                                ) : (
+                                    commits.map((c) => {
+                                        const isHead = c.hash === headHash
+                                        const selected = c.hash === selectedHash
+                                        return (
+                                            <button
+                                                key={c.hash}
+                                                type="button"
+                                                onClick={() => setSelectedHash(selected ? '' : c.hash)}
+                                                className={`w-full text-left px-3 py-2 flex items-start gap-2 hover:bg-zinc-800/50 ${
+                                                    selected ? 'bg-indigo-950/40' : ''
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
+                                                        selected ? 'bg-indigo-400' : 'bg-zinc-700'
+                                                    }`}
+                                                />
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="flex items-center gap-2">
+                                                        <code className="text-[11px] text-amber-400/90">{c.short}</code>
+                                                        {isHead && (
+                                                            <span className="text-[10px] px-1 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-800">
+                                                                現在
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[11px] text-zinc-500">{fmtDate(c.dateIso)}</span>
+                                                    </span>
+                                                    <span className="block text-xs text-zinc-300 truncate">{c.subject}</span>
+                                                </span>
+                                            </button>
+                                        )
+                                    })
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRestore}
+                                disabled={!!busy || !selectedHash || selectedHash === headHash}
+                                title={selectedHash === headHash ? '現在の状態です' : ''}
+                                className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm bg-amber-700 hover:bg-amber-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {busy === 'restore' ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+                                この状態に復元
+                            </button>
+                            {selectedHash && selectedHash !== headHash && (
+                                <span className="ml-2 text-[11px] text-zinc-500">
+                                    復元後は「プッシュ」で別PCにも反映されます
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     {/* ログ */}
                     {log && (

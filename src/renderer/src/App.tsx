@@ -390,6 +390,7 @@ function App(): React.JSX.Element {
             <GitSyncModal
                 isOpen={isGitSyncModalOpen}
                 onClose={() => setIsGitSyncModalOpen(false)}
+                onReloadProject={openProjectByPath}
             />
         </div>
     )

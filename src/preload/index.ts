@@ -150,7 +150,11 @@ if (process.contextIsolated) {
             gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
             gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
                 ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
-            gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults')
+            gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults'),
+            gitLog: (projectPath: string, limit?: number) =>
+                ipcRenderer.invoke('git-log', { projectPath, limit }),
+            gitRestoreTo: (projectPath: string, hash: string) =>
+                ipcRenderer.invoke('git-restore-to', { projectPath, hash })
         })
     } catch (error) {
         console.error(error)
@@ -229,6 +233,10 @@ if (process.contextIsolated) {
         gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
         gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
             ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
-        gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults')
+        gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults'),
+        gitLog: (projectPath: string, limit?: number) =>
+            ipcRenderer.invoke('git-log', { projectPath, limit }),
+        gitRestoreTo: (projectPath: string, hash: string) =>
+            ipcRenderer.invoke('git-restore-to', { projectPath, hash })
     }
 }

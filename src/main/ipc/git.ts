@@ -185,6 +185,14 @@ PR/
 
 // ---- ステータス取得 -------------------------------------------------------
 
+export interface GitCommit {
+    hash: string
+    short: string
+    dateIso: string
+    author: string
+    subject: string
+}
+
 export interface GitStatus {
     isRepo: boolean
     branch: string
@@ -404,4 +412,66 @@ export function registerGitHandlers(): void {
             return { ok: true, host: key.host }
         }
     )
+
+    // 現在ブランチのコミット履歴
+    ipcMain.handle('git-log', async (_, { projectPath, limit }: { projectPath: string; limit?: number }) => {
+        const cwd = String(projectPath ?? '').trim()
+        if (!cwd || !fs.existsSync(cwd)) throw new Error('プロジェクトフォルダが見つかりません')
+        const n = Math.min(Math.max(Number(limit) || 100, 1), 500)
+        // %x1f=フィールド区切り, %x1e=レコード区切り
+        const fmt = '%H%x1f%h%x1f%cI%x1f%an%x1f%s'
+        const r = await runGit(cwd, ['log', `-n${n}`, `--pretty=format:${fmt}%x1e`])
+        if (r.code !== 0) {
+            // コミットが無い等
+            return { commits: [] as GitCommit[], headHash: '' }
+        }
+        const commits: GitCommit[] = r.stdout
+            .split('\x1e')
+            .map((rec) => rec.replace(/^\n/, '').trim())
+            .filter(Boolean)
+            .map((rec) => {
+                const [hash, short, dateIso, author, subject] = rec.split('\x1f')
+                return { hash, short, dateIso, author, subject: subject ?? '' }
+            })
+        const headR = await runGit(cwd, ['rev-parse', 'HEAD'])
+        return { commits, headHash: headR.stdout.trim() }
+    })
+
+    // 選んだコミットの状態へ「新しいコミットとして」安全に復元（履歴は巻き戻さない）
+    ipcMain.handle('git-restore-to', async (_, { projectPath, hash }: { projectPath: string; hash: string }) => {
+        const cwd = String(projectPath ?? '').trim()
+        if (!cwd || !fs.existsSync(cwd)) throw new Error('プロジェクトフォルダが見つかりません')
+        const target = String(hash ?? '').trim()
+        if (!/^[0-9a-fA-F]{7,40}$/.test(target)) throw new Error('コミットの指定が不正です')
+        // 対象コミットの存在確認
+        const exists = await runGit(cwd, ['cat-file', '-e', `${target}^{commit}`])
+        if (exists.code !== 0) throw new Error('指定コミットが見つかりません')
+
+        await seedLfsCredential(cwd)
+        const logs: string[] = []
+        // index+worktree を対象コミットのツリーに一致させる（HEADは動かさない）。
+        // LFS 追跡ファイルは smudge フィルタ経由で該当バージョンが取得される。
+        const read = await runGit(cwd, ['read-tree', '-u', '--reset', target])
+        logs.push(logOf(`read-tree -u --reset ${target.slice(0, 8)}`, read))
+        if (read.code !== 0) {
+            let log = logs.join('\n\n')
+            const hint = authHint(log)
+            if (hint) log = hint + '\n\n' + log
+            return { ok: false, log, status: await getStatus(cwd) }
+        }
+        // LFS 実体を念のため materialize（ローカルキャッシュ/サーバから）
+        const lfsco = await runGit(cwd, ['lfs', 'checkout'])
+        if (lfsco.stderr.trim()) logs.push(logOf('lfs checkout', lfsco))
+
+        // index が HEAD と同じ＝既にその状態
+        const staged = await runGit(cwd, ['diff', '--cached', '--quiet'])
+        if (staged.code === 0) {
+            logs.push('（現在すでにこの状態です。変更はありません）')
+            return { ok: true, log: logs.join('\n\n'), status: await getStatus(cwd) }
+        }
+        const short = target.slice(0, 8)
+        const commit = await runGit(cwd, ['commit', '-m', `restore: ${short} の状態に復元`])
+        logs.push(logOf('commit', commit))
+        return { ok: commit.code === 0, log: logs.join('\n\n'), status: await getStatus(cwd) }
+    })
 }

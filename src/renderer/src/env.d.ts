@@ -19,6 +19,14 @@ declare global {
         username?: string
     }
 
+    interface GitCommit {
+        hash: string
+        short: string
+        dateIso: string
+        author: string
+        subject: string
+    }
+
     interface Window {
         electron: {
             selectFolder: () => Promise<string | null>
@@ -220,6 +228,16 @@ declare global {
             ) => Promise<{ ok: boolean; host: string }>
             /** 直近に使った接続デフォルト（LFS URL / GitHub URL / ユーザー名。パスワードは含まない） */
             gitConnDefaults: () => Promise<GitConnDefaults>
+            /** 現在ブランチのコミット履歴 */
+            gitLog: (
+                projectPath: string,
+                limit?: number
+            ) => Promise<{ commits: GitCommit[]; headHash: string }>
+            /** 選んだコミットの状態を新しいコミットとして復元（履歴は巻き戻さない） */
+            gitRestoreTo: (
+                projectPath: string,
+                hash: string
+            ) => Promise<{ ok: boolean; log: string; status: GitRepoStatus }>
         }
     }
 }
