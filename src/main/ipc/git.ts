@@ -177,11 +177,23 @@ const GITATTRIBUTES = `# 画像・動画は Git LFS（セルフホスト）へ�
 *.webm  filter=lfs diff=lfs merge=lfs -text
 `
 
+// PR/（出版用サムネ・情報。画像/SVG/テキスト）は git 管理に含めるため無視しない。
+// exports/（生成物）と 素材/（重い元素材）は同期不要なので除外。
 const GITIGNORE = `.DS_Store
 exports/
-PR/
 素材/
 `
+
+/** .gitignore から PR ディレクトリの無視指定行だけ取り除く（PRをgit管理にするため） */
+function stripPrIgnore(content: string): string {
+    return content
+        .split('\n')
+        .filter((line) => {
+            const t = line.trim()
+            return t !== 'PR' && t !== 'PR/' && t !== '/PR' && t !== '/PR/'
+        })
+        .join('\n')
+}
 
 // ---- ステータス取得 -------------------------------------------------------
 
@@ -283,7 +295,14 @@ export function registerGitHandlers(): void {
             await fsp.writeFile(path.join(cwd, '.gitattributes'), GITATTRIBUTES, 'utf-8')
             await fsp.writeFile(path.join(cwd, '.lfsconfig'), `[lfs]\n\turl = ${lfs}\n`, 'utf-8')
             const giPath = path.join(cwd, '.gitignore')
-            if (!fs.existsSync(giPath)) await fsp.writeFile(giPath, GITIGNORE, 'utf-8')
+            if (!fs.existsSync(giPath)) {
+                await fsp.writeFile(giPath, GITIGNORE, 'utf-8')
+            } else {
+                // 既存 .gitignore から PR の無視指定を除去（PRディレクトリをgit管理に）
+                const cur = await fsp.readFile(giPath, 'utf-8')
+                const next = stripPrIgnore(cur)
+                if (next !== cur) await fsp.writeFile(giPath, next, 'utf-8')
+            }
 
             const lfsInstall = await runGit(cwd, ['lfs', 'install', '--local'])
             logs.push(logOf('lfs install --local', lfsInstall))
