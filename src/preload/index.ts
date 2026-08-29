@@ -154,7 +154,13 @@ if (process.contextIsolated) {
             gitLog: (projectPath: string, limit?: number) =>
                 ipcRenderer.invoke('git-log', { projectPath, limit }),
             gitRestoreTo: (projectPath: string, hash: string) =>
-                ipcRenderer.invoke('git-restore-to', { projectPath, hash })
+                ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
+            onAppBeforeClose: (cb: () => void) => {
+                const listener = (): void => cb()
+                ipcRenderer.on('app-before-close', listener)
+                return () => ipcRenderer.removeListener('app-before-close', listener)
+            },
+            confirmAppClose: () => ipcRenderer.send('app-confirm-close')
         })
     } catch (error) {
         console.error(error)
@@ -237,6 +243,12 @@ if (process.contextIsolated) {
         gitLog: (projectPath: string, limit?: number) =>
             ipcRenderer.invoke('git-log', { projectPath, limit }),
         gitRestoreTo: (projectPath: string, hash: string) =>
-            ipcRenderer.invoke('git-restore-to', { projectPath, hash })
+            ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
+        onAppBeforeClose: (cb: () => void) => {
+            const listener = (): void => cb()
+            ipcRenderer.on('app-before-close', listener)
+            return () => ipcRenderer.removeListener('app-before-close', listener)
+        },
+        confirmAppClose: () => ipcRenderer.send('app-confirm-close')
     }
 }

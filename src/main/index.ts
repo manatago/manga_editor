@@ -38,6 +38,18 @@ function createWindow(): void {
         mainWindow.show()
     })
 
+    // 閉じる時に未同期の変更確認をレンダラへ委ねる。allowClose で二度目は素通し。
+    let allowClose = false
+    mainWindow.on('close', (e) => {
+        if (allowClose) return
+        e.preventDefault()
+        mainWindow.webContents.send('app-before-close')
+    })
+    ipcMain.on('app-confirm-close', () => {
+        allowClose = true
+        mainWindow.close()
+    })
+
     mainWindow.webContents.setWindowOpenHandler((details) => {
         shell.openExternal(details.url)
         return { action: 'deny' }

@@ -18,6 +18,7 @@ import {
     computePanelInsertion
 } from './utils/panelInsertion'
 import { PanelTop, PanelLeft, Languages, GitBranch } from 'lucide-react'
+import { showError } from './utils/dialogs'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
 import { useExport } from './hooks/useExport'
@@ -77,6 +78,8 @@ function App(): React.JSX.Element {
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
     const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false)
     const [isGitSyncModalOpen, setIsGitSyncModalOpen] = useState(false)
+    const [closePrompt, setClosePrompt] = useState<GitRepoStatus | null>(null)
+    const [closeBusy, setCloseBusy] = useState(false)
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(() => {
         try {
             return localStorage.getItem('manga-yarou-left-sidebar') !== 'false'
@@ -185,6 +188,56 @@ function App(): React.JSX.Element {
             window.removeEventListener('beforeunload', flushPendingSaveOnUnload)
         }
     }, [currentProjectPath, getProjectData])
+
+    // 閉じる時: 未同期の変更があれば「同期しますか？」を確認
+    useEffect(() => {
+        if (!window.electron?.onAppBeforeClose) return
+        const off = window.electron.onAppBeforeClose(async () => {
+            const state = useMangaStore.getState()
+            const path = state.currentProjectPath
+            // 未保存分をディスクへ反映してから git 状態を見る
+            try {
+                if (path && window.electron?.saveProjectSync) {
+                    window.electron.saveProjectSync(path, state.getProjectData())
+                }
+            } catch {
+                /* noop */
+            }
+            if (!path || !window.electron) {
+                window.electron?.confirmAppClose()
+                return
+            }
+            try {
+                const st = await window.electron.gitRepoStatus(path)
+                if (!st.isRepo || (st.dirty === 0 && st.ahead === 0)) {
+                    window.electron.confirmAppClose()
+                    return
+                }
+                setClosePrompt(st)
+            } catch {
+                window.electron.confirmAppClose()
+            }
+        })
+        return off
+    }, [])
+
+    const handleCloseSync = async () => {
+        const path = useMangaStore.getState().currentProjectPath
+        if (!path || !window.electron) return
+        setCloseBusy(true)
+        try {
+            const res = await window.electron.gitPush(path, '')
+            if (res.ok) {
+                window.electron.confirmAppClose()
+            } else {
+                setCloseBusy(false)
+                await showError('同期(プッシュ)に失敗しました。同期せずに閉じることもできます:\n\n' + res.log)
+            }
+        } catch (e) {
+            setCloseBusy(false)
+            await showError('同期に失敗しました:\n' + (e instanceof Error ? e.message : String(e)))
+        }
+    }
 
     const handleAddPanelWithType = (type: PanelType) => {
         const pageWidth = currentPage?.pageWidth ?? 840
@@ -392,6 +445,51 @@ function App(): React.JSX.Element {
                 onClose={() => setIsGitSyncModalOpen(false)}
                 onReloadProject={openProjectByPath}
             />
+
+            {closePrompt && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
+                    <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-5">
+                        <div className="flex items-center gap-2 text-white mb-2">
+                            <GitBranch size={18} className="text-amber-400" />
+                            <h2 className="text-base font-semibold">変更があります</h2>
+                        </div>
+                        <p className="text-sm text-zinc-400 leading-relaxed mb-1">
+                            この作品にまだ同期していない変更があります。閉じる前に同期（プッシュ）しますか？
+                        </p>
+                        <div className="text-xs text-zinc-500 mb-4">
+                            未コミット {closePrompt.dirty} 件 / 未プッシュ {closePrompt.ahead} コミット
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                type="button"
+                                onClick={handleCloseSync}
+                                disabled={closeBusy}
+                                className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40"
+                            >
+                                {closeBusy ? '同期中…' : '同期して閉じる'}
+                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => window.electron?.confirmAppClose()}
+                                    disabled={closeBusy}
+                                    className="flex-1 px-3 py-2 rounded-md text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-40"
+                                >
+                                    同期せず閉じる
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setClosePrompt(null)}
+                                    disabled={closeBusy}
+                                    className="flex-1 px-3 py-2 rounded-md text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-40"
+                                >
+                                    キャンセル
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
