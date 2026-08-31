@@ -162,6 +162,23 @@ describe('applyTranslationSheet', () => {
         expect(data.pages[0].bubbles[0].fontFamily).toBe('serif')
         expect(out.archivedPages![0].bubbles[0].fontFamily).toContain('Songti SC')
     })
+
+    it('forceHorizontal で縦書き吹き出しを横書きに変換、既定では維持', () => {
+        const sheet = parseTranslationSheet({
+            format: 'manga-i18n-sheet',
+            version: 2,
+            locale: 'zh-Hans',
+            pages: [{ page: 1, panels: [{ panel: 1, lines: [{ id: 'a', source: 'x', target: '你好' }] }] }]
+        })
+        // 既定: 縦書きのまま
+        const keep = applyTranslationSheet(data, sheet, 'zh-Hans')
+        expect(keep.data.pages[0].bubbles.find((b) => b.id === 'a')!.isVertical).toBe(true)
+        // forceHorizontal: 横書き化
+        const horiz = applyTranslationSheet(data, sheet, 'zh-Hans', { forceHorizontal: true })
+        expect(horiz.data.pages[0].bubbles.every((b) => b.isVertical === false)).toBe(true)
+        // 元データは不変
+        expect(data.pages[0].bubbles[0].isVertical).toBe(true)
+    })
 })
 
 describe('mapFontForLocale', () => {

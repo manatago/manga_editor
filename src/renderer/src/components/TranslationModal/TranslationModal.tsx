@@ -28,9 +28,16 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
     const getProjectData = useMangaStore((s) => s.getProjectData)
 
     const [locale, setLocale] = useState<TargetLocale>('zh-Hans')
+    const [horizontal, setHorizontal] = useState<boolean>(localeMeta('zh-Hans').defaultHorizontal)
     const [sheet, setSheet] = useState<TranslationSheet | null>(null)
     const [sheetFileName, setSheetFileName] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
+
+    // 字体を切り替えたら、そのロケールの既定の書字方向に合わせる（手動で上書き可）
+    const changeLocale = (next: TargetLocale): void => {
+        setLocale(next)
+        setHorizontal(localeMeta(next).defaultHorizontal)
+    }
 
     const projectName = currentProjectPath ? basename(currentProjectPath) : ''
 
@@ -80,7 +87,7 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
             setSheet(parsed)
             setSheetFileName(basename(res.path))
             // シートに記録されたロケールへ自動追従（書き出し時の字体に合わせる）
-            if (parsed.locale === 'zh-Hans' || parsed.locale === 'zh-Hant') setLocale(parsed.locale)
+            if (parsed.locale === 'zh-Hans' || parsed.locale === 'zh-Hant') changeLocale(parsed.locale)
         } catch (e) {
             setSheet(null)
             setSheetFileName(null)
@@ -93,7 +100,9 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
         setBusy(true)
         try {
             const data = getProjectData()
-            const { data: localized, stats } = applyTranslationSheet(data, sheet, locale)
+            const { data: localized, stats } = applyTranslationSheet(data, sheet, locale, {
+                forceHorizontal: horizontal
+            })
             const suffix = localeMeta(locale).folderSuffix
             const folderName = `${projectName}_${suffix}`
             const targetPath = await window.electron.createLocalizedProject(
@@ -150,7 +159,7 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
                                 <button
                                     key={l.value}
                                     type="button"
-                                    onClick={() => setLocale(l.value)}
+                                    onClick={() => changeLocale(l.value)}
                                     className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                                         locale === l.value
                                             ? 'bg-indigo-600 border-indigo-500 text-white'
@@ -160,6 +169,41 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
                                     {l.label}
                                 </button>
                             ))}
+                        </div>
+                    </div>
+
+                    {/* 書字方向 */}
+                    <div>
+                        <div className="text-xs font-medium text-zinc-400 mb-2">書字方向</div>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setHorizontal(false)}
+                                className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
+                                    !horizontal
+                                        ? 'bg-indigo-600 border-indigo-500 text-white'
+                                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-white'
+                                }`}
+                            >
+                                縦書き（原版のまま）
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setHorizontal(true)}
+                                className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
+                                    horizontal
+                                        ? 'bg-indigo-600 border-indigo-500 text-white'
+                                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-white'
+                                }`}
+                            >
+                                横書きにする
+                            </button>
+                        </div>
+                        <div className="text-[11px] text-zinc-600 mt-1">
+                            {localeMeta(locale).defaultHorizontal
+                                ? '简体字は横書きが既定です（繁體字は縦書き）。'
+                                : '繁體字は縦書きが既定です（简体字は横書き）。'}
+                            必要に応じて上書きできます。
                         </div>
                     </div>
 

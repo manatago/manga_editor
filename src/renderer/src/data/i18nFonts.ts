@@ -3,12 +3,20 @@ import { HIRAGINO_MINCHO } from './fontFamilies'
 /** 翻訳版の対象ロケール（簡体字 / 繁體字） */
 export type TargetLocale = 'zh-Hans' | 'zh-Hant'
 
-export const TARGET_LOCALES: { value: TargetLocale; label: string; folderSuffix: string }[] = [
-    { value: 'zh-Hans', label: '简体字（簡体）', folderSuffix: '简体' },
-    { value: 'zh-Hant', label: '繁體字（繁体）', folderSuffix: '繁體' }
+export interface LocaleMeta {
+    value: TargetLocale
+    label: string
+    folderSuffix: string
+    /** 既定で横書きにするか（簡体字/英語は横書き、繁體字は縦書きが一般的） */
+    defaultHorizontal: boolean
+}
+
+export const TARGET_LOCALES: LocaleMeta[] = [
+    { value: 'zh-Hans', label: '简体字（簡体）', folderSuffix: '简体', defaultHorizontal: true },
+    { value: 'zh-Hant', label: '繁體字（繁体）', folderSuffix: '繁體', defaultHorizontal: false }
 ]
 
-export function localeMeta(locale: TargetLocale): { label: string; folderSuffix: string } {
+export function localeMeta(locale: TargetLocale): LocaleMeta {
     return TARGET_LOCALES.find((l) => l.value === locale) ?? TARGET_LOCALES[0]
 }
 

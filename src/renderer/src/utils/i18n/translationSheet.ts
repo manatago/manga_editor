@@ -274,8 +274,10 @@ export interface ApplyStats {
 export function applyTranslationSheet(
     data: MangaProjectData,
     sheet: TranslationSheet,
-    locale: TargetLocale
+    locale: TargetLocale,
+    options?: { forceHorizontal?: boolean }
 ): { data: MangaProjectData; stats: ApplyStats } {
+    const forceHorizontal = options?.forceHorizontal === true
     const targetById = new Map<string, string>()
     for (const line of flattenLines(sheet)) {
         if (line.target && line.target.trim() !== '') targetById.set(line.id, line.target)
@@ -293,6 +295,10 @@ export function applyTranslationSheet(
             if (mappedFont !== b.fontFamily) {
                 next = { ...next, fontFamily: mappedFont }
                 fontsChanged++
+            }
+            // 横書き化（簡体字/英語など）。縦書きの吹き出しを横書きに強制
+            if (forceHorizontal && next.isVertical) {
+                next = { ...next, isVertical: false }
             }
             const hasText = (b.text ?? '').trim() !== ''
             const t = targetById.get(b.id)
