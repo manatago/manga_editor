@@ -179,6 +179,22 @@ describe('applyTranslationSheet', () => {
         // 元データは不変
         expect(data.pages[0].bubbles[0].isVertical).toBe(true)
     })
+
+    it('minLineHeight は横書き吹き出しの行間を下限まで引き上げる（縦書きは対象外）', () => {
+        const sheet = parseTranslationSheet({
+            format: 'manga-i18n-sheet',
+            version: 2,
+            locale: 'zh-Hans',
+            pages: [{ page: 1, panels: [{ panel: 1, lines: [{ id: 'a', source: 'x', target: '你好' }] }] }]
+        })
+        // 縦書きのまま + minLineHeight → 行間は据え置き（列間を変えない）
+        const vert = applyTranslationSheet(data, sheet, 'zh-Hans', { minLineHeight: 1.1 })
+        expect(vert.data.pages[0].bubbles.find((b) => b.id === 'a')!.lineHeight).toBe(1.2)
+        // 横書き化 + minLineHeight → 下限1.1未満は引き上げ、超えるものは維持
+        const lowLh = { ...data, pages: [{ ...data.pages[0], bubbles: data.pages[0].bubbles.map((b) => ({ ...b, lineHeight: 0.5 })) }] }
+        const horiz = applyTranslationSheet(lowLh, sheet, 'zh-Hans', { forceHorizontal: true, minLineHeight: 1.1 })
+        expect(horiz.data.pages[0].bubbles.every((b) => (b.lineHeight ?? 0) >= 1.1)).toBe(true)
+    })
 })
 
 describe('mapFontForLocale', () => {

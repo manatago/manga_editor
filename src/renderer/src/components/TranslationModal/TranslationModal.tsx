@@ -101,7 +101,8 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
         try {
             const data = getProjectData()
             const { data: localized, stats } = applyTranslationSheet(data, sheet, locale, {
-                forceHorizontal: horizontal
+                forceHorizontal: horizontal,
+                minLineHeight: localeMeta(locale).minLineHeight
             })
             const suffix = localeMeta(locale).folderSuffix
             const folderName = `${projectName}_${suffix}`

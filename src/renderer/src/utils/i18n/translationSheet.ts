@@ -275,9 +275,10 @@ export function applyTranslationSheet(
     data: MangaProjectData,
     sheet: TranslationSheet,
     locale: TargetLocale,
-    options?: { forceHorizontal?: boolean }
+    options?: { forceHorizontal?: boolean; minLineHeight?: number }
 ): { data: MangaProjectData; stats: ApplyStats } {
     const forceHorizontal = options?.forceHorizontal === true
+    const minLineHeight = options?.minLineHeight ?? 0
     const targetById = new Map<string, string>()
     for (const line of flattenLines(sheet)) {
         if (line.target && line.target.trim() !== '') targetById.set(line.id, line.target)
@@ -299,6 +300,11 @@ export function applyTranslationSheet(
             // 横書き化（簡体字/英語など）。縦書きの吹き出しを横書きに強制
             if (forceHorizontal && next.isVertical) {
                 next = { ...next, isVertical: false }
+            }
+            // 中文は字面が詰まっているため、横書きの吹き出しは最小行間を確保（潰れ防止）。
+            // 縦書き（繁體の原版など）は列間を変えないよう対象外。
+            if (minLineHeight > 0 && !next.isVertical && (next.lineHeight ?? 0) < minLineHeight) {
+                next = { ...next, lineHeight: minLineHeight }
             }
             const hasText = (b.text ?? '').trim() !== ''
             const t = targetById.get(b.id)

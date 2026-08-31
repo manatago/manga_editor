@@ -9,11 +9,13 @@ export interface LocaleMeta {
     folderSuffix: string
     /** 既定で横書きにするか（簡体字/英語は横書き、繁體字は縦書きが一般的） */
     defaultHorizontal: boolean
+    /** 最小行間。中文は字面が詰まっているため潰れ防止に下限を設ける（日本語は余白があり不要） */
+    minLineHeight?: number
 }
 
 export const TARGET_LOCALES: LocaleMeta[] = [
-    { value: 'zh-Hans', label: '简体字（簡体）', folderSuffix: '简体', defaultHorizontal: true },
-    { value: 'zh-Hant', label: '繁體字（繁体）', folderSuffix: '繁體', defaultHorizontal: false }
+    { value: 'zh-Hans', label: '简体字（簡体）', folderSuffix: '简体', defaultHorizontal: true, minLineHeight: 1.1 },
+    { value: 'zh-Hant', label: '繁體字（繁体）', folderSuffix: '繁體', defaultHorizontal: false, minLineHeight: 1.1 }
 ]
 
 export function localeMeta(locale: TargetLocale): LocaleMeta {
