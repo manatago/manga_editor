@@ -195,6 +195,36 @@ describe('applyTranslationSheet', () => {
         const horiz = applyTranslationSheet(lowLh, sheet, 'zh-Hans', { forceHorizontal: true, minLineHeight: 1.1 })
         expect(horiz.data.pages[0].bubbles.every((b) => (b.lineHeight ?? 0) >= 1.1)).toBe(true)
     })
+
+    it('swapAspect は縦書き吹き出しの縦横を中心を保って入替（横書き化時のみ）', () => {
+        const tall = {
+            ...data,
+            pages: [
+                {
+                    ...data.pages[0],
+                    bubbles: [
+                        bubble({ id: 'a', panelId: 'P1', text: 'こんにちは', x: 100, y: 50, width: 60, height: 180, isVertical: true })
+                    ]
+                }
+            ]
+        }
+        const sheet = parseTranslationSheet({
+            format: 'manga-i18n-sheet',
+            version: 2,
+            locale: 'zh-Hans',
+            pages: [{ page: 1, panels: [{ panel: 1, lines: [{ id: 'a', source: 'こんにちは', target: '你好' }] }] }]
+        })
+        const out = applyTranslationSheet(tall, sheet, 'zh-Hans', { forceHorizontal: true, swapAspect: true })
+        const b = out.data.pages[0].bubbles[0]
+        expect(b.width).toBe(180)
+        expect(b.height).toBe(60)
+        // 中心が保たれる: 元中心 (100+30, 50+90)=(130,140) → 新左上 (130-90,140-30)=(40,110)
+        expect(b.x).toBe(40)
+        expect(b.y).toBe(110)
+        // swap 無しなら形はそのまま
+        const noSwap = applyTranslationSheet(tall, sheet, 'zh-Hans', { forceHorizontal: true })
+        expect(noSwap.data.pages[0].bubbles[0].width).toBe(60)
+    })
 })
 
 describe('mapFontForLocale', () => {

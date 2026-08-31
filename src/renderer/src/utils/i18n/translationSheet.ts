@@ -275,10 +275,11 @@ export function applyTranslationSheet(
     data: MangaProjectData,
     sheet: TranslationSheet,
     locale: TargetLocale,
-    options?: { forceHorizontal?: boolean; minLineHeight?: number }
+    options?: { forceHorizontal?: boolean; minLineHeight?: number; swapAspect?: boolean }
 ): { data: MangaProjectData; stats: ApplyStats } {
     const forceHorizontal = options?.forceHorizontal === true
     const minLineHeight = options?.minLineHeight ?? 0
+    const swapAspect = options?.swapAspect === true
     const targetById = new Map<string, string>()
     for (const line of flattenLines(sheet)) {
         if (line.target && line.target.trim() !== '') targetById.set(line.id, line.target)
@@ -292,6 +293,7 @@ export function applyTranslationSheet(
         ...page,
         bubbles: (page.bubbles || []).map((b) => {
             let next: Bubble = b
+            const wasVertical = b.isVertical === true
             const mappedFont = mapFontForLocale(b.fontFamily, locale)
             if (mappedFont !== b.fontFamily) {
                 next = { ...next, fontFamily: mappedFont }
@@ -300,6 +302,21 @@ export function applyTranslationSheet(
             // 横書き化（簡体字/英語など）。縦書きの吹き出しを横書きに強制
             if (forceHorizontal && next.isVertical) {
                 next = { ...next, isVertical: false }
+            }
+            // 縦横比の入替: 縦書き用の縦長吹き出しを横長にして横書きにフィットさせる。
+            // 中心を保ったまま width↔height を交換（対象は「元は縦書き」かつ「横書きになる」もの）。
+            if (swapAspect && wasVertical && !next.isVertical) {
+                const w = next.width ?? 0
+                const h = next.height ?? 0
+                if (w > 0 && h > 0 && w !== h) {
+                    next = {
+                        ...next,
+                        width: h,
+                        height: w,
+                        x: next.x + w / 2 - h / 2,
+                        y: next.y + h / 2 - w / 2
+                    }
+                }
             }
             // 中文は字面が詰まっているため、横書きの吹き出しは最小行間を確保（潰れ防止）。
             // 縦書き（繁體の原版など）は列間を変えないよう対象外。

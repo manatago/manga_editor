@@ -29,14 +29,16 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
 
     const [locale, setLocale] = useState<TargetLocale>('zh-Hans')
     const [horizontal, setHorizontal] = useState<boolean>(localeMeta('zh-Hans').defaultHorizontal)
+    const [swapAspect, setSwapAspect] = useState<boolean>(localeMeta('zh-Hans').defaultHorizontal)
     const [sheet, setSheet] = useState<TranslationSheet | null>(null)
     const [sheetFileName, setSheetFileName] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
 
-    // 字体を切り替えたら、そのロケールの既定の書字方向に合わせる（手動で上書き可）
+    // 字体を切り替えたら、そのロケールの既定の書字方向・縦横入替に合わせる（手動で上書き可）
     const changeLocale = (next: TargetLocale): void => {
         setLocale(next)
         setHorizontal(localeMeta(next).defaultHorizontal)
+        setSwapAspect(localeMeta(next).defaultHorizontal)
     }
 
     const projectName = currentProjectPath ? basename(currentProjectPath) : ''
@@ -102,7 +104,8 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
             const data = getProjectData()
             const { data: localized, stats } = applyTranslationSheet(data, sheet, locale, {
                 forceHorizontal: horizontal,
-                minLineHeight: localeMeta(locale).minLineHeight
+                minLineHeight: localeMeta(locale).minLineHeight,
+                swapAspect: horizontal && swapAspect
             })
             const suffix = localeMeta(locale).folderSuffix
             const folderName = `${projectName}_${suffix}`
@@ -206,6 +209,17 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
                                 : '繁體字は縦書きが既定です（简体字は横書き）。'}
                             必要に応じて上書きできます。
                         </div>
+                        {horizontal && (
+                            <label className="flex items-center gap-2 mt-2 text-xs text-zinc-300 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={swapAspect}
+                                    onChange={(e) => setSwapAspect(e.target.checked)}
+                                    className="accent-indigo-500"
+                                />
+                                吹き出しの縦横比を入れ替える（縦長→横長。横書きにフィット）
+                            </label>
+                        )}
                     </div>
 
                     {/* Step 1: 書き出し */}
