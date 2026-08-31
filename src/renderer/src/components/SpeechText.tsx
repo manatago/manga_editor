@@ -2,8 +2,10 @@ import React from 'react'
 import { Group, Text } from 'react-konva'
 import { FilteredText } from './FilteredText'
 import {
-    VERTICAL_PUNCT_CHARS,
+    VERTICAL_PUNCT_OFFSETS,
     VERTICAL_ROTATE_CHARS,
+    VERTICAL_ROTATE_LOW_CHARS,
+    VERTICAL_ROTATE_LOW_SHIFT,
     VERTICAL_SMALL_CHARS
 } from './speechTextVerticalGlyphs'
 import { BUBBLE_TEXT_DISTRESS_SCALE, heavyStrokeWidthFor } from './utils/bubbleTextLayout'
@@ -59,12 +61,16 @@ export const VerticalText: React.FC<{
                             if (VERTICAL_ROTATE_CHARS.includes(char)) {
                                 rotation = 90
                                 xOffset = fontSize
+                                // …‥ は回転すると列の片側へ寄るので中央へ補正
+                                if (VERTICAL_ROTATE_LOW_CHARS.includes(char)) {
+                                    xOffset += fontSize * VERTICAL_ROTATE_LOW_SHIFT
+                                }
                             } else if (VERTICAL_SMALL_CHARS.includes(char)) {
                                 xOffset = fontSize * 0.2
                                 charYOffset = -fontSize * 0.1
-                            } else if (VERTICAL_PUNCT_CHARS.includes(char)) {
-                                xOffset = fontSize * 0.8
-                                charYOffset = -fontSize * 0.5
+                            } else if (VERTICAL_PUNCT_OFFSETS[char]) {
+                                xOffset = fontSize * VERTICAL_PUNCT_OFFSETS[char].x
+                                charYOffset = fontSize * VERTICAL_PUNCT_OFFSETS[char].y
                             }
 
                             return (
@@ -193,12 +199,15 @@ export const MegaphoneText: React.FC<{
                                 if (VERTICAL_ROTATE_CHARS.includes(data.char)) {
                                     charRotation = 90
                                     xCharOffset += data.fontSize
+                                    if (VERTICAL_ROTATE_LOW_CHARS.includes(data.char)) {
+                                        xCharOffset += data.fontSize * VERTICAL_ROTATE_LOW_SHIFT
+                                    }
                                 } else if (VERTICAL_SMALL_CHARS.includes(data.char)) {
                                     xCharOffset += data.fontSize * 0.2
                                     yCharOffset = -data.fontSize * 0.1
-                                } else if (VERTICAL_PUNCT_CHARS.includes(data.char)) {
-                                    xCharOffset += data.fontSize * 0.8
-                                    yCharOffset = -data.fontSize * 0.5
+                                } else if (VERTICAL_PUNCT_OFFSETS[data.char]) {
+                                    xCharOffset += data.fontSize * VERTICAL_PUNCT_OFFSETS[data.char].x
+                                    yCharOffset = data.fontSize * VERTICAL_PUNCT_OFFSETS[data.char].y
                                 }
 
                                 return (
