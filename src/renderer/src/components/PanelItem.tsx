@@ -421,13 +421,22 @@ export const PanelItem: React.FC<{
         if (lineRef.current) {
             lineRef.current.clearCache()
             const effBlur = (panel.blurRadius ?? 0) + (panel.imageProtrude ? (panel.protrudeBgBlur ?? 0) : 0)
-            if (image && (panel.isGrayscale || effBlur > 0)) {
+            const hasAdjust =
+                panel.isGrayscale ||
+                effBlur > 0 ||
+                (panel.imageBrightness ?? 0) !== 0 ||
+                (panel.imageContrast ?? 0) !== 0 ||
+                (panel.imageSaturation ?? 0) !== 0
+            if (image && hasAdjust) {
                 lineRef.current.cache()
             }
         }
     }, [
         panel.isGrayscale,
         panel.grayscaleBrightness,
+        panel.imageBrightness,
+        panel.imageContrast,
+        panel.imageSaturation,
         panel.blurRadius,
         panel.imageProtrude,
         panel.protrudeBgBlur,
@@ -786,6 +795,12 @@ export const PanelItem: React.FC<{
                             // 人物ははみ出しオーバーレイ側で鮮明に再描画されるため影響しない。
                             const bgFade = panel.imageProtrude ? (panel.protrudeBgOpacity ?? 1) : 1
                             const effBlur = (panel.blurRadius ?? 0) + (panel.imageProtrude ? (panel.protrudeBgBlur ?? 0) : 0)
+                            // 明るさは一般調整＋（グレースケール時のみ）グレー用明るさを合算
+                            const effBrightness =
+                                (panel.imageBrightness ?? 0) +
+                                (panel.isGrayscale ? (panel.grayscaleBrightness ?? 0) : 0)
+                            const effContrast = panel.imageContrast ?? 0
+                            const effSaturation = panel.isGrayscale ? 0 : (panel.imageSaturation ?? 0)
                             return (
                             <Line
                                 id={`panel-${panel.id}-image`}
@@ -803,10 +818,15 @@ export const PanelItem: React.FC<{
                                 fillPatternRotation={panel.imageRotation ?? 0}
                                 fillPatternRepeat="no-repeat"
                                 filters={[
-                                    ...(panel.isGrayscale ? [Konva.Filters.Grayscale, Konva.Filters.Brighten] : []),
+                                    ...(panel.isGrayscale ? [Konva.Filters.Grayscale] : []),
+                                    ...(effBrightness !== 0 ? [Konva.Filters.Brighten] : []),
+                                    ...(effContrast !== 0 ? [Konva.Filters.Contrast] : []),
+                                    ...(effSaturation !== 0 ? [Konva.Filters.HSV] : []),
                                     ...(effBlur > 0 ? [Konva.Filters.Blur] : [])
                                 ]}
-                                brightness={panel.isGrayscale ? (panel.grayscaleBrightness ?? 0) : 0}
+                                brightness={effBrightness}
+                                contrast={effContrast}
+                                saturation={effSaturation}
                                 blurRadius={effBlur}
                             />
                             )

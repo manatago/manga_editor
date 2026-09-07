@@ -357,6 +357,86 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                         />
                     </div>
                 )}
+                {panel.imagePath && (
+                    <div className="mt-4 animate-in fade-in zoom-in-95 duration-200 space-y-4">
+                        {/* 明るさ: 内部 -1..1、UIは -100..100 */}
+                        <div>
+                            <div className="flex justify-between mb-2">
+                                <label className="text-[10px] text-zinc-500 uppercase">明るさ</label>
+                                <span className="text-[10px] text-blue-500 font-mono">
+                                    {Math.round((panel.imageBrightness ?? 0) * 100)}
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                value={Math.round((panel.imageBrightness ?? 0) * 100)}
+                                onChange={(e) =>
+                                    updatePanel(panel.id, { imageBrightness: parseInt(e.target.value, 10) / 100 })
+                                }
+                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                        </div>
+                        {/* コントラスト: 内部 -100..100 と同値 */}
+                        <div>
+                            <div className="flex justify-between mb-2">
+                                <label className="text-[10px] text-zinc-500 uppercase">コントラスト</label>
+                                <span className="text-[10px] text-blue-500 font-mono">{panel.imageContrast ?? 0}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                value={panel.imageContrast ?? 0}
+                                onChange={(e) =>
+                                    updatePanel(panel.id, { imageContrast: parseInt(e.target.value, 10) })
+                                }
+                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                        </div>
+                        {/* 彩度: 内部 -2..2、UIは -100..100（グレースケール時は無効） */}
+                        {!panel.isGrayscale && (
+                            <div>
+                                <div className="flex justify-between mb-2">
+                                    <label className="text-[10px] text-zinc-500 uppercase">彩度</label>
+                                    <span className="text-[10px] text-blue-500 font-mono">
+                                        {Math.round(((panel.imageSaturation ?? 0) / 2) * 100)}
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="-100"
+                                    max="100"
+                                    value={Math.round(((panel.imageSaturation ?? 0) / 2) * 100)}
+                                    onChange={(e) =>
+                                        updatePanel(panel.id, {
+                                            imageSaturation: (parseInt(e.target.value, 10) / 100) * 2
+                                        })
+                                    }
+                                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                />
+                            </div>
+                        )}
+                        {((panel.imageBrightness ?? 0) !== 0 ||
+                            (panel.imageContrast ?? 0) !== 0 ||
+                            (panel.imageSaturation ?? 0) !== 0) && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    updatePanel(panel.id, {
+                                        imageBrightness: 0,
+                                        imageContrast: 0,
+                                        imageSaturation: 0
+                                    })
+                                }
+                                className="text-[10px] text-zinc-400 hover:text-white underline"
+                            >
+                                明るさ・コントラスト・彩度をリセット
+                            </button>
+                        )}
+                    </div>
+                )}
                 {panel.imagePath && panel.isGrayscale && (
                     <div className="mt-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex justify-between mb-2">

@@ -59,6 +59,12 @@ export interface Panel {
     isGrayscale?: boolean
     /** グレースケール時の明るさ調整（Konva Brighten。-0.5 ほど暗く、+0.5 ほど明るく） */
     grayscaleBrightness?: number
+    /** コマ主画像の明るさ（Konva Brighten。-1..+1、既定0）。グレースケール非依存で常時適用 */
+    imageBrightness?: number
+    /** コマ主画像のコントラスト（Konva Contrast。-100..+100、既定0） */
+    imageContrast?: number
+    /** コマ主画像の彩度（Konva HSV saturation。-2..+2、既定0＝変化なし。グレースケール時は無効） */
+    imageSaturation?: number
     imageFlipX?: boolean
     /** 人物画像をコマ枠の外へはみ出させる（背景は枠内クリップのまま、切り抜き人物だけ枠上に再描画）。 */
     imageProtrude?: boolean
