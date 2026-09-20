@@ -1,0 +1,48 @@
+name: Build Windows
+
+# 手動実行（Actionsタブの Run workflow）と、v* タグ push で起動。
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # タグ時に Release へ添付するため
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installer (rembg 同梱)
+        # bundle-rembg が自己完結Pythonを取得し rembg[cpu] を入れる → electron-vite build → electron-builder --win(NSIS)
+        run: npm run dist:win:with-rembg
+
+      - name: Upload installer as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 漫画野郎-windows
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+          if-no-files-found: error
+
+      - name: Attach to Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.exe.blockmap
