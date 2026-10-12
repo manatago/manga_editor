@@ -182,6 +182,7 @@ const GITATTRIBUTES = `# 画像・動画は Git LFS（セルフホスト）へ�
 const GITIGNORE = `.DS_Store
 exports/
 素材/
+参考資料/
 `
 
 /** .gitignore から PR ディレクトリの無視指定行だけ取り除く（PRをgit管理にするため） */

@@ -242,6 +242,17 @@ declare global {
             gitFetchStatus: (
                 projectPath: string
             ) => Promise<{ status: GitRepoStatus; fetched: boolean }>
+            /** 参考資料フォルダ(参考資料/)の画像一覧 */
+            referencePagesList: (projectPath: string) => Promise<{ name: string; path: string }[]>
+            /** 画像を選んで参考資料フォルダへコピー。返り値は更新後の一覧 */
+            referencePagesAdd: (projectPath: string) => Promise<{ name: string; path: string }[]>
+            /** 参考資料フォルダを Finder で開く */
+            referencePagesReveal: (projectPath: string) => Promise<boolean>
+            /** 参考資料フォルダ内の1枚を削除。返り値は更新後の一覧 */
+            referencePagesDelete: (
+                projectPath: string,
+                name: string
+            ) => Promise<{ name: string; path: string }[]>
             /** アプリを閉じようとした時に呼ばれる（同期確認用）。返り値で購読解除 */
             onAppBeforeClose: (cb: () => void) => () => void
             /** 閉じてよいと確定（ウィンドウを実際に閉じる） */

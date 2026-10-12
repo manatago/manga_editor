@@ -12,6 +12,7 @@ import { registerRembgHandlers } from './ipc/rembg'
 import { registerNovelAIHandlers } from './ipc/novelai'
 import { registerLocalizationHandlers } from './ipc/localization'
 import { registerGitHandlers } from './ipc/git'
+import { registerReferencePagesHandlers } from './ipc/referencePages'
 
 // Add this for renderer logs to terminal
 ipcMain.on('renderer-log', (_e, level, ...args) => {
@@ -88,6 +89,7 @@ app.whenReady().then(() => {
     registerNovelAIHandlers()
     registerLocalizationHandlers()
     registerGitHandlers()
+    registerReferencePagesHandlers()
 
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -11,6 +11,7 @@ import { ScriptEditor } from './components/ScriptEditor/ScriptEditor'
 import { ModeToggle } from './components/ModeToggle'
 import { TranslationModal } from './components/TranslationModal/TranslationModal'
 import { GitSyncModal } from './components/GitSyncModal/GitSyncModal'
+import { ReferencePagesModal } from './components/ReferencePagesModal/ReferencePagesModal'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
 import { lastPageKey } from './store/slices/projectSlice'
 import {
@@ -18,7 +19,7 @@ import {
     standardPanelWidth,
     computePanelInsertion
 } from './utils/panelInsertion'
-import { PanelTop, PanelLeft, Languages, GitBranch } from 'lucide-react'
+import { PanelTop, PanelLeft, Languages, GitBranch, BookOpen } from 'lucide-react'
 import { showError } from './utils/dialogs'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
@@ -79,6 +80,7 @@ function App(): React.JSX.Element {
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
     const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false)
     const [isGitSyncModalOpen, setIsGitSyncModalOpen] = useState(false)
+    const [isReferencePagesOpen, setIsReferencePagesOpen] = useState(false)
     const [closePrompt, setClosePrompt] = useState<GitRepoStatus | null>(null)
     const [closeBusy, setCloseBusy] = useState(false)
     const [openPullPrompt, setOpenPullPrompt] = useState<GitRepoStatus | null>(null)
@@ -400,6 +402,17 @@ function App(): React.JSX.Element {
                                 <span className="hidden md:inline">同期</span>
                             </button>
                         )}
+                        {currentProjectPath && (
+                            <button
+                                type="button"
+                                onClick={() => setIsReferencePagesOpen(true)}
+                                title="参考資料（スライドショー）"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-white shrink-0"
+                            >
+                                <BookOpen size={16} />
+                                <span className="hidden md:inline">参考資料</span>
+                            </button>
+                        )}
                         {currentPageId && (
                             <>
                                 <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
@@ -495,6 +508,11 @@ function App(): React.JSX.Element {
                 isOpen={isGitSyncModalOpen}
                 onClose={() => setIsGitSyncModalOpen(false)}
                 onReloadProject={openProjectByPath}
+            />
+
+            <ReferencePagesModal
+                isOpen={isReferencePagesOpen}
+                onClose={() => setIsReferencePagesOpen(false)}
             />
 
             {closePrompt && (

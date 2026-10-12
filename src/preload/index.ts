@@ -157,6 +157,14 @@ if (process.contextIsolated) {
                 ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
             gitFetchStatus: (projectPath: string) =>
                 ipcRenderer.invoke('git-fetch-status', { projectPath }),
+            referencePagesList: (projectPath: string) =>
+                ipcRenderer.invoke('reference-pages:list', { projectPath }),
+            referencePagesAdd: (projectPath: string) =>
+                ipcRenderer.invoke('reference-pages:add', { projectPath }),
+            referencePagesReveal: (projectPath: string) =>
+                ipcRenderer.invoke('reference-pages:reveal', { projectPath }),
+            referencePagesDelete: (projectPath: string, name: string) =>
+                ipcRenderer.invoke('reference-pages:delete', { projectPath, name }),
             onAppBeforeClose: (cb: () => void) => {
                 const listener = (): void => cb()
                 ipcRenderer.on('app-before-close', listener)
@@ -248,6 +256,14 @@ if (process.contextIsolated) {
             ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
         gitFetchStatus: (projectPath: string) =>
             ipcRenderer.invoke('git-fetch-status', { projectPath }),
+        referencePagesList: (projectPath: string) =>
+            ipcRenderer.invoke('reference-pages:list', { projectPath }),
+        referencePagesAdd: (projectPath: string) =>
+            ipcRenderer.invoke('reference-pages:add', { projectPath }),
+        referencePagesReveal: (projectPath: string) =>
+            ipcRenderer.invoke('reference-pages:reveal', { projectPath }),
+        referencePagesDelete: (projectPath: string, name: string) =>
+            ipcRenderer.invoke('reference-pages:delete', { projectPath, name }),
         onAppBeforeClose: (cb: () => void) => {
             const listener = (): void => cb()
             ipcRenderer.on('app-before-close', listener)
