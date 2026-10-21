@@ -74,6 +74,15 @@ export interface Panel {
     protrudeBgOpacity?: number
     /** はみ出し時、コマ内に残る背景（元画像）のぼかし半径（既定 0）。 */
     protrudeBgBlur?: number
+    /** はみ出してよいコマの辺（未設定は全部の辺）。「頭は上を突き破るが、下で切れた胴体は枠で切る」用 */
+    protrudeEdges?: { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean }
+    /**
+     * はみ出し用の絵をコマの外にだけ描く（コマの中は imagePath に任せる）。gousei の .ora から読んだコマで使う:
+     * 前面トーンなど人物の上に重なるものが、コマの中で人物に隠されないように
+     */
+    protrudeOutsideOnly?: boolean
+    /** gousei のシーン（.ora）から作ったコマなら、その .ora の絶対パス（読み直し用） */
+    oraSourcePath?: string
     backgroundColor?: string
     backgroundOpacity?: number
     bgGradientType?: GradientType

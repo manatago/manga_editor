@@ -3,6 +3,8 @@ import Konva from 'konva'
 import { Group, Image as KonvaImage } from 'react-konva'
 import useImage from 'use-image'
 import type { Panel } from '../store/types'
+import { getPanelPoints } from './utils/drawPaths'
+import { ALL_EDGES, protrudeRegions } from '../utils/ora/protrudeClip'
 
 /**
  * コマ枠からはみ出させた人物画像。
@@ -63,6 +65,25 @@ export const PanelProtrudeImage: React.FC<{
 
     if (!panel.imageProtrude || !panel.imagePath || !image) return null
 
+    // はみ出してよい範囲（コマのローカル座標）。辺を絞ったとき、または gousei の .ora のコマ（外だけに描く）でクリップする。
+    // 外だけに描かないときは、コマの中も含める（これまでどおり、枠の内側でも切り抜きを上に重ねる）
+    const edges = panel.protrudeEdges ?? ALL_EDGES
+    const allEdges = (['top', 'right', 'bottom', 'left'] as const).every(k => edges[k])
+    const needClip = !allEdges || !!panel.protrudeOutsideOnly
+    const clipFunc = needClip
+        ? (ctx: Konva.Context) => {
+            const pts = getPanelPoints(panel)
+            ctx.beginPath()
+            const poly = (p: number[]) => {
+                ctx.moveTo(p[0], p[1])
+                for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1])
+                ctx.closePath()
+            }
+            for (const r of protrudeRegions(pts, edges, (panel.strokeWidth ?? 1) / 2)) poly(r)
+            if (!panel.protrudeOutsideOnly) poly(pts)
+        }
+        : undefined
+
     const sign = panel.imageFlipX ? -1 : 1
     const scale = panel.imageScale ?? 1
 
@@ -74,6 +95,7 @@ export const PanelProtrudeImage: React.FC<{
             offsetY={panel.height / 2}
             rotation={panel.rotation ?? 0}
             listening={false}
+            clipFunc={clipFunc}
         >
             <KonvaImage
                 ref={imgRef}

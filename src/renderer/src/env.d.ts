@@ -42,6 +42,10 @@ declare global {
             /** 合成ツール用: assets/composites/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
             selectFile: () => Promise<string | null>
+            /** gousei のシーン（.ora）を選ぶ */
+            selectOraFile: () => Promise<string | null>
+            /** gousei のシーン（.ora）の中身（画面側からは CSP で fetch できないので main で読む） */
+            readOraFile: (filePath: string) => Promise<Uint8Array>
             copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) => Promise<string>
             startDragFile: (absolutePath: string) => void
             /** rembg（isnet-anime 既定）で背景除去。出力は同フォルダの *_nobg.png */

@@ -20,6 +20,8 @@ const electronBridge = {
   exportPNG: vi.fn(async () => '/tmp/out.png'),
   saveCompositePng: vi.fn(async () => ({ relativePath: 'assets/composites/20260101_120000_0.png' })),
   selectFile: vi.fn(async () => null),
+  selectOraFile: vi.fn(async () => null),
+  readOraFile: vi.fn(async () => new Uint8Array()),
   startDragFile: vi.fn(),
   rembgRemoveBackground: vi.fn(async () => ({ relativePath: 'assets/references/characters/x/out_nobg.png' })),
   // Add other mocks as needed

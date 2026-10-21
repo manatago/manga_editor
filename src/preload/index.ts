@@ -91,6 +91,8 @@ if (process.contextIsolated) {
             saveCompositePng: (projectPath: string, data: string) =>
                 ipcRenderer.invoke('save-composite-png', { projectPath, data }),
             selectFile: () => ipcRenderer.invoke('select-file'),
+            selectOraFile: () => ipcRenderer.invoke('select-ora-file'),
+            readOraFile: (filePath: string) => ipcRenderer.invoke('read-ora-file', filePath),
             copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) =>
                 ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
             startDragFile: (absolutePath: string) => ipcRenderer.send('start-drag-file', absolutePath),
@@ -191,6 +193,8 @@ if (process.contextIsolated) {
         saveCompositePng: (projectPath, data) =>
             ipcRenderer.invoke('save-composite-png', { projectPath, data }),
         selectFile: () => ipcRenderer.invoke('select-file'),
+        selectOraFile: () => ipcRenderer.invoke('select-ora-file'),
+        readOraFile: (filePath: string) => ipcRenderer.invoke('read-ora-file', filePath),
         copyFileToProject: (projectPath, sourcePath, assetsSubPath) =>
             ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
         startDragFile: (absolutePath) => ipcRenderer.send('start-drag-file', absolutePath),

@@ -2,6 +2,7 @@ import React from 'react'
 import Konva from 'konva'
 import type { Material, Panel } from '../../store/useMangaStore'
 import { getOrientedImagePixelSize, type FileWithNativePath } from './helpers'
+import { importOraToPanel, isOraPath } from '../../utils/ora/importOra'
 
 type Args = {
     stageRef: React.RefObject<Konva.Stage | null>
@@ -10,6 +11,8 @@ type Args = {
     selectedPanelId: string | null
     updatePanel: (id: string, updates: Partial<Panel>, undoable?: boolean) => void
     addMaterial: (props: Partial<Omit<Material, 'id'>>) => void
+    /** .ora を読み込んだ・失敗したときのひと言 */
+    onNotice?: (message: string) => void
 }
 
 export function useDropImage({
@@ -18,7 +21,8 @@ export function useDropImage({
     panels,
     selectedPanelId,
     updatePanel,
-    addMaterial
+    addMaterial,
+    onNotice
 }: Args): (e: React.DragEvent) => Promise<void> {
     return async (e: React.DragEvent): Promise<void> => {
         e.preventDefault()
@@ -31,6 +35,25 @@ export function useDropImage({
         const pointerPos = stage.getPointerPosition()
         if (!pointerPos) return
         const files = Array.from(e.dataTransfer.files)
+
+        // gousei のシーン（.ora）: 落としたコマ（無ければ選んでいるコマ）に読み込む
+        const oraFile = files.find((f) => isOraPath(f.name))
+        if (oraFile) {
+            const nativeOra = window.electron?.getPathForFile?.(oraFile) || (oraFile as FileWithNativePath).path
+            const under = panels.filter((p) => pointerPos.x >= p.x && pointerPos.x <= p.x + p.width && pointerPos.y >= p.y && pointerPos.y <= p.y + p.height)
+            const target = under[under.length - 1] ?? panels.find((p) => p.id === selectedPanelId)
+            if (!target) { onNotice?.('.ora はコマの上に落としてください'); return }
+            if (!nativeOra || !currentProjectPath) { onNotice?.('先にプロジェクトを開くか保存してください'); return }
+            try {
+                onNotice?.(await importOraToPanel(target, nativeOra, currentProjectPath, updatePanel))
+            } catch (err) {
+                console.error('Canvas: ora drop', err)
+                window.electron?.log?.('error', 'ora drop', String(err))
+                onNotice?.(`.ora を読み込めませんでした: ${(err as Error).message}`)
+            }
+            return
+        }
+
         const imageFile = files.find((f) => f.type.startsWith('image/'))
 
         if (!imageFile) return

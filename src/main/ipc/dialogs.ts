@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 
 export function registerDialogHandlers(): void {
@@ -11,6 +12,25 @@ export function registerDialogHandlers(): void {
         })
         if (canceled) return null
         return filePaths[0]
+    })
+
+    ipcMain.handle('select-ora-file', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [{ name: 'gousei のシーン（OpenRaster）', extensions: ['ora'] }],
+            title: 'gousei のシーン（.ora）を選択してください'
+        })
+        if (canceled) return null
+        return filePaths[0]
+    })
+
+    // gousei のシーン（.ora）の中身を読む。画面側は CSP（default-src 'self'）で local-file:// を fetch できないので、
+    // ここで読んで渡す。読めるのは .ora だけ
+    ipcMain.handle('read-ora-file', async (_e, filePath: string) => {
+        const p = String(filePath ?? '')
+        if (!/\.ora$/i.test(p)) throw new Error('.ora のファイルだけ読めます')
+        const buf = await fs.promises.readFile(p)
+        return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
     })
 
     ipcMain.handle('select-folder', async () => {

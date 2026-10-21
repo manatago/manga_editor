@@ -113,7 +113,12 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
         panels,
         selectedPanelId,
         updatePanel,
-        addMaterial
+        addMaterial,
+        // .ora のドロップ: 読み込めたら絵が出るので黙る。読めなかったときだけ知らせる
+        onNotice: (message) => {
+            if (message.startsWith('読み込みました')) return
+            void window.electron?.showMessage?.({ title: 'gousei のシーン（.ora）', message, type: 'warning' })
+        }
     })
 
     const { transformerRef, bubbleTransformerRef, materialTransformerRef } = useTransformers({

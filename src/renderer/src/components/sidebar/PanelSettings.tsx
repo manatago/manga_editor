@@ -4,6 +4,8 @@ import { FadeDirection, Panel } from '../../store/useMangaStore'
 import type { GradientType } from '../../store/types'
 import { PanelTypeIcon } from '../icons/PanelTypeIcon'
 import { DOT_CIRCLE_COLORS } from '../effects/StippleCircles'
+import { importOraToPanel } from '../../utils/ora/importOra'
+import { ALL_EDGES, type ProtrudeEdge } from '../../utils/ora/protrudeClip'
 
 const SECTION_TITLE_CLASS = 'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
 
@@ -66,6 +68,39 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
             }
         }
     }
+
+    // gousei のシーン（.ora）を読む。全体の絵をコマの画像に、人物・前面物だけの絵をはみ出し用にする。
+    // はみ出し用は gousei の切り抜きそのものなので、rembg で推し量るより確実（ユーザー）
+    const [oraBusy, setOraBusy] = React.useState(false)
+    const [oraMsg, setOraMsg] = React.useState('')
+    const handleOra = async (reload: boolean) => {
+        // 失敗したら必ず理由を出す（黙って何も起きないと、どこで止まったか分からない）
+        if (!window.electron) { setOraMsg('読み込めません（デスクトップ版でだけ使えます）'); return }
+        if (!currentProjectPath) { setOraMsg('先にプロジェクトを開くか保存してください'); return }
+        if (typeof window.electron.selectOraFile !== 'function') { setOraMsg('アプリを再起動してください（ファイルを選ぶ機能が読み込まれていません）'); return }
+        let src: string | null | undefined
+        try {
+            src = reload ? panel.oraSourcePath : await window.electron.selectOraFile()
+        } catch (e) {
+            setOraMsg(`ファイルを選べませんでした: ${(e as Error).message}`)
+            return
+        }
+        if (!src) return
+        setOraBusy(true)
+        setOraMsg('読み込み中…')
+        try {
+            setOraMsg(await importOraToPanel(panel, src, currentProjectPath, updatePanel, reload))
+        } catch (e) {
+            console.error('PanelSettings: ora import', e)
+            window.electron.log?.('error', 'ora import', String(e))
+            setOraMsg(`読み込めませんでした: ${(e as Error).message}`)
+        } finally {
+            setOraBusy(false)
+        }
+    }
+    const oraName = panel.oraSourcePath?.split(/[\\/]/).pop()
+    const edges = panel.protrudeEdges ?? ALL_EDGES
+    const toggleEdge = (k: ProtrudeEdge) => updatePanel(panel.id, { protrudeEdges: { ...edges, [k]: !edges[k] } })
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -258,6 +293,26 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                     <FolderOpen size={16} className="group-hover:text-blue-500 transition-colors" />
                     <span className="text-xs">画像をアップロード/変更</span>
                 </button>
+                <button
+                    onClick={() => void handleOra(false)}
+                    disabled={oraBusy}
+                    title="gousei で作ったシーン（背景・トーン・人物・前面物を重ねた .ora）を読み込みます。人物と前面物だけをコマからはみ出せます"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition-all font-bold group disabled:opacity-50"
+                >
+                    <Layers size={16} className="group-hover:text-blue-500 transition-colors" />
+                    <span className="text-xs">{oraBusy ? '読み込み中…' : 'gousei のシーン（.ora）を読み込む'}</span>
+                </button>
+                {panel.oraSourcePath && (
+                    <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 space-y-2">
+                        <div className="text-[10px] text-zinc-400 truncate" title={panel.oraSourcePath}>gousei: {oraName}</div>
+                        <button onClick={() => void handleOra(true)} disabled={oraBusy}
+                            className="w-full py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-[11px] text-zinc-200 disabled:opacity-50"
+                            title="gousei でシーンを直したあとに押すと、位置と大きさはそのままで絵だけ差し替えます">
+                            読み直す（gousei で直したあと）
+                        </button>
+                    </div>
+                )}
+                {oraMsg && <p className="text-[10px] text-zinc-400 leading-relaxed">{oraMsg}</p>}
             </div>
             <div className="space-y-4 pt-4 border-t border-zinc-800">
                 <h3 className={SECTION_TITLE_CLASS}>背景</h3>
@@ -464,6 +519,16 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                 )}
                 {panel.imageProtrude && panel.imagePath && (
                     <div className="mt-4 p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
+                        <h4 className="text-[10px] font-bold text-blue-400 tracking-wide">はみ出してよい辺</h4>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {([['top', '上'], ['right', '右'], ['bottom', '下'], ['left', '左']] as const).map(([k, label]) => (
+                                <button key={k} onClick={() => toggleEdge(k)}
+                                    className={`py-1.5 rounded-lg text-[11px] border transition-all ${edges[k] ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'}`}>
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[9px] text-zinc-500 leading-relaxed">選んだ辺の外だけに人物が出ます（例: 頭は上を突き破り、下で切れた胴体は枠で切る）。</p>
                         <h4 className="text-[10px] font-bold text-blue-400 tracking-wide">はみ出し時のコマ内背景</h4>
                         <div>
                             <div className="flex justify-between mb-1"><label className="text-[8px] text-zinc-500 uppercase">背景の濃さ (Opacity)</label><span className="text-[8px] text-blue-500 font-mono">{Math.round((panel.protrudeBgOpacity ?? 1) * 100)}%</span></div>
