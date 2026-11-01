@@ -19,6 +19,7 @@ import { PanelStrokes } from './PanelStrokes'
 import { PanelBackgroundImageLayer } from './PanelBackgroundImageLayer'
 import { PanelForegroundToneLayer } from './PanelForegroundToneLayer'
 import { showError } from '../utils/dialogs'
+import { mangaifyImage, compositeOver, loadImage, type MangaLevel } from '../utils/manga/renderManga'
 
 const FocusAdjustmentHandle: React.FC<{
     panel: Panel;
@@ -81,6 +82,10 @@ const ImageEditModeTabs: React.FC<{
     imageProtrude?: boolean
     protrudeBusy?: boolean
     onToggleProtrude?: () => void
+    isManga?: boolean
+    mangaLevel?: MangaLevel
+    mangaBusy?: boolean
+    onSetManga?: (level: MangaLevel) => void
     novelaiActive: boolean
     onNovelAI: () => void
 }> = ({
@@ -98,6 +103,10 @@ const ImageEditModeTabs: React.FC<{
     imageProtrude,
     protrudeBusy,
     onToggleProtrude,
+    isManga,
+    mangaLevel,
+    mangaBusy,
+    onSetManga,
     novelaiActive,
     onNovelAI
 }) => {
@@ -110,7 +119,8 @@ const ImageEditModeTabs: React.FC<{
     const showRembg = hasImage && !!rembgEnabled && !!onRembg
     const showWand = hasImage && !!onWand
     const showProtrude = hasImage && !!onToggleProtrude
-    // rembg（自動）→ ワンド（手動）→ はみ出し → NovelAI の順に縦積み。各行 28px + 余白 4px = 32px。
+    const showManga = hasImage && !!onSetManga
+    // rembg（自動）→ ワンド（手動）→ はみ出し → 漫画化 → NovelAI の順に縦積み。各行 28px + 余白 4px = 32px。
     let stackY = 38
     const rembgY = stackY
     if (showRembg) stackY += 32
@@ -118,6 +128,8 @@ const ImageEditModeTabs: React.FC<{
     if (showWand) stackY += 32
     const protrudeY = stackY
     if (showProtrude) stackY += 32
+    const mangaY = stackY
+    if (showManga) stackY += 32
     const novelaiY = hasImage ? stackY : 0
 
     return (
@@ -350,6 +362,74 @@ const ImageEditModeTabs: React.FC<{
                     />
                 </Group>
             ) : null}
+            {showManga ? (
+                <Group y={mangaY}>
+                    {/* 背板 */}
+                    <Rect
+                        x={0}
+                        y={0}
+                        width={170}
+                        height={28}
+                        cornerRadius={6}
+                        fill="rgba(24,24,27,0.95)"
+                        stroke="#3f3f46"
+                        strokeWidth={1}
+                        onMouseDown={(e) => { e.cancelBubble = true }}
+                        onMouseUp={(e) => { e.cancelBubble = true }}
+                        onClick={(e) => { e.cancelBubble = true }}
+                        onTap={(e) => { e.cancelBubble = true }}
+                    />
+                    {mangaBusy ? (
+                        <Text x={0} y={7} width={170} align="center" text="漫画化中…" fontSize={11} fill="#71717a" listening={false} />
+                    ) : (
+                        <>
+                            {/* ラベル */}
+                            <Text x={8} y={8} text="漫画" fontSize={11} fill="#a1a1aa" listening={false} />
+                            {/* 弱 / 中 / 強 の 3 段 */}
+                            {([
+                                { key: 'weak' as MangaLevel, label: '弱' },
+                                { key: 'mid' as MangaLevel, label: '中' },
+                                { key: 'strong' as MangaLevel, label: '強' }
+                            ]).map((seg, i) => {
+                                const active = !!isManga && (mangaLevel ?? 'mid') === seg.key
+                                const segW = 40
+                                const x = 46 + i * (segW + 1)
+                                return (
+                                    <Group
+                                        key={seg.key}
+                                        x={x}
+                                        y={3}
+                                        onMouseDown={(e) => { e.cancelBubble = true }}
+                                        onMouseUp={(e) => { e.cancelBubble = true }}
+                                        onClick={(e) => { e.cancelBubble = true; onSetManga!(seg.key) }}
+                                        onTouchStart={(e) => { e.cancelBubble = true }}
+                                        onTap={(e) => { e.cancelBubble = true; onSetManga!(seg.key) }}
+                                    >
+                                        <Rect
+                                            width={segW}
+                                            height={22}
+                                            cornerRadius={5}
+                                            fill={active ? '#2563eb' : 'transparent'}
+                                            stroke={active ? '#3b82f6' : '#52525b'}
+                                            strokeWidth={1}
+                                        />
+                                        <Text
+                                            width={segW}
+                                            y={5}
+                                            text={seg.label}
+                                            align="center"
+                                            fontSize={12}
+                                            fontStyle={active ? 'bold' : 'normal'}
+                                            fill={active ? '#ffffff' : '#d4d4d8'}
+                                            listening={false}
+                                        />
+                                    </Group>
+                                )
+                            })}
+                        </>
+                    )}
+                </Group>
+            ) : null}
             </>}
             <Group y={novelaiY}>
                 <Rect
@@ -402,17 +482,23 @@ export const PanelItem: React.FC<{
     const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>('move')
     const [rembgBusy, setRembgBusy] = useState(false)
     const [protrudeBusy, setProtrudeBusy] = useState(false)
+    const [mangaBusy, setMangaBusy] = useState(false)
     const openPanelWandEditor = useMangaStore((s) => s.openPanelWandEditor)
     const points = getPanelPoints(panel)
     const setActiveAlignmentGuides = useMangaStore((s) => s.setActiveAlignmentGuides)
     const clearActiveAlignmentGuides = useMangaStore((s) => s.clearActiveAlignmentGuides)
+    // 漫画化 ON のときは主画像を mangaImagePath に差し替える（元画像は非破壊で残る）
+    const isMangaOn = !!panel.isManga && !!panel.mangaImagePath
+    const displayImagePath = isMangaOn ? panel.mangaImagePath! : panel.imagePath
     const imagePath = useMemo(() => {
-        if (!panel.imagePath) return ''
+        if (!displayImagePath) return ''
+        // 焼き直しは同じファイル名に上書きするため、URL にスタンプを足してキャッシュを破棄させる
+        const bust = isMangaOn && panel.mangaStamp ? `?v=${panel.mangaStamp}` : ''
         if (window.electron?.resolveAssetPath && currentProjectPath) {
-            return window.electron.pathToUrl(window.electron.resolveAssetPath(currentProjectPath, panel.imagePath))
+            return window.electron.pathToUrl(window.electron.resolveAssetPath(currentProjectPath, displayImagePath)) + bust
         }
-        return window.electron ? window.electron.pathToUrl(panel.imagePath) : panel.imagePath || ''
-    }, [panel.imagePath, currentProjectPath])
+        return (window.electron ? window.electron.pathToUrl(displayImagePath) : displayImagePath || '') + bust
+    }, [displayImagePath, currentProjectPath, isMangaOn, panel.mangaStamp])
     const [image] = useImage(imagePath)
     const lineRef = useRef<Konva.Line>(null)
     const snap = (value: number) => snapToGrid(value, page)
@@ -539,6 +625,68 @@ export const PanelItem: React.FC<{
             await showError('はみ出し用の切り抜き生成に失敗しました。手動（ワンド）で調整してください。')
         } finally {
             setProtrudeBusy(false)
+        }
+    }
+
+    // 「漫画の絵にする」トグル。ON で元画像を漫画化して焼き込み（非破壊：元画像は残す）、OFF で元に戻す。
+    // 一度焼いた mangaImagePath は再トグル時に再利用する。.ora コマは人物切り抜きだけ漫画化し、元背景に重ねる。
+    const toAbsUrl = (rel: string): string =>
+        window.electron!.pathToUrl(window.electron!.resolveAssetPath(currentProjectPath!, rel))
+    const handleSetManga = async (level: MangaLevel) => {
+        // すでにその強さで ON なら、同じボタンをもう一度押して OFF にする
+        if (panel.isManga && (panel.mangaLevel ?? 'mid') === level) {
+            onUpdate(panel.id, { isManga: false })
+            return
+        }
+        // ON／強さ変更のたびに焼き直す（決まったファイル名に上書き。常に最新の仕上がりになる）
+        if (!currentProjectPath || !panel.imagePath || mangaBusy || !window.electron) {
+            await showError('漫画化できる画像がありません（プロジェクト内の画像が必要です）')
+            return
+        }
+        const abs = window.electron.resolveAssetPath(currentProjectPath, panel.imagePath)
+        if (!abs) {
+            await showError('プロジェクト内の画像のみ漫画化できます')
+            return
+        }
+        setMangaBusy(true)
+        try {
+            const isOra = !!panel.oraSourcePath && !!panel.protrudeImagePath
+            if (isOra) {
+                // 人物切り抜き（protrudeImagePath）だけ漫画化し、元の merged 背景に重ねて 1 枚にする
+                const [peopleImg, mergedImg] = await Promise.all([
+                    loadImage(toAbsUrl(panel.protrudeImagePath!)),
+                    loadImage(toAbsUrl(panel.imagePath))
+                ])
+                const mangaPeople = mangaifyImage(peopleImg, { isCutout: true, level })
+                const composite = await compositeOver(mergedImg, mangaPeople)
+                const peopleRes = await window.electron.saveMangaPng(currentProjectPath, panel.id, 'people', mangaPeople)
+                const mainRes = await window.electron.saveMangaPng(currentProjectPath, panel.id, 'main', composite)
+                onUpdate(
+                    panel.id,
+                    {
+                        isManga: true,
+                        mangaLevel: level,
+                        mangaImagePath: mainRes.relativePath,
+                        mangaProtrudePath: peopleRes.relativePath,
+                        mangaStamp: Date.now()
+                    },
+                    true
+                )
+            } else {
+                const srcImg = await loadImage(toAbsUrl(panel.imagePath))
+                const manga = mangaifyImage(srcImg, { level })
+                const mainRes = await window.electron.saveMangaPng(currentProjectPath, panel.id, 'main', manga)
+                onUpdate(
+                    panel.id,
+                    { isManga: true, mangaLevel: level, mangaImagePath: mainRes.relativePath, mangaStamp: Date.now() },
+                    true
+                )
+            }
+        } catch (e: unknown) {
+            console.error('PanelItem: manga', e)
+            await showError('漫画化に失敗しました: ' + (e instanceof Error ? e.message : String(e)))
+        } finally {
+            setMangaBusy(false)
         }
     }
 
@@ -727,6 +875,10 @@ export const PanelItem: React.FC<{
                         imageProtrude={!!panel.imageProtrude}
                         protrudeBusy={protrudeBusy}
                         onToggleProtrude={handleToggleProtrude}
+                        isManga={!!panel.isManga}
+                        mangaLevel={panel.mangaLevel}
+                        mangaBusy={mangaBusy}
+                        onSetManga={!!currentProjectPath && !!panel.imagePath ? handleSetManga : undefined}
                         novelaiActive={novelaiActive}
                         onNovelAI={() => openNovelAIForPanel(panel.id)}
                     />

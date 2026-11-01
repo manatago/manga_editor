@@ -97,4 +97,35 @@ export function registerExportHandlers(): void {
             throw error
         }
     })
+
+    /**
+     * 漫画化した PNG を assets/manga/<panelId>_<kind>.png に**上書き**保存する。
+     * トグルのたびに増えないよう、コマ＋種類ごとに決まったファイル名にする（kind: 'main' | 'people'）。
+     */
+    ipcMain.handle(
+        'save-manga-png',
+        async (
+            _,
+            { projectPath, panelId, kind, data }: { projectPath: string; panelId: string; kind: string; data: string }
+        ) => {
+            const root = String(projectPath ?? '').trim()
+            const dir = pathModule.join(root, 'assets', 'manga')
+            const safeId = String(panelId ?? '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'panel'
+            const safeKind = kind === 'people' ? 'people' : 'main'
+            try {
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true })
+                }
+                const filePath = pathModule.join(dir, `${safeId}_${safeKind}.png`)
+                const base64Data = data.replace(/^data:image\/png;base64,/, '')
+                fs.writeFileSync(filePath, base64Data, 'base64')
+                const rel = pathModule.relative(root, filePath).split(pathModule.sep).join('/')
+                console.log('Main: manga PNG saved to', rel)
+                return { relativePath: rel }
+            } catch (error) {
+                console.error('Main: failed to save manga png:', error)
+                throw error
+            }
+        }
+    )
 }

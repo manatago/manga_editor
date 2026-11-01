@@ -28,15 +28,18 @@ export const PanelProtrudeImage: React.FC<{
     panel: Panel
     projectPath: string | null
 }> = ({ panel, projectPath }) => {
-    // 切り抜きがあればそれを、無ければ元画像で代用
-    const sourcePath = panel.protrudeImagePath || panel.imagePath
+    // 漫画化 ON のときは人物漫画版を優先。なければ切り抜き、それも無ければ元画像で代用
+    const useManga = !!panel.isManga && !!panel.mangaProtrudePath
+    const sourcePath = useManga ? panel.mangaProtrudePath! : panel.protrudeImagePath || panel.imagePath
     const imageUrl = useMemo(() => {
         if (!sourcePath) return ''
+        // 焼き直しは同じファイル名に上書きするため、URL にスタンプを足してキャッシュを破棄させる
+        const bust = useManga && panel.mangaStamp ? `?v=${panel.mangaStamp}` : ''
         if (window.electron?.resolveAssetPath && projectPath) {
-            return window.electron.pathToUrl(window.electron.resolveAssetPath(projectPath, sourcePath))
+            return window.electron.pathToUrl(window.electron.resolveAssetPath(projectPath, sourcePath)) + bust
         }
-        return window.electron ? window.electron.pathToUrl(sourcePath) : sourcePath
-    }, [sourcePath, projectPath])
+        return (window.electron ? window.electron.pathToUrl(sourcePath) : sourcePath) + bust
+    }, [sourcePath, projectPath, useManga, panel.mangaStamp])
 
     const [image] = useImage(imageUrl)
     const imgRef = useRef<Konva.Image>(null)
@@ -60,7 +63,9 @@ export const PanelProtrudeImage: React.FC<{
         panel.imageX,
         panel.imageY,
         panel.imagePath,
-        panel.protrudeImagePath
+        panel.protrudeImagePath,
+        panel.isManga,
+        panel.mangaProtrudePath
     ])
 
     if (!panel.imageProtrude || !panel.imagePath || !image) return null

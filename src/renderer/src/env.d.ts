@@ -60,6 +60,13 @@ declare global {
                 baseName: string,
                 data: string
             ) => Promise<{ relativePath: string }>
+            /** 漫画化した PNG を assets/manga/<panelId>_<kind>.png に上書き保存。kind: 'main' | 'people' */
+            saveMangaPng: (
+                projectPath: string,
+                panelId: string,
+                kind: 'main' | 'people',
+                data: string
+            ) => Promise<{ relativePath: string }>
             /** アプリ全体のカスタムトーン一覧（userData/custom-tones/） */
             getCustomTones: () => Promise<{ id: string; name: string; absolutePath: string }[]>
             addCustomTone: (sourcePath: string, name: string) => Promise<{ id: string; name: string; absolutePath: string }>

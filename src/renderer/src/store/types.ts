@@ -83,6 +83,19 @@ export interface Panel {
     protrudeOutsideOnly?: boolean
     /** gousei のシーン（.ora）から作ったコマなら、その .ora の絶対パス（読み直し用） */
     oraSourcePath?: string
+    /**
+     * 「漫画の絵にする」が ON か。ON の間は描画で imagePath の代わりに mangaImagePath を使う（元画像は非破壊で残す）。
+     * もう一度押すと OFF（焼いた mangaImagePath は再利用のため残す）。Shift＋コマ選択のメニューから切替。
+     */
+    isManga?: boolean
+    /** 漫画化した主画像（assets/manga/<panelId>_main.png）。isManga の間だけ描画に使う。 */
+    mangaImagePath?: string
+    /** .ora コマ用: 漫画化した人物切り抜き（assets/manga/<panelId>_people.png）。はみ出し描画に使う。 */
+    mangaProtrudePath?: string
+    /** 漫画化を焼いた時刻（同じファイル名に上書きするため、画像URLのキャッシュ破棄に使う）。 */
+    mangaStamp?: number
+    /** 漫画化の強さ（弱/中/強）。ON の間に適用したレベル。 */
+    mangaLevel?: 'weak' | 'mid' | 'strong'
     backgroundColor?: string
     backgroundOpacity?: number
     bgGradientType?: GradientType

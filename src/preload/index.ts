@@ -100,6 +100,8 @@ if (process.contextIsolated) {
                 ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
             saveWandPng: (projectPath: string, assetsSubPath: string, baseName: string, data: string) =>
                 ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
+            saveMangaPng: (projectPath: string, panelId: string, kind: string, data: string) =>
+                ipcRenderer.invoke('save-manga-png', { projectPath, panelId, kind, data }),
             getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
             addCustomTone: (sourcePath: string, name: string) =>
                 ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
@@ -202,6 +204,8 @@ if (process.contextIsolated) {
             ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
         saveWandPng: (projectPath, assetsSubPath, baseName, data) =>
             ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
+        saveMangaPng: (projectPath, panelId, kind, data) =>
+            ipcRenderer.invoke('save-manga-png', { projectPath, panelId, kind, data }),
         getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
         addCustomTone: (sourcePath, name) =>
             ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
