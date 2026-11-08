@@ -19,7 +19,7 @@ import {
     standardPanelWidth,
     computePanelInsertion
 } from './utils/panelInsertion'
-import { PanelTop, PanelLeft, Languages, GitBranch, BookOpen } from 'lucide-react'
+import { PanelTop, PanelLeft, Languages, GitBranch, BookOpen, Check, Loader2, AlertCircle, Circle } from 'lucide-react'
 import { showError } from './utils/dialogs'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProjectActions } from './hooks/useProjectActions'
@@ -377,8 +377,8 @@ function App(): React.JSX.Element {
             )}
 
             <div className="flex-1 flex flex-col min-w-0">
-                <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 justify-between shrink-0 min-w-0 gap-2 overflow-x-auto">
-                    <div className="flex items-center gap-2 min-w-0">
+                <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 justify-between shrink-0 min-w-0 gap-3">
+                    <div className="flex items-center gap-2 min-w-0 overflow-x-auto manga-scrollbar">
                         {currentProjectPath && <ModeToggle />}
                         {currentProjectPath && (
                             <button
@@ -415,7 +415,7 @@ function App(): React.JSX.Element {
                         )}
                         {currentPageId && (
                             <>
-                                <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
+                                <div className="flex shrink-0 bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
                                     <button onClick={() => handleAddPanelWithType('rect')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="矩形">
                                         <PanelTypeIcon type="rect" size={16} />
                                     </button>
@@ -438,7 +438,7 @@ function App(): React.JSX.Element {
                                         <PanelTypeIcon type="circle" size={16} />
                                     </button>
                                 </div>
-                                <div className="flex bg-zinc-800/50 p-1 rounded-lg border border-zinc-800 ml-4">
+                                <div className="flex shrink-0 bg-zinc-800/50 p-1 rounded-lg border border-zinc-800 ml-1 lg:ml-4">
                                     {BUBBLE_TYPE_ORDER.map((type) => (
                                         <button
                                             key={type}
@@ -458,8 +458,20 @@ function App(): React.JSX.Element {
                         )}
                     </div>
                     {currentProjectPath && (
-                        <div className={`text-xs whitespace-nowrap ${saveError ? 'text-red-400' : 'text-zinc-500'}`}>
-                            {saveStatusLabel}
+                        <div
+                            className={`flex items-center gap-1.5 shrink-0 text-xs whitespace-nowrap ${saveError ? 'text-red-400' : 'text-zinc-500'}`}
+                            title={saveStatusLabel}
+                        >
+                            {saveError ? (
+                                <AlertCircle size={14} />
+                            ) : isSaving ? (
+                                <Loader2 size={14} className="animate-spin" />
+                            ) : lastSavedAt ? (
+                                <Check size={14} />
+                            ) : (
+                                <Circle size={14} />
+                            )}
+                            <span className={saveError ? '' : 'hidden xl:inline'}>{saveStatusLabel}</span>
                         </div>
                     )}
                 </div>
