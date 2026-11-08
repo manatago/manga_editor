@@ -1,10 +1,13 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
-import { limitHistory, snapshot, type HistoryEntry } from '../helpers'
+import { limitHistory, resetHistoryCoalesce, snapshot, type HistoryEntry } from '../helpers'
 
 export interface HistorySlice {
     past: HistoryEntry[]
     future: HistoryEntry[]
+    /** 連続した同種の変更を 1 件にまとめるための直前キーと時刻（helpers.saveHistory 参照） */
+    lastHistoryKey: string | null
+    lastHistoryAt: number
     undo: () => void
     redo: () => void
 }
@@ -12,6 +15,8 @@ export interface HistorySlice {
 export const createHistorySlice: StateCreator<MangaState, [], [], HistorySlice> = (set) => ({
     past: [],
     future: [],
+    lastHistoryKey: null,
+    lastHistoryAt: 0,
 
     undo: () => set((state) => {
         if (state.past.length === 0) return state
@@ -24,7 +29,9 @@ export const createHistorySlice: StateCreator<MangaState, [], [], HistorySlice> 
             archivedPages: previous.archivedPages ?? [],
             currentPageId: previous.currentPageId,
             selectedPanelId: null,
-            selectedBubbleId: null
+            selectedBubbleId: null,
+            selectedMaterialId: null,
+            ...resetHistoryCoalesce
         }
     }),
 
@@ -40,7 +47,8 @@ export const createHistorySlice: StateCreator<MangaState, [], [], HistorySlice> 
             currentPageId: next.currentPageId,
             selectedPanelId: null,
             selectedBubbleId: null,
-            selectedMaterialId: null
+            selectedMaterialId: null,
+            ...resetHistoryCoalesce
         }
     })
 })

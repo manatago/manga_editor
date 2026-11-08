@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Bubble, BubbleType } from '../types'
-import { saveHistory } from '../helpers'
+import { historyKey, saveHistory } from '../helpers'
 import {
     bubbleToLastStyleSlice,
     loadBubbleLastStylesFromStorage,
@@ -99,7 +99,7 @@ export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = 
 
     updateBubble: (id, updates, undoable = true) => set((state) => {
         if (!state.currentPageId) return state
-        const history = undoable ? saveHistory(state) : {}
+        const history = undoable ? saveHistory(state, historyKey('bubble', id, updates)) : {}
         let nextBubble: Bubble | null = null
         const pages = state.pages.map((p) =>
             p.id === state.currentPageId

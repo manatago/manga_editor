@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Page, Panel } from '../types'
-import { saveHistory } from '../helpers'
+import { historyKey, saveHistory } from '../helpers'
 
 export interface SelectPageOptions {
     /** 一括エクスポート等でページを素早く切り替えるとき true（毎回の saveProject を省略） */
@@ -140,7 +140,7 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
     }),
 
     updatePage: (id, updates) => set((state) => {
-        const history = saveHistory(state)
+        const history = saveHistory(state, historyKey('page', id, updates))
         return {
             ...state,
             ...history,

@@ -631,7 +631,7 @@ export const BubbleItem: React.FC<{
                             e.cancelBubble = true
                             const dx = e.target.x() - bubble.width / 2
                             const dy = e.target.y() - bubble.height / 2
-                            onUpdate(bubble.id, { tailX: dx, tailY: dy }, false)
+                            onUpdate(bubble.id, { tailX: dx, tailY: dy })
                         }}
                         onDragEnd={(e) => {
                             e.cancelBubble = true
@@ -654,7 +654,7 @@ export const BubbleItem: React.FC<{
                                 e.cancelBubble = true
                                 const dx = e.target.x() - bubble.width / 2
                                 const dy = e.target.y() - bubble.height / 2
-                                onUpdate(bubble.id, { tailControlX: dx, tailControlY: dy }, false)
+                                onUpdate(bubble.id, { tailControlX: dx, tailControlY: dy })
                             }}
                             onDragEnd={(e) => {
                                 e.cancelBubble = true

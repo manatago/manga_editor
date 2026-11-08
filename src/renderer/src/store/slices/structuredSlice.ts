@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Bubble, Panel, Page } from '../types'
-import { saveHistory } from '../helpers'
+import { historyKey, saveHistory } from '../helpers'
 import { createPanel } from './panelSlice'
 import { createBubble } from './bubbleSlice'
 import { resolvePanelRects, placeNewBubbleInPanel } from '../../utils/script/placement'
@@ -161,7 +161,7 @@ export const createStructuredSlice: StateCreator<MangaState, [], [], StructuredS
 
     updateLine: (bubbleId, patch) =>
         set((state) => {
-            const history = saveHistory(state)
+            const history = saveHistory(state, historyKey('line', bubbleId, patch))
             const result = withCurrentPage(state, (page) => ({
                 bubbles: page.bubbles.map((b) => {
                     if (b.id !== bubbleId) return b

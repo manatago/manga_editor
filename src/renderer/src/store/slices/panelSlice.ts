@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Panel } from '../types'
-import { saveHistory } from '../helpers'
+import { historyKey, saveHistory } from '../helpers'
 
 export interface PanelSlice {
     selectedPanelId: string | null
@@ -86,7 +86,7 @@ export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (s
 
     updatePanel: (id, updates, undoable = true) => set((state) => {
         if (!state.currentPageId) return state
-        const history = undoable ? saveHistory(state) : {}
+        const history = undoable ? saveHistory(state, historyKey('panel', id, updates)) : {}
         return {
             ...state,
             ...history,

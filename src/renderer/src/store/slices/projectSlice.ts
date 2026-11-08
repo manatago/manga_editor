@@ -6,6 +6,7 @@ import { normalizeReferenceCharacters } from '../../utils/referenceCharacters'
 import { normalizeBackgroundLibrary } from '../../utils/backgroundLibrary'
 import { confirmMessage, showError, showInfo } from '../../utils/dialogs'
 import { sanitizePage } from './project/sanitize'
+import { resetHistoryCoalesce } from '../helpers'
 
 /** 「最後に見ていたページ」を端末ローカルに保持するための localStorage キー（プロジェクト単位） */
 export const lastPageKey = (projectPath: string): string => `mango:lastPage:${projectPath}`
@@ -109,7 +110,13 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             referenceCharacters: normalizeReferenceCharacters(data.referenceCharacters),
             backgroundLibrary: normalizeBackgroundLibrary(data.backgroundLibrary),
             manuscript: typeof data.manuscript === 'string' ? data.manuscript : '',
-            manuscriptSelection: null
+            manuscriptSelection: null,
+            // 別プロジェクト（またはプル後の再読込）に前の状態の履歴を持ち越さない。
+            // 持ち越すと undo で前プロジェクトのページが復元され、自動保存で上書きされる。
+            selectedMaterialId: null,
+            past: [],
+            future: [],
+            ...resetHistoryCoalesce
         })
         console.log('Store: setProjectData done. normalized count:', normalizedPages.length)
     },

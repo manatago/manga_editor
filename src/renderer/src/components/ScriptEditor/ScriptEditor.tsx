@@ -236,7 +236,7 @@ const LivePreview: React.FC<{ page: Page }> = ({ page }) => {
         if (!p) return
         const x = Math.round(Math.max(0, Math.min(pw - 20, d.startX + (p.x - d.startPtX))))
         const y = Math.round(Math.max(0, Math.min(ph - 20, d.startY + (p.y - d.startPtY))))
-        updateBubble(d.id, { x, y }, false)
+        updateBubble(d.id, { x, y })
     }
     const onUp = () => {
         dragRef.current = null

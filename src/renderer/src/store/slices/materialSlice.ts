@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Material } from '../types'
-import { saveHistory } from '../helpers'
+import { historyKey, saveHistory } from '../helpers'
 
 export interface MaterialSlice {
     selectedMaterialId: string | null
@@ -46,7 +46,7 @@ export const createMaterialSlice: StateCreator<MangaState, [], [], MaterialSlice
     updateMaterial: (id, updates, undoable = true) => set((state) => {
         const page = state.pages.find((p) => p.id === state.currentPageId)
         if (!page) return state
-        const history = undoable ? saveHistory(state) : {}
+        const history = undoable ? saveHistory(state, historyKey('material', id, updates)) : {}
         return {
             ...state,
             ...history,
