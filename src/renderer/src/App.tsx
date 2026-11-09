@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import Canvas from './components/Canvas'
 import SidebarLeft from './components/SidebarLeft'
 import SidebarRight from './components/SidebarRight'
@@ -22,6 +23,7 @@ import {
 import { PanelTop, PanelLeft, Languages, GitBranch, BookOpen, Check, Loader2, AlertCircle, Circle } from 'lucide-react'
 import { showError } from './utils/dialogs'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useAutoSave } from './hooks/useAutoSave'
 import { useProjectActions } from './hooks/useProjectActions'
 import { useExport } from './hooks/useExport'
 import { PanelTypeIcon } from './components/icons/PanelTypeIcon'
@@ -29,50 +31,38 @@ import { BubbleTypeIcon } from './components/icons/BubbleTypeIcon'
 import { BUBBLE_TYPE_LABELS, BUBBLE_TYPE_ORDER } from './components/icons/bubbleTypeMeta'
 
 function App(): React.JSX.Element {
+    // App は描画に必要な最小限だけを購読する。ページ内容（pages 等）は購読しない：
+    // 購読すると編集のたびに App 全体（＝ほぼ全 UI）が再描画される。
+    // ハンドラ内で必要な値はその時点の getState() から読む。
     const {
         currentProjectPath,
-        pages,
-        archivedPages,
         currentPageId,
-        selectPage,
-        addPage,
-        updatePage,
-        movePage,
-        removePage,
-        addPanel,
-        updatePanel,
-        removePanel,
-        addBubble,
-        updateBubble,
-        removeBubble,
-        saveProject,
-        getProjectData,
-        templates,
-        addMaterial,
-        updateMaterial,
-        removeMaterial,
         selectedPanelId,
-        selectedBubbleId,
-        selectedMaterialId,
-        setSelectedPanel,
-        setSelectedBubble,
-        setSelectedMaterial,
-        loadTemplates,
-        loadCustomTones,
-        loadNovelAIToken,
         isExporting,
         isSaving,
         lastSavedAt,
         saveError,
-        referenceCharacters,
-        backgroundLibrary,
-        manuscript,
-        manuscriptSelection,
+        addPanel,
+        addBubble,
         removeManuscriptRange
-    } = useMangaStore()
+    } = useMangaStore(
+        useShallow((s) => ({
+            currentProjectPath: s.currentProjectPath,
+            currentPageId: s.currentPageId,
+            selectedPanelId: s.selectedPanelId,
+            isExporting: s.isExporting,
+            isSaving: s.isSaving,
+            lastSavedAt: s.lastSavedAt,
+            saveError: s.saveError,
+            addPanel: s.addPanel,
+            addBubble: s.addBubble,
+            removeManuscriptRange: s.removeManuscriptRange
+        }))
+    )
 
     // Custom Hooks
     useKeyboardShortcuts()
+    useAutoSave()
     const { handleCreateNew, handleOpenProject, openProjectByPath, handleUseTemplate, handleSaveAsTemplate } = useProjectActions()
     const { stageRef, handleExportPNG, handleExportAllPagesPNG, handleExportText } = useExport()
 
@@ -101,8 +91,6 @@ function App(): React.JSX.Element {
         }
     }, [leftSidebarOpen])
 
-    const currentPage = pages.find(p => p.id === currentPageId)
-    const autoSaveTimerRef = useRef<number | null>(null)
     const saveStatusLabel = saveError
         ? '保存エラー'
         : isSaving
@@ -111,9 +99,6 @@ function App(): React.JSX.Element {
             ? `保存済み ${new Date(lastSavedAt).toLocaleTimeString()}`
             : '未保存'
 
-    const selectedPanel = currentPage?.panels.find(p => p.id === selectedPanelId)
-    const selectedBubble = currentPage?.bubbles.find(b => b.id === selectedBubbleId)
-    const selectedMaterial = currentPage?.materials.find(m => m.id === selectedMaterialId)
 
     // Bridge for terminal logging
     useEffect(() => {
@@ -150,49 +135,11 @@ function App(): React.JSX.Element {
 
     // Initial load
     useEffect(() => {
+        const { loadTemplates, loadCustomTones, loadNovelAIToken } = useMangaStore.getState()
         loadTemplates()
         loadCustomTones()
         loadNovelAIToken()
     }, [])
-
-    // Auto-save logic
-    useEffect(() => {
-        if (currentProjectPath && (pages.length > 0 || archivedPages.length > 0)) {
-            if (autoSaveTimerRef.current !== null) {
-                window.clearTimeout(autoSaveTimerRef.current)
-            }
-            autoSaveTimerRef.current = window.setTimeout(async () => {
-                saveProject()
-                autoSaveTimerRef.current = null
-            }, 1000)
-        }
-        return () => {
-            if (autoSaveTimerRef.current !== null) {
-                window.clearTimeout(autoSaveTimerRef.current)
-                autoSaveTimerRef.current = null
-            }
-        }
-    }, [pages, archivedPages, currentProjectPath, referenceCharacters, backgroundLibrary, manuscript])
-
-    // Flush pending debounce save to avoid data loss on app close.
-    useEffect(() => {
-        const flushPendingSaveOnUnload = () => {
-            if (!currentProjectPath || !window.electron?.saveProjectSync) return
-            if (autoSaveTimerRef.current !== null) {
-                window.clearTimeout(autoSaveTimerRef.current)
-                autoSaveTimerRef.current = null
-            }
-            try {
-                window.electron.saveProjectSync(currentProjectPath, getProjectData())
-            } catch (error) {
-                console.error('App: failed to flush save on unload', error)
-            }
-        }
-        window.addEventListener('beforeunload', flushPendingSaveOnUnload)
-        return () => {
-            window.removeEventListener('beforeunload', flushPendingSaveOnUnload)
-        }
-    }, [currentProjectPath, getProjectData])
 
     // 閉じる時: 未同期の変更があれば「同期しますか？」を確認
     useEffect(() => {
@@ -293,6 +240,8 @@ function App(): React.JSX.Element {
     }
 
     const handleAddPanelWithType = (type: PanelType) => {
+        const { pages, currentPageId } = useMangaStore.getState()
+        const currentPage = pages.find((p) => p.id === currentPageId)
         const pageWidth = currentPage?.pageWidth ?? 840
         let slant = 0, offsetB = 0, offsetC = 0, offsetD = 0
         let width = standardPanelWidth(pageWidth)
@@ -313,6 +262,10 @@ function App(): React.JSX.Element {
     }
 
     const handleAddBubbleWithType = (type: BubbleType) => {
+        const { pages, currentPageId, selectedPanelId, manuscript, manuscriptSelection } = useMangaStore.getState()
+        const selectedPanel = pages
+            .find((p) => p.id === currentPageId)
+            ?.panels.find((p) => p.id === selectedPanelId)
         if (!selectedPanel) return
         const centerX = selectedPanel.x + selectedPanel.width / 2
         const centerY = selectedPanel.y + selectedPanel.height / 2
@@ -354,12 +307,6 @@ function App(): React.JSX.Element {
                         handleCreateNew={handleCreateNew}
                         handleOpenProject={handleOpenProject}
                         currentProjectPath={currentProjectPath}
-                        currentPageId={currentPageId}
-                        pages={pages}
-                        selectPage={selectPage}
-                        movePage={movePage}
-                        removePage={removePage}
-                        addPage={addPage}
                         onCollapse={() => setLeftSidebarOpen(false)}
                     />
                 </div>

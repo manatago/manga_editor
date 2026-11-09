@@ -5,7 +5,8 @@ import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
 import { NovelAISettingsModal } from './NovelAISettingsModal'
 import { useMangaStore } from '../store/useMangaStore'
-import type { Page, Panel, MosaicType } from '../store/types'
+import { useShallow } from 'zustand/react/shallow'
+import type { MosaicType } from '../store/types'
 import { confirmMessage } from '../utils/dialogs'
 
 type ExportFormat = 'png' | 'jpeg'
@@ -19,12 +20,6 @@ interface SidebarLeftProps {
     handleCreateNew: () => void;
     handleOpenProject: () => void;
     currentProjectPath: string | null;
-    currentPageId: string | null;
-    pages: Page[];
-    selectPage: (id: string) => void;
-    movePage: (id: string, direction: 'up' | 'down') => void;
-    removePage: (id: string) => void;
-    addPage: (panels?: Omit<Panel, 'id'>[]) => void;
     onCollapse?: () => void;
 }
 
@@ -37,12 +32,6 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     handleCreateNew,
     handleOpenProject,
     currentProjectPath,
-    // currentPageId, // Removed from props
-    // pages, // Removed from props
-    // selectPage, // Removed from props
-    // movePage, // Removed from props
-    // removePage, // Removed from props
-    // addPage // Removed from props
     onCollapse
 }) => {
     const {
@@ -64,7 +53,28 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         setMosaicVisible,
         setIsMosaicMode,
         updateMosaicType
-    } = useMangaStore()
+    } = useMangaStore(
+        useShallow((s) => ({
+            pages: s.pages,
+            archivedPages: s.archivedPages,
+            currentPageId: s.currentPageId,
+            selectPage: s.selectPage,
+            addPage: s.addPage,
+            movePage: s.movePage,
+            removePage: s.removePage,
+            restorePage: s.restorePage,
+            deleteArchivedPage: s.deleteArchivedPage,
+            cleanupAssets: s.cleanupAssets,
+            mosaicType: s.mosaicType,
+            mosaicVisible: s.mosaicVisible,
+            isMosaicMode: s.isMosaicMode,
+            selectedMosaicId: s.selectedMosaicId,
+            setMosaicType: s.setMosaicType,
+            setMosaicVisible: s.setMosaicVisible,
+            setIsMosaicMode: s.setIsMosaicMode,
+            updateMosaicType: s.updateMosaicType
+        }))
+    )
 
     const currentPage = pages.find((p) => p.id === currentPageId)
     const selectedMosaic = currentPage?.mosaics?.find((m) => m.id === selectedMosaicId)

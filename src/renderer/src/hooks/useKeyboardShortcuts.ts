@@ -1,48 +1,33 @@
 import { useEffect } from 'react'
 import { useMangaStore } from '../store/useMangaStore'
 
-export const useKeyboardShortcuts = () => {
-    const {
-        selectedPanelId,
-        selectedBubbleId,
-        removePanel,
-        removeBubble,
-        removeMaterial,
-        selectedMaterialId,
-        undo,
-        redo,
-        saveProject,
-        pages,
-        currentPageId,
-        updatePanel,
-        copyBubble,
-        pasteBubble,
-        copyPanel,
-        pastePanel,
-        clipboardBubble,
-        clipboardPanel,
-        clipboardBubbleCopiedAt,
-        clipboardPanelCopiedAt
-    } = useMangaStore()
-
+/**
+ * グローバルなキーボードショートカット。
+ * ストアは購読せず、キー押下時に getState() で最新状態を読む。
+ * （購読すると編集のたびに再描画＋リスナー付け直しが発生していた）
+ */
+export const useKeyboardShortcuts = (): void => {
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
+        const handleKeyDown = (e: KeyboardEvent): void => {
             // Ignore if typing in an input field
-            const target = e.target as HTMLElement;
+            const target = e.target as HTMLElement
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-                return;
+                return
             }
+
+            const s = useMangaStore.getState()
+            const { selectedPanelId, selectedBubbleId, selectedMaterialId } = s
+            const currentPage = s.pages.find((p) => p.id === s.currentPageId)
+            const mod = e.metaKey || e.ctrlKey
 
             // Shift + 矢印キー: 選択中のコマを 1px 単位で移動（スナップ・自動フィット無し）
             if (
                 selectedPanelId &&
                 e.shiftKey &&
-                !e.metaKey &&
-                !e.ctrlKey &&
+                !mod &&
                 !e.altKey &&
                 (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
             ) {
-                const currentPage = pages.find((p) => p.id === currentPageId)
                 const panel = currentPage?.panels.find((p) => p.id === selectedPanelId)
                 if (panel) {
                     e.preventDefault()
@@ -52,19 +37,17 @@ export const useKeyboardShortcuts = () => {
                     else if (e.key === 'ArrowRight') dx = 1
                     else if (e.key === 'ArrowUp') dy = -1
                     else if (e.key === 'ArrowDown') dy = 1
-                    updatePanel(selectedPanelId, { x: panel.x + dx, y: panel.y + dy })
+                    s.updatePanel(selectedPanelId, { x: panel.x + dx, y: panel.y + dy })
                     return
                 }
             }
 
             if (e.key === 'Backspace' || e.key === 'Delete') {
                 if (selectedPanelId) {
-                    const currentPage = pages.find(p => p.id === currentPageId);
-                    const panel = currentPage?.panels.find(p => p.id === selectedPanelId);
-                    
+                    const panel = currentPage?.panels.find((p) => p.id === selectedPanelId)
                     if (panel?.imagePath) {
                         // If panel has image, clear the image first
-                        updatePanel(selectedPanelId, {
+                        s.updatePanel(selectedPanelId, {
                             imagePath: undefined,
                             imageX: undefined,
                             imageY: undefined,
@@ -73,92 +56,71 @@ export const useKeyboardShortcuts = () => {
                             imageFlipX: undefined,
                             isGrayscale: false,
                             grayscaleBrightness: 0
-                        });
+                        })
                     } else {
                         // If no image, remove the panel itself
-                        removePanel(selectedPanelId);
+                        s.removePanel(selectedPanelId)
                     }
                 } else if (selectedBubbleId) {
-                    removeBubble(selectedBubbleId);
+                    s.removeBubble(selectedBubbleId)
                 } else if (selectedMaterialId) {
-                    removeMaterial(selectedMaterialId);
+                    s.removeMaterial(selectedMaterialId)
                 }
             }
 
             // Undo / Redo
-            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'z') {
-                e.preventDefault();
-                undo();
-            } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z') {
-                e.preventDefault();
-                redo();
-            } else if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
-                e.preventDefault();
-                redo();
+            if (mod && !e.shiftKey && e.key === 'z') {
+                e.preventDefault()
+                s.undo()
+            } else if (mod && e.shiftKey && e.key === 'z') {
+                e.preventDefault()
+                s.redo()
+            } else if (mod && e.key === 'y') {
+                e.preventDefault()
+                s.redo()
             }
 
             // Save
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                e.preventDefault();
-                saveProject();
+            if (mod && e.key === 's') {
+                e.preventDefault()
+                s.saveProject()
             }
 
-            // Copy bubble
-            if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+            // Copy
+            if (mod && e.key === 'c') {
                 if (selectedBubbleId) {
-                    e.preventDefault();
-                    copyBubble(selectedBubbleId);
+                    e.preventDefault()
+                    s.copyBubble(selectedBubbleId)
                 } else if (selectedPanelId) {
                     e.preventDefault()
-                    copyPanel(selectedPanelId)
+                    s.copyPanel(selectedPanelId)
                 }
             }
 
-            // Paste bubble
-            if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
-                e.preventDefault();
-                const hasPanelClip = !!clipboardPanel
-                const hasBubbleClip = !!clipboardBubble
+            // Paste
+            if (mod && e.key === 'v') {
+                e.preventDefault()
+                const hasPanelClip = !!s.clipboardPanel
+                const hasBubbleClip = !!s.clipboardBubble
                 if (!hasPanelClip && !hasBubbleClip) return
 
                 // Last copied wins; if timestamps are equal/missing, fall back to selection context.
                 if (hasPanelClip && hasBubbleClip) {
-                    const panelTs = clipboardPanelCopiedAt ?? 0
-                    const bubbleTs = clipboardBubbleCopiedAt ?? 0
-                    if (panelTs > bubbleTs) pastePanel()
-                    else if (bubbleTs > panelTs) pasteBubble()
-                    else if (selectedPanelId && !selectedBubbleId && !selectedMaterialId) pastePanel()
-                    else pasteBubble()
+                    const panelTs = s.clipboardPanelCopiedAt ?? 0
+                    const bubbleTs = s.clipboardBubbleCopiedAt ?? 0
+                    if (panelTs > bubbleTs) s.pastePanel()
+                    else if (bubbleTs > panelTs) s.pasteBubble()
+                    else if (selectedPanelId && !selectedBubbleId && !selectedMaterialId) s.pastePanel()
+                    else s.pasteBubble()
                 } else if (hasPanelClip) {
-                    pastePanel()
+                    s.pastePanel()
                 } else {
-                    pasteBubble()
+                    s.pasteBubble()
                 }
             }
-        };
+        }
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [
-        selectedPanelId, 
-        selectedBubbleId, 
-        selectedMaterialId, 
-        removePanel, 
-        removeBubble, 
-        removeMaterial, 
-        undo, 
-        redo, 
-        saveProject, 
-        pages, 
-        currentPageId, 
-        updatePanel, 
-        copyBubble, 
-        pasteBubble,
-        copyPanel,
-        pastePanel,
-        clipboardBubble,
-        clipboardPanel,
-        clipboardBubbleCopiedAt,
-        clipboardPanelCopiedAt
-    ]);
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
 }

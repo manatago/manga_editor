@@ -16,7 +16,7 @@ interface BubbleSettingsProps {
 }
 
 const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, removeBubble, currentPageId }) => {
-    const { pages } = useMangaStore()
+    const pages = useMangaStore((s) => s.pages)
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">

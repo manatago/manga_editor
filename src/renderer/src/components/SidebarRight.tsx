@@ -1,6 +1,7 @@
 import React from 'react'
 import { FolderOpen, MessageSquare, Plus, Download, Upload, Image as ImageIcon, Settings, Save } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
+import { useShallow } from 'zustand/react/shallow'
 
 import PanelSettings from './sidebar/PanelSettings'
 import BubbleSettings from './sidebar/BubbleSettings'
@@ -8,13 +9,13 @@ import MaterialSettings from './sidebar/MaterialSettings'
 import PageSettings from './sidebar/PageSettings'
 
 const SidebarRight: React.FC = () => {
-    const { 
-        pages, 
-        currentPageId, 
-        selectedPanelId, 
-        selectedBubbleId, 
+    const {
+        pages,
+        currentPageId,
+        selectedPanelId,
+        selectedBubbleId,
         selectedMaterialId,
-        updatePanel, 
+        updatePanel,
         removePanel,
         reorderPanel,
         updateBubble,
@@ -25,7 +26,26 @@ const SidebarRight: React.FC = () => {
         addMaterial,
         updatePage,
         currentProjectPath
-    } = useMangaStore()
+    } = useMangaStore(
+        useShallow((s) => ({
+            pages: s.pages,
+            currentPageId: s.currentPageId,
+            selectedPanelId: s.selectedPanelId,
+            selectedBubbleId: s.selectedBubbleId,
+            selectedMaterialId: s.selectedMaterialId,
+            updatePanel: s.updatePanel,
+            removePanel: s.removePanel,
+            reorderPanel: s.reorderPanel,
+            updateBubble: s.updateBubble,
+            removeBubble: s.removeBubble,
+            addBubble: s.addBubble,
+            updateMaterial: s.updateMaterial,
+            removeMaterial: s.removeMaterial,
+            addMaterial: s.addMaterial,
+            updatePage: s.updatePage,
+            currentProjectPath: s.currentProjectPath
+        }))
+    )
 
     const currentPage = pages.find(p => p.id === currentPageId)
     const selectedPanel = currentPage?.panels.find(p => p.id === selectedPanelId)

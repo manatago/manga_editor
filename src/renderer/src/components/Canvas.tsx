@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react'
 import { Stage, Layer, Group, Rect, Line } from 'react-konva'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
+import { useShallow } from 'zustand/react/shallow'
 import { PanelItem } from './PanelItem'
 import { PanelProtrudeImage } from './PanelProtrudeImage'
 import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
@@ -41,7 +42,30 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
         selectedMosaicId,
         addMosaic,
         setSelectedMosaicId
-    } = useMangaStore()
+    } = useMangaStore(
+        useShallow((s) => ({
+            pages: s.pages,
+            currentPageId: s.currentPageId,
+            currentProjectPath: s.currentProjectPath,
+            updatePanel: s.updatePanel,
+            selectedPanelId: s.selectedPanelId,
+            setSelectedPanel: s.setSelectedPanel,
+            selectedBubbleId: s.selectedBubbleId,
+            setSelectedBubble: s.setSelectedBubble,
+            updateBubble: s.updateBubble,
+            selectedMaterialId: s.selectedMaterialId,
+            setSelectedMaterial: s.setSelectedMaterial,
+            addMaterial: s.addMaterial,
+            updateMaterial: s.updateMaterial,
+            isExporting: s.isExporting,
+            mosaicType: s.mosaicType,
+            mosaicVisible: s.mosaicVisible,
+            isMosaicMode: s.isMosaicMode,
+            selectedMosaicId: s.selectedMosaicId,
+            addMosaic: s.addMosaic,
+            setSelectedMosaicId: s.setSelectedMosaicId
+        }))
+    )
 
     const currentPage = pages.find((p) => p.id === currentPageId)
     const canvasWidth = currentPage?.pageWidth ?? 840

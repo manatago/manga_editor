@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Layout, Table, MessageSquare, Zap, BookTemplate, Trash2 } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
+import { useShallow } from 'zustand/react/shallow'
 
 interface TemplateModalProps {
     isOpen: boolean;
@@ -19,7 +20,17 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
     onOpenProject,
     onSaveCurrentAsTemplate
 }) => {
-    const { templates, pages, removeTemplate } = useMangaStore()
+    const {
+        templates,
+        pages,
+        removeTemplate
+    } = useMangaStore(
+        useShallow((s) => ({
+            templates: s.templates,
+            pages: s.pages,
+            removeTemplate: s.removeTemplate
+        }))
+    )
     const [isSavingTemplate, setIsSavingTemplate] = useState(false)
     const [templateName, setTemplateName] = useState('')
 

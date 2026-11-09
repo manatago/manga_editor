@@ -2,13 +2,9 @@ import { useMangaStore } from '../store/useMangaStore'
 import { showError } from '../utils/dialogs'
 
 export const useProjectActions = () => {
-    const {
-        currentProjectPath,
-        setCurrentProject,
-        setProjectData,
-        pages,
-        loadTemplates
-    } = useMangaStore()
+    // アクション関数は安定参照なので個別に取り出す（状態は購読しない＝編集のたびに再描画しない）
+    const setCurrentProject = useMangaStore((s) => s.setCurrentProject)
+    const setProjectData = useMangaStore((s) => s.setProjectData)
 
     const handleCreateNew = async () => {
         if (!window.electron) return
@@ -60,8 +56,8 @@ export const useProjectActions = () => {
     }
 
     const handleUseTemplate = async (templateId: string) => {
+        const { currentProjectPath, templates } = useMangaStore.getState()
         if (!currentProjectPath || !window.electron) return
-        const { templates } = useMangaStore.getState()
         const template = templates.find(t => t.id === templateId)
         if (template) {
             const { addPage } = useMangaStore.getState()

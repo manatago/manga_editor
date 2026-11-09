@@ -12,7 +12,7 @@ interface MaterialSettingsProps {
 }
 
 const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMaterial, removeMaterial, currentPageId, currentProjectPath }) => {
-    const { pages } = useMangaStore()
+    const pages = useMangaStore((s) => s.pages)
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
