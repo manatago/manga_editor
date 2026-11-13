@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles, Archive, RotateCcw } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Copy, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles, Archive, RotateCcw } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
@@ -41,6 +41,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         selectPage,
         addPage,
         movePage,
+        duplicatePage,
         removePage,
         restorePage,
         deleteArchivedPage,
@@ -61,6 +62,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
             selectPage: s.selectPage,
             addPage: s.addPage,
             movePage: s.movePage,
+            duplicatePage: s.duplicatePage,
             removePage: s.removePage,
             restorePage: s.restorePage,
             deleteArchivedPage: s.deleteArchivedPage,
@@ -335,6 +337,13 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                                     title="下に移動"
                                                 >
                                                     <ChevronDown size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); duplicatePage(page.id); }}
+                                                    className="p-1 text-zinc-500 hover:text-white transition-colors"
+                                                    title="ページを複製"
+                                                >
+                                                    <Copy size={14} />
                                                 </button>
                                                 <button
                                                     onClick={async (e) => {

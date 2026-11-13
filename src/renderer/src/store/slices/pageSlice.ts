@@ -22,6 +22,32 @@ export interface PageSlice {
     deleteArchivedPage: (id: string) => void
     updatePage: (id: string, updates: Partial<Page>) => void
     movePage: (id: string, direction: 'up' | 'down') => void
+    /** ページを丸ごと複製して直後に挿入し、複製したページを表示する */
+    duplicatePage: (id: string) => void
+}
+
+/**
+ * ページを ID を振り直して複製する。吹き出し・素材が持つ所属コマ（panelId）も新しいコマ ID に付け替える。
+ * 画像ファイルは複製せず同じパスを参照する（Assets整理では参照中として保護される）。
+ */
+export function clonePageWithNewIds(page: Page): Page {
+    const panelIdMap = new Map<string, string>()
+    const panels = page.panels.map((p) => {
+        const id = newId('panel')
+        panelIdMap.set(p.id, id)
+        return { ...p, id }
+    })
+    const remap = (panelId: string | undefined): string | undefined =>
+        panelId === undefined ? undefined : (panelIdMap.get(panelId) ?? panelId)
+    const { archivedAt: _archivedAt, ...rest } = page
+    return {
+        ...rest,
+        id: newId('page'),
+        panels,
+        bubbles: page.bubbles.map((b) => ({ ...b, id: newId('bubble'), panelId: remap(b.panelId) })),
+        materials: page.materials.map((m) => ({ ...m, id: newId('material'), panelId: remap(m.panelId) })),
+        ...(page.mosaics ? { mosaics: page.mosaics.map((m) => ({ ...m, id: newId('mosaic') })) } : {})
+    }
 }
 
 export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set, get) => ({
@@ -145,6 +171,25 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
             ...state,
             ...history,
             pages: state.pages.map((p) => (p.id === id ? { ...p, ...updates } : p))
+        }
+    }),
+
+    duplicatePage: (id) => set((state) => {
+        const index = state.pages.findIndex((p) => p.id === id)
+        if (index === -1) return state
+        const copy = clonePageWithNewIds(state.pages[index])
+        const pages = [...state.pages.slice(0, index + 1), copy, ...state.pages.slice(index + 1)].map((p, i) => ({
+            ...p,
+            name: String(i + 1).padStart(3, '0')
+        }))
+        return {
+            ...state,
+            ...saveHistory(state),
+            pages,
+            currentPageId: copy.id,
+            selectedPanelId: null,
+            selectedBubbleId: null,
+            selectedMaterialId: null
         }
     }),
 
