@@ -1,6 +1,9 @@
 import type { PageTemplate } from './store/types'
 
 declare global {
+    /** キャンバスのズーム操作（main/canvasZoomKeys.ts と同じ） */
+    type CanvasZoomCommand = 'in' | 'out' | 'fit' | 'actual'
+
     interface GitRepoStatus {
         isRepo: boolean
         branch: string
@@ -268,6 +271,8 @@ declare global {
             onAppBeforeClose: (cb: () => void) => () => void
             /** 閉じてよいと確定（ウィンドウを実際に閉じる） */
             confirmAppClose: () => void
+            /** キャンバスのズームキー（メインで横取りしたもの）を受け取る。返り値で購読解除 */
+            onCanvasZoomKey?: (cb: (cmd: CanvasZoomCommand) => void) => () => void
         }
     }
 }

@@ -174,7 +174,12 @@ if (process.contextIsolated) {
                 ipcRenderer.on('app-before-close', listener)
                 return () => ipcRenderer.removeListener('app-before-close', listener)
             },
-            confirmAppClose: () => ipcRenderer.send('app-confirm-close')
+            confirmAppClose: () => ipcRenderer.send('app-confirm-close'),
+            onCanvasZoomKey: (cb: (cmd: CanvasZoomCommand) => void) => {
+                const listener = (_e: unknown, cmd: CanvasZoomCommand): void => cb(cmd)
+                ipcRenderer.on('canvas-zoom-key', listener)
+                return () => { ipcRenderer.removeListener('canvas-zoom-key', listener) }
+            }
         })
     } catch (error) {
         console.error(error)
@@ -277,6 +282,11 @@ if (process.contextIsolated) {
             ipcRenderer.on('app-before-close', listener)
             return () => ipcRenderer.removeListener('app-before-close', listener)
         },
-        confirmAppClose: () => ipcRenderer.send('app-confirm-close')
+        confirmAppClose: () => ipcRenderer.send('app-confirm-close'),
+        onCanvasZoomKey: (cb: (cmd: CanvasZoomCommand) => void) => {
+            const listener = (_e: unknown, cmd: CanvasZoomCommand): void => cb(cmd)
+            ipcRenderer.on('canvas-zoom-key', listener)
+            return () => { ipcRenderer.removeListener('canvas-zoom-key', listener) }
+        }
     }
 }

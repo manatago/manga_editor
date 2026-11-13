@@ -3,6 +3,8 @@ import { Stage, Layer, Group, Rect, Line } from 'react-konva'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
 import { useShallow } from 'zustand/react/shallow'
+import { useCanvasView } from '../store/canvasView'
+import { CANVAS_PAGE_ATTR } from './Canvas/CanvasViewport'
 import { PanelItem } from './PanelItem'
 import { PanelProtrudeImage } from './PanelProtrudeImage'
 import { BubbleItem, BubbleClusterGroup } from './BubbleItem'
@@ -66,6 +68,21 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
             setSelectedMosaicId: s.setSelectedMosaicId
         }))
     )
+
+    const zoom = useCanvasView((s) => s.zoom)
+
+    // 拡大表示でぼやけないよう、描画解像度を倍率に合わせて上げる（メモリ節約のため上限 4 倍）
+    useEffect(() => {
+        const stage = stageRef.current
+        if (!stage) return
+        const ratio = Math.min(4, (window.devicePixelRatio || 1) * Math.max(1, zoom))
+        for (const layer of stage.getLayers()) {
+            if (layer.getCanvas().getPixelRatio() !== ratio) {
+                layer.getCanvas().setPixelRatio(ratio)
+                layer.batchDraw()
+            }
+        }
+    })
 
     const currentPage = pages.find((p) => p.id === currentPageId)
     const canvasWidth = currentPage?.pageWidth ?? 840
@@ -180,12 +197,20 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
     }, [panels, selectedPanelId])
 
     return (
+        // min-w-full + w-max: 小さいときは中央寄せ、拡大して画面より大きくなったら左上からスクロールできる
         <div
-            className="flex flex-col items-center justify-center min-h-full py-12"
+            className="flex items-center justify-center min-h-full min-w-full w-max p-12"
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
         >
-            <div className="bg-white shadow-2xl origin-top" style={{ width: canvasWidth, height: canvasHeight }}>
+            {/* 外枠は拡大後のサイズでレイアウトを確保し、内側を CSS で拡大する。
+                Konva はポインタ座標を CSS の拡大率で補正するため、各要素の座標処理はそのままでよい */}
+            <div
+                {...{ [CANVAS_PAGE_ATTR]: '' }}
+                className="shrink-0 bg-white shadow-2xl"
+                style={{ width: canvasWidth * zoom, height: canvasHeight * zoom }}
+            >
+            <div style={{ width: canvasWidth, height: canvasHeight, transform: `scale(${zoom})`, transformOrigin: '0 0' }}>
                 <Stage
                     ref={stageRef}
                     width={canvasWidth}
@@ -482,6 +507,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                         )}
                     </Layer>
                 </Stage>
+            </div>
             </div>
         </div>
     )

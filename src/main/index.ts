@@ -13,6 +13,7 @@ import { registerNovelAIHandlers } from './ipc/novelai'
 import { registerLocalizationHandlers } from './ipc/localization'
 import { registerGitHandlers } from './ipc/git'
 import { registerReferencePagesHandlers } from './ipc/referencePages'
+import { canvasZoomCommandFor } from './canvasZoomKeys'
 
 // Add this for renderer logs to terminal
 ipcMain.on('renderer-log', (_e, level, ...args) => {
@@ -54,6 +55,14 @@ function createWindow(): void {
     ipcMain.on('app-confirm-close', onConfirmClose)
     mainWindow.on('closed', () => {
         ipcMain.removeListener('app-confirm-close', onConfirmClose)
+    })
+
+    // キャンバスのズームキーを標準メニュー（画面全体のズーム）より先に横取りしてレンダラーへ渡す
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        const cmd = canvasZoomCommandFor(input)
+        if (!cmd) return
+        event.preventDefault()
+        mainWindow.webContents.send('canvas-zoom-key', cmd)
     })
 
     mainWindow.webContents.setWindowOpenHandler((details) => {

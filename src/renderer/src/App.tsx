@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import Canvas from './components/Canvas'
+import { CanvasViewport } from './components/Canvas/CanvasViewport'
 import SidebarLeft from './components/SidebarLeft'
 import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
@@ -418,14 +419,14 @@ function App(): React.JSX.Element {
                     )}
                 </div>
 
-                <div className="flex-1 overflow-auto bg-zinc-950 relative manga-scrollbar">
+                <CanvasViewport>
                     {currentPageId ? <Canvas stageRef={stageRef} /> : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-800">
                             <PanelTop size={64} className="mb-4 opacity-10" />
                             <p className="text-sm font-medium opacity-40">ページを選択して編集を開始してください</p>
                         </div>
                     )}
-                </div>
+                </CanvasViewport>
 
                 {currentProjectPath && <ManuscriptPanel />}
             </div>
