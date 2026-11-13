@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Panel } from '../types'
-import { historyKey, saveHistory } from '../helpers'
+import { historyKey, newId, saveHistory } from '../helpers'
 
 export interface PanelSlice {
     selectedPanelId: string | null
@@ -152,7 +152,7 @@ export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (s
         const history = saveHistory(state)
         const newPanel: Panel = {
             ...state.clipboardPanel,
-            id: `panel_${new Date().getTime()}`,
+            id: newId('panel'),
             x: (state.clipboardPanel.x ?? 0) + 20,
             y: (state.clipboardPanel.y ?? 0) + 20
         }

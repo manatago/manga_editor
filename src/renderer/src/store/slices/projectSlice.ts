@@ -1,11 +1,12 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { PageTemplate, MangaProjectData, Page } from '../types'
-import { toRelativeAssetPath, physicalFileToRelative, isAssetTrashRelativePath } from '../../utils/projectAssets'
+import { physicalFileToRelative, isAssetTrashRelativePath } from '../../utils/projectAssets'
 import { normalizeReferenceCharacters } from '../../utils/referenceCharacters'
 import { normalizeBackgroundLibrary } from '../../utils/backgroundLibrary'
 import { confirmMessage, showError, showInfo } from '../../utils/dialogs'
-import { sanitizePage } from './project/sanitize'
+import { sanitizePage, relativizePageAssets } from './project/sanitize'
+import { collectReferencedAssetPaths, isProtectedAssetDir } from './project/assetRefs'
 import { resetHistoryCoalesce } from '../helpers'
 
 /** 「最後に見ていたページ」を端末ローカルに保持するための localStorage キー（プロジェクト単位） */
@@ -34,31 +35,6 @@ export interface ProjectSlice {
     removeTemplate: (id: string) => Promise<void>
     setExporting: (val: boolean) => void
     cleanupAssets: () => Promise<void>
-}
-
-/** ページ内のアセットパスを保存用に相対パスへ変換する（pages / archivedPages 共通） */
-function relativizePageAssets(pp: string, page: Page): Page {
-    return {
-        ...page,
-        panels: page.panels.map((p) => ({
-            ...p,
-            imagePath: toRelativeAssetPath(pp, p.imagePath) ?? p.imagePath,
-            backgroundImagePath: p.backgroundImagePath?.startsWith('builtin://')
-                ? p.backgroundImagePath
-                : p.backgroundImagePath
-                  ? toRelativeAssetPath(pp, p.backgroundImagePath) ?? p.backgroundImagePath
-                  : undefined
-        })),
-        materials: (page.materials || []).map((m) => ({
-            ...m,
-            imagePath: toRelativeAssetPath(pp, m.imagePath) ?? m.imagePath
-        })),
-        backgroundImagePath: page.backgroundImagePath?.startsWith('builtin://')
-            ? page.backgroundImagePath
-            : page.backgroundImagePath
-              ? toRelativeAssetPath(pp, page.backgroundImagePath) ?? page.backgroundImagePath
-              : undefined
-    }
 }
 
 export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> = (set, get) => ({
@@ -133,8 +109,8 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
                 manuscript: state.manuscript
             }
         }
-        const pages = state.pages.map((page) => relativizePageAssets(pp, page))
-        const archivedPages = state.archivedPages.map((page) => relativizePageAssets(pp, page))
+        const pages = state.pages.map((page) => relativizePageAssets(page, pp))
+        const archivedPages = state.archivedPages.map((page) => relativizePageAssets(page, pp))
         return {
             pages,
             archivedPages,
@@ -227,51 +203,13 @@ export const createProjectSlice: StateCreator<MangaState, [], [], ProjectSlice> 
             return
         }
         try {
-            const referencedPaths = new Set<string>()
             const pp = state.currentProjectPath
-            // 保管ページ（アーカイブ）の画像も「使用中」として保護し、勝手にゴミ箱へ送らない
-            const allPagesForRefs = [...state.pages, ...state.archivedPages]
-            allPagesForRefs.forEach((page) => {
-                page.panels.forEach((panel) => {
-                    if (panel.imagePath) {
-                        const rel = toRelativeAssetPath(pp, panel.imagePath) ?? panel.imagePath
-                        referencedPaths.add(rel)
-                    }
-                    const pbg = panel.backgroundImagePath
-                    if (pbg && !pbg.startsWith('builtin://')) {
-                        const rel = toRelativeAssetPath(pp, pbg) ?? pbg
-                        referencedPaths.add(rel)
-                    }
-                })
-                page.materials.forEach((material) => {
-                    if (material.imagePath) {
-                        const rel = toRelativeAssetPath(pp, material.imagePath) ?? material.imagePath
-                        referencedPaths.add(rel)
-                    }
-                })
-            })
-            state.referenceCharacters.forEach((ch) => {
-                ch.images.forEach((im) => {
-                    const rel = toRelativeAssetPath(pp, im.relativePath) ?? im.relativePath
-                    referencedPaths.add(rel)
-                })
-            })
-            state.backgroundLibrary.forEach((bg) => {
-                const rel = toRelativeAssetPath(pp, bg.relativePath) ?? bg.relativePath
-                referencedPaths.add(rel)
-            })
-            allPagesForRefs.forEach((page) => {
-                const bp = page.backgroundImagePath
-                if (bp && !bp.startsWith('builtin://')) {
-                    const rel = toRelativeAssetPath(pp, bp) ?? bp
-                    referencedPaths.add(rel)
-                }
-            })
+            const referencedPaths = collectReferencedAssetPaths(pp, state)
 
             const physicalAssets = await window.electron.getAssets(state.currentProjectPath)
             const unusedAssets = physicalAssets.filter((fullPath) => {
                 const rel = physicalFileToRelative(pp, fullPath)
-                if (isAssetTrashRelativePath(rel)) return false
+                if (isAssetTrashRelativePath(rel) || isProtectedAssetDir(rel)) return false
                 return !referencedPaths.has(rel)
             })
 

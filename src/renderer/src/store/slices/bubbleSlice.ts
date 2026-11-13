@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Bubble, BubbleType } from '../types'
-import { historyKey, saveHistory } from '../helpers'
+import { historyKey, newId, saveHistory } from '../helpers'
 import {
     bubbleToLastStyleSlice,
     loadBubbleLastStylesFromStorage,
@@ -154,7 +154,7 @@ export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = 
         const history = saveHistory(state)
         const newBubble: Bubble = {
             ...state.clipboardBubble,
-            id: `bubble_${new Date().getTime()}`,
+            id: newId('bubble'),
             x: state.clipboardBubble.x + 20,
             y: state.clipboardBubble.y + 20
         }

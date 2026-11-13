@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Page, Panel } from '../types'
-import { historyKey, saveHistory } from '../helpers'
+import { historyKey, newId, saveHistory } from '../helpers'
 
 export interface SelectPageOptions {
     /** 一括エクスポート等でページを素早く切り替えるとき true（毎回の saveProject を省略） */
@@ -32,14 +32,14 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
     addPage: (panels = []) => set((state) => {
         const history = saveHistory(state)
         const newPage: Page = {
-            id: `page_${new Date().getTime()}`,
+            id: newId('page'),
             name: String(state.pages.length + 1).padStart(3, '0'),
             pageWidth: 840,
             pageHeight: 1188,
             gridEnabled: false,
             gridSize: 24,
             panels: panels.map(p => ({
-                id: `panel_${Math.random().toString(36).substr(2, 9)}`,
+                id: newId('panel'),
                 ...p
             })) as Panel[],
             bubbles: [],

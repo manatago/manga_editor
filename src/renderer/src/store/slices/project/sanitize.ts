@@ -126,7 +126,7 @@ function sanitizeBubble(bubble: Bubble): Bubble {
     }
 }
 
-function sanitizePanel(panel: Panel, projectPath: string | null): Panel {
+function sanitizePanel(panel: Panel): Panel {
     let width = panel.width
     let height = panel.height
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -200,11 +200,8 @@ function sanitizePanel(panel: Panel, projectPath: string | null): Panel {
         gloomLineDensity: panel.gloomLineDensity ?? 60,
         gloomLineOpacity: panel.gloomLineOpacity ?? 0.6,
         gloomLineLength: panel.gloomLineLength ?? 0.6,
-        imagePath: relativizeAsset(projectPath, panel.imagePath),
-        protrudeImagePath: relativizeAsset(projectPath, panel.protrudeImagePath),
         protrudeBgOpacity: panel.protrudeBgOpacity ?? 1,
         protrudeBgBlur: panel.protrudeBgBlur ?? 0,
-        backgroundImagePath: relativizeWithProtocol(projectPath, panel.backgroundImagePath, ['builtin://', 'custom-tone://']),
         backgroundImageOpacity:
             panel.backgroundImageOpacity != null
                 ? Math.max(0, Math.min(1, panel.backgroundImageOpacity))
@@ -240,7 +237,6 @@ function sanitizePanel(panel: Panel, projectPath: string | null): Panel {
             typeof panel.backgroundImageFadeStrength === 'number'
                 ? Math.max(0, Math.min(1, panel.backgroundImageFadeStrength))
                 : undefined,
-        fgTonePath: relativizeWithProtocol(projectPath, panel.fgTonePath, ['builtin://', 'custom-tone://']),
         fgToneOpacity:
             panel.fgToneOpacity != null
                 ? Math.max(0, Math.min(1, panel.fgToneOpacity))
@@ -287,7 +283,7 @@ function sanitizeMosaic(m: MosaicRegion): MosaicRegion {
     }
 }
 
-function sanitizeMaterial(mat: Material, projectPath: string | null): Material {
+function sanitizeMaterial(mat: Material): Material {
     return {
         ...mat,
         opacity: mat.opacity ?? 1,
@@ -297,13 +293,12 @@ function sanitizeMaterial(mat: Material, projectPath: string | null): Material {
         grayscaleBrightness:
             typeof mat.grayscaleBrightness === 'number' && !Number.isNaN(mat.grayscaleBrightness)
                 ? Math.max(-0.5, Math.min(0.5, mat.grayscaleBrightness))
-                : 0,
-        imagePath: relativizeAsset(projectPath, mat.imagePath) ?? mat.imagePath
+                : 0
     }
 }
 
 export function sanitizePage(page: Page, projectPath: string | null): Page {
-    return {
+    return relativizePageAssets({
         ...page,
         pageWidth: Math.max(400, Math.round(page.pageWidth ?? 840)),
         pageHeight: Math.max(400, Math.round(page.pageHeight ?? 1188)),
@@ -312,10 +307,9 @@ export function sanitizePage(page: Page, projectPath: string | null): Page {
         backgroundColor: page.backgroundColor || '#ffffff',
         backgroundOpacity: page.backgroundOpacity ?? 1,
         bubbles: (page.bubbles || []).map(sanitizeBubble),
-        panels: (page.panels || []).map((p) => sanitizePanel(p, projectPath)),
+        panels: (page.panels || []).map(sanitizePanel),
         mosaics: (page.mosaics || []).map(sanitizeMosaic),
-        materials: (page.materials || []).map((m) => sanitizeMaterial(m, projectPath)),
-        backgroundImagePath: relativizeWithProtocol(projectPath, page.backgroundImagePath, ['builtin://']),
+        materials: (page.materials || []).map(sanitizeMaterial),
         backgroundImageOpacity:
             page.backgroundImageOpacity != null
                 ? Math.max(0, Math.min(1, page.backgroundImageOpacity))
@@ -324,5 +318,32 @@ export function sanitizePage(page: Page, projectPath: string | null): Page {
             page.backgroundImageFit === 'stretch' || page.backgroundImageFit === 'tile'
                 ? page.backgroundImageFit
                 : undefined
+    }, projectPath)
+}
+
+const TONE_PROTOCOLS = ['builtin://', 'custom-tone://'] as const
+
+/**
+ * ページ内の画像パスをすべて「プロジェクトルートからの相対パス」に揃える。
+ * 読み込み（sanitizePage）と保存（getProjectData）の両方で使い、対象項目を一箇所で管理する。
+ * oraSourcePath はプロジェクト外の元ファイル参照なので対象外。
+ */
+export function relativizePageAssets(page: Page, projectPath: string | null): Page {
+    return {
+        ...page,
+        panels: (page.panels || []).map((p) => ({
+            ...p,
+            imagePath: relativizeAsset(projectPath, p.imagePath),
+            protrudeImagePath: relativizeAsset(projectPath, p.protrudeImagePath),
+            mangaImagePath: relativizeAsset(projectPath, p.mangaImagePath),
+            mangaProtrudePath: relativizeAsset(projectPath, p.mangaProtrudePath),
+            backgroundImagePath: relativizeWithProtocol(projectPath, p.backgroundImagePath, TONE_PROTOCOLS),
+            fgTonePath: relativizeWithProtocol(projectPath, p.fgTonePath, TONE_PROTOCOLS)
+        })),
+        materials: (page.materials || []).map((m) => ({
+            ...m,
+            imagePath: relativizeAsset(projectPath, m.imagePath) ?? m.imagePath
+        })),
+        backgroundImagePath: relativizeWithProtocol(projectPath, page.backgroundImagePath, ['builtin://'])
     }
 }

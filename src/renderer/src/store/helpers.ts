@@ -73,3 +73,16 @@ export const saveHistory = (
         lastHistoryAt: now
     }
 }
+
+/**
+ * 衝突しない ID を作る（接頭辞は既存データと見分けやすくするため残す）。
+ * 以前の `${prefix}_${Date.now()}` は同一ミリ秒に複数作ると重複していた。
+ */
+export const newId = (prefix: string): string => {
+    const rand =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID().replace(/-/g, '').slice(0, 20)
+            : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+    // 英数字のみ・短め（NovelAI の保存フォルダ名などに使われ、メイン側で 40 文字に切り詰められるため）
+    return `${prefix}_${rand}`
+}

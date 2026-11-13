@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { Material } from '../types'
-import { historyKey, saveHistory } from '../helpers'
+import { historyKey, newId, saveHistory } from '../helpers'
 
 export interface MaterialSlice {
     selectedMaterialId: string | null
@@ -20,7 +20,7 @@ export const createMaterialSlice: StateCreator<MangaState, [], [], MaterialSlice
         if (!state.currentPageId) return state
         const history = saveHistory(state)
         const newMaterial: Material = {
-            id: `material_${new Date().getTime()}`,
+            id: newId('material'),
             imagePath: '',
             x: 100,
             y: 100,
