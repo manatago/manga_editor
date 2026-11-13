@@ -4,6 +4,7 @@ import { BubbleTypeIcon } from '../icons/BubbleTypeIcon'
 import { BUBBLE_TYPE_LABELS, BUBBLE_TYPE_ORDER } from '../icons/bubbleTypeMeta'
 import { useMangaStore, Bubble } from '../../store/useMangaStore'
 import { findTargetPanel } from '../utils/geometry'
+import { SliderField } from './SliderField'
 
 const SECTION_TITLE_CLASS =
     'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
@@ -82,66 +83,55 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                 </div>
 
                 <div>
-                    <div className="flex justify-between mb-1">
-                        <label className="text-xs text-zinc-400">変形の強さ</label>
-                        <span className="text-xs text-blue-500 font-mono">{Math.round((bubble.deformation ?? 1) * 100)}%</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="3"
-                        step="0.1"
+                    <SliderField
+                        label="変形の強さ"
+                        display={<>{Math.round((bubble.deformation ?? 1) * 100)}%</>}
                         value={bubble.deformation ?? 1}
-                        onChange={(e) => updateBubble(bubble.id, { deformation: parseFloat(e.target.value) })}
-                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        min={0}
+                        max={3}
+                        step={0.1}
+                        onChange={(v) => updateBubble(bubble.id, { deformation: v })}
+                        variant="normal"
                     />
                 </div>
 
                 {(bubble.type === 'jagged' || bubble.type === 'flash') && (
                     <div>
-                        <div className="flex justify-between mb-1">
-                            <label className="text-xs text-zinc-400">ギザの数</label>
-                            <span className="text-xs text-blue-500 font-mono">{bubble.spikeCount ?? 36}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="8"
-                            max="100"
-                            step="1"
+                        <SliderField
+                            label="ギザの数"
+                            display={bubble.spikeCount ?? 36}
                             value={bubble.spikeCount ?? 36}
-                            onChange={(e) => updateBubble(bubble.id, { spikeCount: parseInt(e.target.value) })}
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={8}
+                            max={100}
+                            step={1}
+                            onChange={(v) => updateBubble(bubble.id, { spikeCount: v })}
+                            variant="normal"
                         />
                     </div>
                 )}
 
                 {bubble.type === 'flash' && (
                     <div>
-                        <div className="flex justify-between mb-1">
-                            <label className="text-xs text-zinc-400">集中線の長さ</label>
-                            <span className="text-xs text-blue-500 font-mono">{Math.round((bubble.flashLength ?? 1) * 100)}%</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0.1"
-                            max="5"
-                            step="0.1"
+                        <SliderField
+                            label="集中線の長さ"
+                            display={<>{Math.round((bubble.flashLength ?? 1) * 100)}%</>}
                             value={bubble.flashLength ?? 1}
-                            onChange={(e) => updateBubble(bubble.id, { flashLength: parseFloat(e.target.value) })}
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={0.1}
+                            max={5}
+                            step={0.1}
+                            onChange={(v) => updateBubble(bubble.id, { flashLength: v })}
+                            variant="normal"
                         />
-                        <div className="flex justify-between mb-1 mt-3">
-                            <label className="text-xs text-zinc-400">背景の塗り広がり</label>
-                            <span className="text-xs text-blue-500 font-mono">{Math.round((bubble.flashFillRadius ?? 0.55) * 100)}%</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0.05"
-                            max="0.99"
-                            step="0.01"
+                        <SliderField
+                            label="背景の塗り広がり"
+                            display={<>{Math.round((bubble.flashFillRadius ?? 0.55) * 100)}%</>}
                             value={bubble.flashFillRadius ?? 0.55}
-                            onChange={(e) => updateBubble(bubble.id, { flashFillRadius: parseFloat(e.target.value) })}
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={0.05}
+                            max={0.99}
+                            step={0.01}
+                            onChange={(v) => updateBubble(bubble.id, { flashFillRadius: v })}
+                            variant="normal"
+                            headerClassName="mb-1 mt-3"
                         />
                         <p className="text-[10px] text-zinc-500 mt-1">大きくすると中心以外の透明フェードが減り、ほぼベタ塗りになります。</p>
                     </div>
@@ -149,18 +139,15 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
 
                 {bubble.type === 'megaphone' && (
                     <div>
-                        <div className="flex justify-between mb-1">
-                            <label className="text-xs text-zinc-400">下辺の狭さ</label>
-                            <span className="text-xs text-blue-500 font-mono">{Math.round((1 - (bubble.narrowRatio ?? 0.3)) * 100)}%</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0.1"
-                            max="0.9"
-                            step="0.05"
+                        <SliderField
+                            label="下辺の狭さ"
+                            display={<>{Math.round((1 - (bubble.narrowRatio ?? 0.3)) * 100)}%</>}
                             value={bubble.narrowRatio ?? 0.3}
-                            onChange={(e) => updateBubble(bubble.id, { narrowRatio: parseFloat(e.target.value) })}
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={0.1}
+                            max={0.9}
+                            step={0.05}
+                            onChange={(v) => updateBubble(bubble.id, { narrowRatio: v })}
+                            variant="normal"
                         />
                     </div>
                 )}
@@ -478,18 +465,16 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                     </div>
                 </div>
                 <div>
-                    <div className="flex justify-between mb-2">
-                        <label className="text-xs text-zinc-400">全体の不透明度</label>
-                        <span className="text-xs text-blue-500 font-mono">{Math.round(bubble.opacity * 100)}%</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
+                    <SliderField
+                        label="全体の不透明度"
+                        display={<>{Math.round(bubble.opacity * 100)}%</>}
                         value={bubble.opacity}
-                        onChange={(e) => updateBubble(bubble.id, { opacity: parseFloat(e.target.value) })}
-                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => updateBubble(bubble.id, { opacity: v })}
+                        variant="normal"
+                        headerClassName="mb-2"
                     />
                 </div>
             </div>

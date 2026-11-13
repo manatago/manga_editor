@@ -30,6 +30,17 @@ import { PanelTypeIcon } from './components/icons/PanelTypeIcon'
 import { BubbleTypeIcon } from './components/icons/BubbleTypeIcon'
 import { BUBBLE_TYPE_LABELS, BUBBLE_TYPE_ORDER } from './components/icons/bubbleTypeMeta'
 
+/** 上部バーのコマ追加ボタン（表示順） */
+const PANEL_ADD_BUTTONS: ReadonlyArray<{ type: PanelType; title: string }> = [
+    { type: 'rect', title: '矩形' },
+    { type: 'slanted', title: '斜め' },
+    { type: 'trapezoid-h', title: '台形（横）' },
+    { type: 'trapezoid-v', title: '台形（縦）' },
+    { type: 'pentagon', title: '正五角形' },
+    { type: 'hexagon', title: '正六角形' },
+    { type: 'circle', title: '円' }
+]
+
 function App(): React.JSX.Element {
     // App は描画に必要な最小限だけを購読する。ページ内容（pages 等）は購読しない：
     // 購読すると編集のたびに App 全体（＝ほぼ全 UI）が再描画される。
@@ -363,27 +374,11 @@ function App(): React.JSX.Element {
                         {currentPageId && (
                             <>
                                 <div className="flex shrink-0 bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
-                                    <button onClick={() => handleAddPanelWithType('rect')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="矩形">
-                                        <PanelTypeIcon type="rect" size={16} />
-                                    </button>
-                                    <button onClick={() => handleAddPanelWithType('slanted')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="斜め">
-                                        <PanelTypeIcon type="slanted" size={16} />
-                                    </button>
-                                    <button onClick={() => handleAddPanelWithType('trapezoid-h')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="台形（横）">
-                                        <PanelTypeIcon type="trapezoid-h" size={16} />
-                                    </button>
-                                    <button onClick={() => handleAddPanelWithType('trapezoid-v')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="台形（縦）">
-                                        <PanelTypeIcon type="trapezoid-v" size={16} />
-                                    </button>
-                                    <button onClick={() => handleAddPanelWithType('pentagon')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="正五角形">
-                                        <PanelTypeIcon type="pentagon" size={16} />
-                                    </button>
-                                    <button onClick={() => handleAddPanelWithType('hexagon')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="正六角形">
-                                        <PanelTypeIcon type="hexagon" size={16} />
-                                    </button>
-                                    <button onClick={() => handleAddPanelWithType('circle')} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title="円">
-                                        <PanelTypeIcon type="circle" size={16} />
-                                    </button>
+                                    {PANEL_ADD_BUTTONS.map(({ type, title }) => (
+                                        <button key={type} onClick={() => handleAddPanelWithType(type)} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title={title}>
+                                            <PanelTypeIcon type={type} size={16} />
+                                        </button>
+                                    ))}
                                 </div>
                                 <div className="flex shrink-0 bg-zinc-800/50 p-1 rounded-lg border border-zinc-800 ml-1 lg:ml-4">
                                     {BUBBLE_TYPE_ORDER.map((type) => (

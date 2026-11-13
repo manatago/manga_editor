@@ -1,6 +1,7 @@
 import React from 'react'
 import { FolderOpen, MessageSquare } from 'lucide-react'
 import type { Page, Bubble, Material, GradientType } from '../../store/types'
+import { SliderField } from './SliderField'
 
 const PAGE_SIZE_PRESETS = [
     { id: 'manga-default', label: '漫画野郎標準 (840 x 1188)', w: 840, h: 1188 },
@@ -84,18 +85,14 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                 </button>
                             </label>
                             <div>
-                                <div className="flex justify-between mb-1">
-                                    <label className="text-[10px] text-zinc-500 uppercase">グリッド間隔</label>
-                                    <span className="text-[10px] text-blue-500 font-mono">{Math.max(8, Math.round(currentPage?.gridSize ?? 24))}px</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="8"
-                                    max="200"
-                                    step="2"
+                                <SliderField
+                                    label="グリッド間隔"
+                                    display={<>{Math.max(8, Math.round(currentPage?.gridSize ?? 24))}px</>}
                                     value={Math.max(8, Math.round(currentPage?.gridSize ?? 24))}
-                                    onChange={(e) => currentPageId && updatePage(currentPageId, { gridSize: Math.max(8, Number(e.target.value) || 24) })}
-                                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    min={8}
+                                    max={200}
+                                    step={2}
+                                    onChange={(v) => currentPageId && updatePage(currentPageId, { gridSize: Math.max(8, v || 24) })}
                                 />
                             </div>
                         </div>
@@ -124,15 +121,16 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                 />
                             </div>
                             <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-xs text-zinc-400">背景不透明度</label>
-                                    <span className="text-xs text-blue-500 font-mono">{Math.round((currentPage?.backgroundOpacity ?? 1) * 100)}%</span>
-                                </div>
-                                <input
-                                    type="range" min="0" max="1" step="0.05"
+                                <SliderField
+                                    label="背景不透明度"
+                                    display={<>{Math.round((currentPage?.backgroundOpacity ?? 1) * 100)}%</>}
                                     value={currentPage?.backgroundOpacity ?? 1}
-                                    onChange={(e) => currentPageId && updatePage(currentPageId, { backgroundOpacity: parseFloat(e.target.value) })}
-                                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    min={0}
+                                    max={1}
+                                    step={0.05}
+                                    onChange={(v) => currentPageId && updatePage(currentPageId, { backgroundOpacity: v })}
+                                    variant="normal"
+                                    headerClassName="mb-2"
                                 />
                             </div>
 
@@ -173,15 +171,13 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                     </div>
                                     {currentPage.bgGradientType === 'linear' && (
                                         <div>
-                                            <div className="flex justify-between mb-1">
-                                                <label className="text-[10px] text-zinc-500 uppercase">Rotation</label>
-                                                <span className="text-[10px] text-blue-500 font-mono">{currentPage.bgGradientRotation ?? 0}°</span>
-                                            </div>
-                                            <input
-                                                type="range" min="0" max="360"
+                                            <SliderField
+                                                label="Rotation"
+                                                display={<>{currentPage.bgGradientRotation ?? 0}°</>}
                                                 value={currentPage.bgGradientRotation ?? 0}
-                                                onChange={(e) => currentPageId && updatePage(currentPageId, { bgGradientRotation: parseInt(e.target.value) })}
-                                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                min={0}
+                                                max={360}
+                                                onChange={(v) => currentPageId && updatePage(currentPageId, { bgGradientRotation: v })}
                                             />
                                         </div>
                                     )}

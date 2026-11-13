@@ -6,6 +6,7 @@ import { PanelTypeIcon } from '../icons/PanelTypeIcon'
 import { DOT_CIRCLE_COLORS } from '../effects/StippleCircles'
 import { importOraToPanel } from '../../utils/ora/importOra'
 import { ALL_EDGES, type ProtrudeEdge } from '../../utils/ora/protrudeClip'
+import { SliderField } from './SliderField'
 
 const SECTION_TITLE_CLASS = 'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
 
@@ -127,17 +128,13 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                     ))}
                 </div>
                 <div className="pt-4">
-                    <div className="flex justify-between mb-1">
-                        <label className="text-[10px] text-zinc-500 uppercase">回転</label>
-                        <span className="text-[10px] text-blue-500 font-mono">{panel.rotation ?? 0}°</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="-180"
-                        max="180"
+                    <SliderField
+                        label="回転"
+                        display={<>{panel.rotation ?? 0}°</>}
                         value={panel.rotation ?? 0}
-                        onChange={(e) => updatePanel(panel.id, { rotation: parseInt(e.target.value) })}
-                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        min={-180}
+                        max={180}
+                        onChange={(v) => updatePanel(panel.id, { rotation: v })}
                     />
                 </div>
             </div>
@@ -148,47 +145,101 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                     <div className="space-y-4">
                         {panel.type === 'slanted' && (
                             <div>
-                                <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">傾き</label><span className="text-[10px] text-blue-500 font-mono">{panel.slant}px</span></div>
-                                <input type="range" min="-200" max="200" value={panel.slant} onChange={(e) => updatePanel(panel.id, { slant: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                <SliderField
+                                    label="傾き"
+                                    display={<>{panel.slant}px</>}
+                                    value={panel.slant}
+                                    min={-200}
+                                    max={200}
+                                    onChange={(v) => updatePanel(panel.id, { slant: v })}
+                                />
                             </div>
                         )}
                         {panel.type === 'trapezoid-h' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">左上</label><span className="text-[10px] text-blue-500 font-mono">{panel.slant}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.slant} onChange={(e) => updatePanel(panel.id, { slant: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="左上"
+                                        display={<>{panel.slant}px</>}
+                                        value={panel.slant}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { slant: v })}
+                                    />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">右上</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetB}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetB} onChange={(e) => updatePanel(panel.id, { offsetB: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="右上"
+                                        display={<>{panel.offsetB}px</>}
+                                        value={panel.offsetB}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { offsetB: v })}
+                                    />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">左下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetD}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetD} onChange={(e) => updatePanel(panel.id, { offsetD: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="左下"
+                                        display={<>{panel.offsetD}px</>}
+                                        value={panel.offsetD}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { offsetD: v })}
+                                    />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">右下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetC}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetC} onChange={(e) => updatePanel(panel.id, { offsetC: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="右下"
+                                        display={<>{panel.offsetC}px</>}
+                                        value={panel.offsetC}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { offsetC: v })}
+                                    />
                                 </div>
                             </div>
                         )}
                         {panel.type === 'trapezoid-v' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">左上</label><span className="text-[10px] text-blue-500 font-mono">{panel.slant}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.slant} onChange={(e) => updatePanel(panel.id, { slant: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="左上"
+                                        display={<>{panel.slant}px</>}
+                                        value={panel.slant}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { slant: v })}
+                                    />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">左下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetB}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetB} onChange={(e) => updatePanel(panel.id, { offsetB: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="左下"
+                                        display={<>{panel.offsetB}px</>}
+                                        value={panel.offsetB}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { offsetB: v })}
+                                    />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">右下</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetC}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetC} onChange={(e) => updatePanel(panel.id, { offsetC: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="右下"
+                                        display={<>{panel.offsetC}px</>}
+                                        value={panel.offsetC}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { offsetC: v })}
+                                    />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between mb-1"><label className="text-[10px] text-zinc-500 uppercase">右上</label><span className="text-[10px] text-blue-500 font-mono">{panel.offsetD}px</span></div>
-                                    <input type="range" min="-200" max="200" value={panel.offsetD} onChange={(e) => updatePanel(panel.id, { offsetD: parseInt(e.target.value) })} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                    <SliderField
+                                        label="右上"
+                                        display={<>{panel.offsetD}px</>}
+                                        value={panel.offsetD}
+                                        min={-200}
+                                        max={200}
+                                        onChange={(v) => updatePanel(panel.id, { offsetD: v })}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -243,18 +294,14 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                         />
                     </div>
                     <div>
-                        <div className="flex justify-between mb-1">
-                            <label className="text-[10px] text-zinc-500 uppercase">太さ</label>
-                            <span className="text-[10px] text-blue-500 font-mono">{panel.strokeWidth}px</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="20"
-                            step="0.5"
+                        <SliderField
+                            label="太さ"
+                            display={<>{panel.strokeWidth}px</>}
                             value={panel.strokeWidth}
-                            onChange={(e) => updatePanel(panel.id, { strokeWidth: parseFloat(e.target.value) })}
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={0}
+                            max={20}
+                            step={0.5}
+                            onChange={(v) => updatePanel(panel.id, { strokeWidth: v })}
                         />
                     </div>
                 </div>
@@ -377,15 +424,13 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                             </div>
                             {panel.bgGradientType === 'linear' && (
                                 <div>
-                                    <div className="flex justify-between mb-1">
-                                        <label className="text-[10px] text-zinc-500 uppercase">回転</label>
-                                        <span className="text-[10px] text-blue-500 font-mono">{panel.bgGradientRotation ?? 0}°</span>
-                                    </div>
-                                    <input
-                                        type="range" min="0" max="360"
+                                    <SliderField
+                                        label="回転"
+                                        display={<>{panel.bgGradientRotation ?? 0}°</>}
                                         value={panel.bgGradientRotation ?? 0}
-                                        onChange={(e) => updatePanel(panel.id, { bgGradientRotation: parseInt(e.target.value) })}
-                                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                        min={0}
+                                        max={360}
+                                        onChange={(v) => updatePanel(panel.id, { bgGradientRotation: v })}
                                     />
                                 </div>
                             )}
@@ -398,17 +443,14 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                 <h3 className={SECTION_TITLE_CLASS}>画面効果</h3>
                 {panel.imagePath && (
                     <div className="animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between mb-2">
-                            <label className="text-[10px] text-zinc-500 uppercase">ぼかし</label>
-                            <span className="text-[10px] text-blue-500 font-mono">{panel.blurRadius ?? 0}px</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="40"
+                        <SliderField
+                            label="ぼかし"
+                            display={<>{panel.blurRadius ?? 0}px</>}
                             value={panel.blurRadius ?? 0}
-                            onChange={(e) => updatePanel(panel.id, { blurRadius: parseInt(e.target.value) })}
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={0}
+                            max={40}
+                            onChange={(v) => updatePanel(panel.id, { blurRadius: v })}
+                            headerClassName="mb-2"
                         />
                     </div>
                 )}
@@ -416,60 +458,39 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                     <div className="mt-4 animate-in fade-in zoom-in-95 duration-200 space-y-4">
                         {/* 明るさ: 内部 -1..1、UIは -100..100 */}
                         <div>
-                            <div className="flex justify-between mb-2">
-                                <label className="text-[10px] text-zinc-500 uppercase">明るさ</label>
-                                <span className="text-[10px] text-blue-500 font-mono">
-                                    {Math.round((panel.imageBrightness ?? 0) * 100)}
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min="-100"
-                                max="100"
+                            <SliderField
+                                label="明るさ"
+                                display={Math.round((panel.imageBrightness ?? 0) * 100)}
                                 value={Math.round((panel.imageBrightness ?? 0) * 100)}
-                                onChange={(e) =>
-                                    updatePanel(panel.id, { imageBrightness: parseInt(e.target.value, 10) / 100 })
-                                }
-                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                min={-100}
+                                max={100}
+                                onChange={(v) => updatePanel(panel.id, { imageBrightness: v / 100 })}
+                                headerClassName="mb-2"
                             />
                         </div>
                         {/* コントラスト: 内部 -100..100 と同値 */}
                         <div>
-                            <div className="flex justify-between mb-2">
-                                <label className="text-[10px] text-zinc-500 uppercase">コントラスト</label>
-                                <span className="text-[10px] text-blue-500 font-mono">{panel.imageContrast ?? 0}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="-100"
-                                max="100"
+                            <SliderField
+                                label="コントラスト"
+                                display={panel.imageContrast ?? 0}
                                 value={panel.imageContrast ?? 0}
-                                onChange={(e) =>
-                                    updatePanel(panel.id, { imageContrast: parseInt(e.target.value, 10) })
-                                }
-                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                min={-100}
+                                max={100}
+                                onChange={(v) => updatePanel(panel.id, { imageContrast: v })}
+                                headerClassName="mb-2"
                             />
                         </div>
                         {/* 彩度: 内部 -2..2、UIは -100..100（グレースケール時は無効） */}
                         {!panel.isGrayscale && (
                             <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-[10px] text-zinc-500 uppercase">彩度</label>
-                                    <span className="text-[10px] text-blue-500 font-mono">
-                                        {Math.round(((panel.imageSaturation ?? 0) / 2) * 100)}
-                                    </span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="-100"
-                                    max="100"
+                                <SliderField
+                                    label="彩度"
+                                    display={Math.round(((panel.imageSaturation ?? 0) / 2) * 100)}
                                     value={Math.round(((panel.imageSaturation ?? 0) / 2) * 100)}
-                                    onChange={(e) =>
-                                        updatePanel(panel.id, {
-                                            imageSaturation: (parseInt(e.target.value, 10) / 100) * 2
-                                        })
-                                    }
-                                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    min={-100}
+                                    max={100}
+                                    onChange={(v) => updatePanel(panel.id, { imageSaturation: (v / 100) * 2 })}
+                                    headerClassName="mb-2"
                                 />
                             </div>
                         )}
@@ -494,23 +515,14 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                 )}
                 {panel.imagePath && panel.isGrayscale && (
                     <div className="mt-4 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between mb-2">
-                            <label className="text-[10px] text-zinc-500 uppercase">グレーの明るさ</label>
-                            <span className="text-[10px] text-blue-500 font-mono">
-                                {Math.round((panel.grayscaleBrightness ?? 0) * 100)}
-                            </span>
-                        </div>
-                        <input
-                            type="range"
-                            min="-50"
-                            max="50"
+                        <SliderField
+                            label="グレーの明るさ"
+                            display={Math.round((panel.grayscaleBrightness ?? 0) * 100)}
                             value={Math.round(Math.max(-50, Math.min(50, (panel.grayscaleBrightness ?? 0) * 100)))}
-                            onChange={(e) =>
-                                updatePanel(panel.id, {
-                                    grayscaleBrightness: parseInt(e.target.value, 10) / 100
-                                })
-                            }
-                            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            min={-50}
+                            max={50}
+                            onChange={(v) => updatePanel(panel.id, { grayscaleBrightness: v / 100 })}
+                            headerClassName="mb-2"
                         />
                         <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">
                             左で濃く（暗く）、右で薄く（明るく）。グレースケールはコマ選択中に Shift＋画像上のツールからオンにできます。

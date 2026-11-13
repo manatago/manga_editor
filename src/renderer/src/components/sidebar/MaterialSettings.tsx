@@ -2,6 +2,7 @@ import React from 'react'
 import { Trash2, Scissors } from 'lucide-react'
 import { useMangaStore, Material } from '../../store/useMangaStore'
 import { findTargetPanel } from '../utils/geometry'
+import { SliderField } from './SliderField'
 
 interface MaterialSettingsProps {
     material: Material
@@ -40,28 +41,28 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
 
             <div className="space-y-4">
                 <div>
-                    <div className="flex justify-between mb-2">
-                        <label className="text-xs text-zinc-400">回転</label>
-                        <span className="text-xs text-blue-500 font-mono">{Math.round(material.rotation || 0)}°</span>
-                    </div>
-                    <input
-                        type="range" min="-180" max="180"
+                    <SliderField
+                        label="回転"
+                        display={<>{Math.round(material.rotation || 0)}°</>}
                         value={material.rotation || 0}
-                        onChange={(e) => updateMaterial(material.id, { rotation: parseInt(e.target.value) })}
-                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        min={-180}
+                        max={180}
+                        onChange={(v) => updateMaterial(material.id, { rotation: v })}
+                        variant="normal"
+                        headerClassName="mb-2"
                     />
                 </div>
 
                 <div>
-                    <div className="flex justify-between mb-2">
-                        <label className="text-xs text-zinc-400">不透明度</label>
-                        <span className="text-xs text-blue-500 font-mono">{Math.round((material.opacity ?? 1) * 100)}%</span>
-                    </div>
-                    <input
-                        type="range" min="0" max="100"
+                    <SliderField
+                        label="不透明度"
+                        display={<>{Math.round((material.opacity ?? 1) * 100)}%</>}
                         value={(material.opacity ?? 1) * 100}
-                        onChange={(e) => updateMaterial(material.id, { opacity: parseInt(e.target.value) / 100 })}
-                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        min={0}
+                        max={100}
+                        onChange={(v) => updateMaterial(material.id, { opacity: v / 100 })}
+                        variant="normal"
+                        headerClassName="mb-2"
                     />
                 </div>
 
@@ -82,25 +83,15 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
                     </button>
                     {material.isGrayscale && (
                         <div>
-                            <div className="flex justify-between mb-2">
-                                <label className="text-xs text-zinc-400">グレーの明るさ</label>
-                                <span className="text-xs text-blue-500 font-mono">
-                                    {Math.round((material.grayscaleBrightness ?? 0) * 100)}
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min="-50"
-                                max="50"
-                                value={Math.round(
-                                    Math.max(-50, Math.min(50, (material.grayscaleBrightness ?? 0) * 100))
-                                )}
-                                onChange={(e) =>
-                                    updateMaterial(material.id, {
-                                        grayscaleBrightness: parseInt(e.target.value, 10) / 100
-                                    })
-                                }
-                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            <SliderField
+                                label="グレーの明るさ"
+                                display={Math.round((material.grayscaleBrightness ?? 0) * 100)}
+                                value={Math.round( Math.max(-50, Math.min(50, (material.grayscaleBrightness ?? 0) * 100)) )}
+                                min={-50}
+                                max={50}
+                                onChange={(v) => updateMaterial(material.id, { grayscaleBrightness: v / 100 })}
+                                variant="normal"
+                                headerClassName="mb-2"
                             />
                             <p className="text-[10px] text-zinc-500 mt-1">左で濃く、右で薄く。</p>
                         </div>
@@ -108,15 +99,15 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
                 </div>
                 
                 <div className="pt-2 border-t border-zinc-800">
-                    <div className="flex justify-between mb-2">
-                        <label className="text-xs text-zinc-400">白飛び除去 (Alpha Threshold)</label>
-                        <span className="text-xs text-blue-500 font-mono">{material.whiteAlphaThreshold ?? 250}</span>
-                    </div>
-                    <input
-                        type="range" min="0" max="255"
+                    <SliderField
+                        label="白飛び除去 (Alpha Threshold)"
+                        display={material.whiteAlphaThreshold ?? 250}
                         value={material.whiteAlphaThreshold ?? 250}
-                        onChange={(e) => updateMaterial(material.id, { whiteAlphaThreshold: parseInt(e.target.value) })}
-                        className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        min={0}
+                        max={255}
+                        onChange={(v) => updateMaterial(material.id, { whiteAlphaThreshold: v })}
+                        variant="normal"
+                        headerClassName="mb-2"
                     />
                     <p className="text-[10px] text-zinc-500 mt-1">値を下げると、より暗い白も透明になります。</p>
                 </div>
