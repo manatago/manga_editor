@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Copy, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles, Archive, RotateCcw } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Copy, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles, Archive, RotateCcw, FileDown } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
@@ -15,6 +15,7 @@ interface SidebarLeftProps {
     onExportPNG: (format: ExportFormat) => void;
     onExportAllPagesPNG: (format: ExportFormat) => void;
     onExportAllPagesPNGNoMosaic: (format: ExportFormat) => void;
+    onExportAllPagesPDF: (format: ExportFormat, hideMosaic: boolean) => void;
     onExportText: () => void;
     onOpenTemplateModal: () => void;
     handleCreateNew: () => void;
@@ -27,6 +28,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     onExportPNG,
     onExportAllPagesPNG,
     onExportAllPagesPNGNoMosaic,
+    onExportAllPagesPDF,
     onExportText,
     onOpenTemplateModal,
     handleCreateNew,
@@ -175,6 +177,24 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                         <Download size={15} />
                                         <span>全ページ一括 {exportFormat === 'jpeg' ? 'JPEG' : 'PNG'}（モザイクなし）</span>
                                     </button>
+                                    {/* PDF: PNG 選択時は劣化なし、JPEG 選択時は軽量 */}
+                                    <div className="flex items-center gap-1">
+                                        <span className="flex items-center gap-1.5 pl-3 pr-1 text-xs font-bold text-zinc-300 shrink-0">
+                                            <FileDown size={15} />
+                                            全ページ PDF
+                                        </span>
+                                        {([false, true] as const).map((hide) => (
+                                            <button
+                                                key={String(hide)}
+                                                onClick={() => onExportAllPagesPDF(exportFormat, hide)}
+                                                disabled={!currentPageId || pages.length === 0}
+                                                title={`全ページを 1 つの PDF に書き出し（${exportFormat === 'jpeg' ? 'JPEG 圧縮・軽量' : '劣化なし'}）`}
+                                                className="flex-1 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-[10px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {hide ? 'モザイクなし' : 'モザイクあり'}
+                                            </button>
+                                        ))}
+                                    </div>
                                     <button
                                         onClick={onExportText}
                                         disabled={pages.length === 0}

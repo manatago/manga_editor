@@ -42,6 +42,11 @@ declare global {
             deleteTemplate: (id: string) => Promise<PageTemplate[]>
             exportPNG: (path: string, name: string, data: string, format?: 'png' | 'jpeg') => Promise<string>
             exportText: (path: string, data: string) => Promise<string>
+            /** 全ページ PDF: begin → ページごとに addPage（data URL）→ finish（保存先パスを返す） */
+            exportPdfBegin: (projectPath: string) => Promise<string>
+            exportPdfAddPage: (sessionId: string, data: string, pageWidthPx: number, pageHeightPx: number) => Promise<number>
+            exportPdfFinish: (sessionId: string) => Promise<string>
+            exportPdfCancel: (sessionId: string) => Promise<void>
             /** 合成ツール用: assets/composites/ に日時ファイル名で保存 */
             saveCompositePng: (projectPath: string, data: string) => Promise<{ relativePath: string }>
             selectFile: () => Promise<string | null>

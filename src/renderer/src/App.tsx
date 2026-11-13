@@ -77,7 +77,7 @@ function App(): React.JSX.Element {
     useKeyboardShortcuts()
     useAutoSave()
     const { handleCreateNew, handleOpenProject, openProjectByPath, handleUseTemplate, handleSaveAsTemplate } = useProjectActions()
-    const { stageRef, handleExportPNG, handleExportAllPagesPNG, handleExportText } = useExport()
+    const { stageRef, handleExportPNG, handleExportAllPagesPNG, handleExportAllPagesPDF, handleExportText } = useExport()
 
     // Local UI State
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
@@ -315,6 +315,7 @@ function App(): React.JSX.Element {
                         onExportPNG={(format) => handleExportPNG(format)}
                         onExportAllPagesPNG={(format) => handleExportAllPagesPNG({ format })}
                         onExportAllPagesPNGNoMosaic={(format) => handleExportAllPagesPNG({ hideMosaic: true, format })}
+                        onExportAllPagesPDF={(format, hideMosaic) => handleExportAllPagesPDF({ format, hideMosaic })}
                         onExportText={handleExportText}
                         onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
                         handleCreateNew={handleCreateNew}

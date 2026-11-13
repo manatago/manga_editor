@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { flushSync } from 'react-dom'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
+import type { Page } from '../store/types'
 import { showError, showInfo } from '../utils/dialogs'
 
 const waitNextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
@@ -66,48 +67,35 @@ export const useExport = () => {
         }
     }
 
-    const handleExportAllPagesPNG = async (options?: { hideMosaic?: boolean; format?: ExportFormat }) => {
-        const format: ExportFormat = options?.format ?? 'png'
-        const {
-            pages,
-            currentPageId,
-            currentProjectPath,
-            setExporting,
-            selectPage,
-            mosaicVisible,
-            setMosaicVisible
-        } = useMangaStore.getState()
-        if (!stageRef.current || !currentProjectPath || pages.length === 0) return
-
+    /**
+     * 全ページを順に表示して画像化し、onPage に渡す（一括 PNG / PDF で共通）。
+     * 終わったら元のページ・モザイク表示に戻す。
+     */
+    const captureAllPages = async (
+        options: { hideMosaic?: boolean; format: ExportFormat },
+        onPage: (page: Page, dataUrl: string) => Promise<void>
+    ): Promise<number> => {
+        const { pages, currentPageId, setExporting, selectPage, mosaicVisible, setMosaicVisible } =
+            useMangaStore.getState()
         const originalPageId = currentPageId
         const originalMosaicVisible = mosaicVisible
-        const shouldToggleMosaic = options?.hideMosaic === true && originalMosaicVisible
+        const shouldToggleMosaic = options.hideMosaic === true && originalMosaicVisible
         setExporting(true)
         if (shouldToggleMosaic) {
             flushSync(() => {
                 setMosaicVisible(false)
             })
         }
-        await prepareStageForCapture(stageRef.current)
-
         try {
+            await prepareStageForCapture(stageRef.current)
             for (const page of pages) {
                 flushSync(() => {
                     selectPage(page.id, { skipAutosave: true })
                 })
                 await waitForImagesAfterPageSwitch(stageRef.current)
-                const dataUrl = toDataUrlForFormat(stageRef.current, format)
-                if (window.electron) {
-                    await window.electron.exportPNG(currentProjectPath, page.name, dataUrl, format)
-                }
+                await onPage(page, toDataUrlForFormat(stageRef.current, options.format))
             }
-            console.log('useExport: all pages exported', pages.length, options)
-            const label = format === 'jpeg' ? 'JPEG' : 'PNG'
-            const suffix = options?.hideMosaic ? '（モザイクなし）' : ''
-            await showInfo(`全 ${pages.length} ページを ${label} 出力しました${suffix}（exports/）`)
-        } catch (error) {
-            console.error('useExport: batch export failed', error)
-            await showError('一括エクスポートに失敗しました')
+            return pages.length
         } finally {
             if (shouldToggleMosaic) {
                 flushSync(() => {
@@ -118,6 +106,46 @@ export const useExport = () => {
                 selectPage(originalPageId)
             }
             setExporting(false)
+        }
+    }
+
+    const handleExportAllPagesPNG = async (options?: { hideMosaic?: boolean; format?: ExportFormat }) => {
+        const format: ExportFormat = options?.format ?? 'png'
+        const { pages, currentProjectPath } = useMangaStore.getState()
+        if (!stageRef.current || !currentProjectPath || pages.length === 0 || !window.electron) return
+        try {
+            const count = await captureAllPages({ hideMosaic: options?.hideMosaic, format }, async (page, dataUrl) => {
+                await window.electron.exportPNG(currentProjectPath, page.name, dataUrl, format)
+            })
+            const label = format === 'jpeg' ? 'JPEG' : 'PNG'
+            const suffix = options?.hideMosaic ? '（モザイクなし）' : ''
+            await showInfo(`全 ${count} ページを ${label} 出力しました${suffix}（exports/）`)
+        } catch (error) {
+            console.error('useExport: batch export failed', error)
+            await showError('一括エクスポートに失敗しました')
+        }
+    }
+
+    /**
+     * 全ページを 1 つの PDF に書き出す。PNG 選択時は劣化なし（可逆圧縮）、JPEG 選択時は軽量。
+     * 用紙サイズはページのキャンバスサイズ（96dpi 換算）。
+     */
+    const handleExportAllPagesPDF = async (options?: { hideMosaic?: boolean; format?: ExportFormat }) => {
+        const format: ExportFormat = options?.format ?? 'png'
+        const { pages, currentProjectPath } = useMangaStore.getState()
+        if (!stageRef.current || !currentProjectPath || pages.length === 0 || !window.electron) return
+        const sessionId = await window.electron.exportPdfBegin(currentProjectPath)
+        try {
+            await captureAllPages({ hideMosaic: options?.hideMosaic, format }, async (page, dataUrl) => {
+                await window.electron.exportPdfAddPage(sessionId, dataUrl, page.pageWidth ?? 840, page.pageHeight ?? 1188)
+            })
+            const filePath = await window.electron.exportPdfFinish(sessionId)
+            const suffix = options?.hideMosaic ? '（モザイクなし）' : ''
+            await showInfo(`全 ${pages.length} ページを PDF に書き出しました${suffix}\n${filePath}`)
+        } catch (error) {
+            console.error('useExport: PDF export failed', error)
+            await window.electron.exportPdfCancel(sessionId).catch(() => {})
+            await showError('PDF の書き出しに失敗しました')
         }
     }
 
@@ -166,6 +194,7 @@ export const useExport = () => {
         stageRef,
         handleExportPNG,
         handleExportAllPagesPNG,
+        handleExportAllPagesPDF,
         handleExportText
     }
 }

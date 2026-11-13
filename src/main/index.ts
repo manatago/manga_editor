@@ -7,6 +7,7 @@ import { registerFileHandlers } from './ipc/files'
 import { registerProjectHandlers } from './ipc/project'
 import { registerTemplateHandlers } from './ipc/templates'
 import { registerExportHandlers } from './ipc/export'
+import { registerExportPdfHandlers } from './ipc/exportPdf'
 import { registerCustomToneHandlers } from './ipc/customTones'
 import { registerRembgHandlers } from './ipc/rembg'
 import { registerNovelAIHandlers } from './ipc/novelai'
@@ -93,6 +94,7 @@ app.whenReady().then(() => {
     registerProjectHandlers()
     registerTemplateHandlers()
     registerExportHandlers()
+    registerExportPdfHandlers()
     registerCustomToneHandlers()
     registerRembgHandlers()
     registerNovelAIHandlers()

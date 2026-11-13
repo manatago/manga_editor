@@ -88,6 +88,11 @@ if (process.contextIsolated) {
             deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
             exportPNG: (path: string, name: string, data: string, format?: 'png' | 'jpeg') => ipcRenderer.invoke('export-png', { path, name, data, format }),
             exportText: (path: string, data: string) => ipcRenderer.invoke('export-text', { path, data }),
+            exportPdfBegin: (projectPath: string) => ipcRenderer.invoke('export-pdf-begin', { projectPath }),
+            exportPdfAddPage: (sessionId: string, data: string, pageWidthPx: number, pageHeightPx: number) =>
+                ipcRenderer.invoke('export-pdf-add-page', { sessionId, data, pageWidthPx, pageHeightPx }),
+            exportPdfFinish: (sessionId: string) => ipcRenderer.invoke('export-pdf-finish', { sessionId }),
+            exportPdfCancel: (sessionId: string) => ipcRenderer.invoke('export-pdf-cancel', { sessionId }),
             saveCompositePng: (projectPath: string, data: string) =>
                 ipcRenderer.invoke('save-composite-png', { projectPath, data }),
             selectFile: () => ipcRenderer.invoke('select-file'),
@@ -197,6 +202,11 @@ if (process.contextIsolated) {
         deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
         exportPNG: (path, name, data, format) => ipcRenderer.invoke('export-png', { path, name, data, format }),
         exportText: (path, data) => ipcRenderer.invoke('export-text', { path, data }),
+        exportPdfBegin: (projectPath) => ipcRenderer.invoke('export-pdf-begin', { projectPath }),
+        exportPdfAddPage: (sessionId, data, pageWidthPx, pageHeightPx) =>
+            ipcRenderer.invoke('export-pdf-add-page', { sessionId, data, pageWidthPx, pageHeightPx }),
+        exportPdfFinish: (sessionId) => ipcRenderer.invoke('export-pdf-finish', { sessionId }),
+        exportPdfCancel: (sessionId) => ipcRenderer.invoke('export-pdf-cancel', { sessionId }),
         saveCompositePng: (projectPath, data) =>
             ipcRenderer.invoke('save-composite-png', { projectPath, data }),
         selectFile: () => ipcRenderer.invoke('select-file'),
