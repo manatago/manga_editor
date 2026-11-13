@@ -9,6 +9,8 @@ export interface MaterialSlice {
     addMaterial: (props: Partial<Omit<Material, 'id'>>) => void
     updateMaterial: (id: string, updates: Partial<Material>, undoable?: boolean) => void
     removeMaterial: (id: string) => void
+    /** 少しずらした複製を作って選択する */
+    duplicateMaterial: (id: string) => void
 }
 
 export const createMaterialSlice: StateCreator<MangaState, [], [], MaterialSlice> = (set) => ({
@@ -55,6 +57,21 @@ export const createMaterialSlice: StateCreator<MangaState, [], [], MaterialSlice
                     ? { ...p, materials: p.materials.map((m) => (m.id === id ? { ...m, ...updates } : m)) }
                     : p
             )
+        }
+    }),
+
+    duplicateMaterial: (id) => set((state) => {
+        const page = state.pages.find((p) => p.id === state.currentPageId)
+        const src = page?.materials.find((m) => m.id === id)
+        if (!page || !src) return state
+        const dup: Material = { ...src, id: newId('material'), x: src.x + 20, y: src.y + 20 }
+        return {
+            ...state,
+            ...saveHistory(state),
+            pages: state.pages.map((p) => (p.id === page.id ? { ...p, materials: [...p.materials, dup] } : p)),
+            selectedMaterialId: dup.id,
+            selectedPanelId: null,
+            selectedBubbleId: null
         }
     }),
 

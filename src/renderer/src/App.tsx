@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import Canvas from './components/Canvas'
 import { CanvasViewport } from './components/Canvas/CanvasViewport'
+import { ShortcutHelp, ShortcutHelpButton } from './components/ShortcutHelp'
 import SidebarLeft from './components/SidebarLeft'
 import SidebarRight from './components/SidebarRight'
 import { TemplateModal } from './components/TemplateModal'
@@ -400,6 +401,8 @@ function App(): React.JSX.Element {
                             </>
                         )}
                     </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                    <ShortcutHelpButton />
                     {currentProjectPath && (
                         <div
                             className={`flex items-center gap-1.5 shrink-0 text-xs whitespace-nowrap ${saveError ? 'text-red-400' : 'text-zinc-500'}`}
@@ -417,6 +420,7 @@ function App(): React.JSX.Element {
                             <span className={saveError ? '' : 'hidden xl:inline'}>{saveStatusLabel}</span>
                         </div>
                     )}
+                    </div>
                 </div>
 
                 <CanvasViewport>
@@ -446,6 +450,8 @@ function App(): React.JSX.Element {
             />
 
             <ExportOverlay isExporting={isExporting} />
+
+            <ShortcutHelp />
 
             <NovelAIGenerationModal />
 

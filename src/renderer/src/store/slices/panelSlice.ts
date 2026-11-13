@@ -18,6 +18,8 @@ export interface PanelSlice {
     reorderPanel: (id: string, action: 'front' | 'back' | 'up' | 'down') => void
     copyPanel: (id: string) => void
     pastePanel: () => void
+    /** クリップボードを使わずに、少しずらした複製を作って選択する */
+    duplicatePanel: (id: string) => void
 }
 
 /** デフォルト値を埋めた Panel を id 付きで生成する（addPanel / 台本生成で共有） */
@@ -145,6 +147,21 @@ export const createPanelSlice: StateCreator<MangaState, [], [], PanelSlice> = (s
         if (!panel) return state
         const { id: _id, ...panelData } = panel
         return { ...state, clipboardPanel: panelData, clipboardPanelCopiedAt: Date.now() }
+    }),
+
+    duplicatePanel: (id) => set((state) => {
+        const page = state.pages.find((p) => p.id === state.currentPageId)
+        const src = page?.panels.find((p) => p.id === id)
+        if (!page || !src) return state
+        const dup: Panel = { ...src, id: newId('panel'), x: src.x + 20, y: src.y + 20 }
+        return {
+            ...state,
+            ...saveHistory(state),
+            pages: state.pages.map((p) => (p.id === page.id ? { ...p, panels: [...p.panels, dup] } : p)),
+            selectedPanelId: dup.id,
+            selectedBubbleId: null,
+            selectedMaterialId: null
+        }
     }),
 
     pastePanel: () => set((state) => {

@@ -20,6 +20,8 @@ export interface BubbleSlice {
     removeBubble: (id: string) => void
     copyBubble: (id: string) => void
     pasteBubble: () => void
+    /** クリップボードを使わずに、少しずらした複製を作って選択する */
+    duplicateBubble: (id: string) => void
 }
 
 /** デフォルト値（＋任意の直近スタイル）を埋めた Bubble を id 付きで生成する（addBubble / 台本生成で共有） */
@@ -147,6 +149,21 @@ export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = 
         if (!bubble) return state
         const { id: _id, ...bubbleData } = bubble
         return { ...state, clipboardBubble: bubbleData, clipboardBubbleCopiedAt: Date.now() }
+    }),
+
+    duplicateBubble: (id) => set((state) => {
+        const page = state.pages.find((p) => p.id === state.currentPageId)
+        const src = page?.bubbles.find((b) => b.id === id)
+        if (!page || !src) return state
+        const dup: Bubble = { ...src, id: newId('bubble'), x: src.x + 20, y: src.y + 20 }
+        return {
+            ...state,
+            ...saveHistory(state),
+            pages: state.pages.map((p) => (p.id === page.id ? { ...p, bubbles: [...p.bubbles, dup] } : p)),
+            selectedBubbleId: dup.id,
+            selectedPanelId: null,
+            selectedMaterialId: null
+        }
     }),
 
     pasteBubble: () => set((state) => {

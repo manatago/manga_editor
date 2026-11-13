@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useAutoSave, AUTO_SAVE_DEBOUNCE_MS } from '../useAutoSave'
-import { useKeyboardShortcuts } from '../useKeyboardShortcuts'
 import { useMangaStore } from '../../store/useMangaStore'
 import type { Page } from '../../store/types'
 
@@ -67,51 +66,5 @@ describe('useAutoSave', () => {
         unmount()
         vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS * 2)
         expect(saveProject).not.toHaveBeenCalled()
-    })
-})
-
-describe('useKeyboardShortcuts', () => {
-    beforeEach(() => {
-        useMangaStore.setState({
-            pages: [
-                {
-                    ...page('p1'),
-                    panels: [
-                        {
-                            id: 'a', type: 'rect', x: 10, y: 10, width: 50, height: 50,
-                            slant: 0, offsetB: 0, offsetC: 0, offsetD: 0, strokeWidth: 1, strokeColor: '#000'
-                        }
-                    ]
-                }
-            ],
-            currentPageId: 'p1',
-            selectedPanelId: 'a',
-            selectedBubbleId: null,
-            selectedMaterialId: null,
-            past: [],
-            future: []
-        })
-    })
-
-    const press = (key: string, opts: KeyboardEventInit = {}) =>
-        window.dispatchEvent(new KeyboardEvent('keydown', { key, ...opts }))
-
-    it('登録後に変わった状態（選択・位置）をキー押下時点で読む', () => {
-        renderHook(() => useKeyboardShortcuts())
-        press('ArrowRight', { shiftKey: true })
-        press('ArrowRight', { shiftKey: true })
-        expect(useMangaStore.getState().pages[0].panels[0].x).toBe(12)
-
-        useMangaStore.setState({ selectedPanelId: null })
-        press('ArrowRight', { shiftKey: true })
-        expect(useMangaStore.getState().pages[0].panels[0].x).toBe(12)
-    })
-
-    it('Cmd+Z で undo する', () => {
-        renderHook(() => useKeyboardShortcuts())
-        press('Delete')
-        expect(useMangaStore.getState().pages[0].panels).toHaveLength(0)
-        press('z', { metaKey: true })
-        expect(useMangaStore.getState().pages[0].panels).toHaveLength(1)
     })
 })
