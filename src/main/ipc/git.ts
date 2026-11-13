@@ -1,63 +1,14 @@
 import { ipcMain, safeStorage, app } from 'electron'
-import { execFile } from 'node:child_process'
 import { promises as fsp } from 'node:fs'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { runGit, logOf, commitAllIfDirty, restoreWorktreeTo } from './gitCore'
 
 /**
  * 作品フォルダ（＝1作品1リポジトリ）を Git / セルフホスト LFS で同期するための IPC。
  * 設定の正はフォルダ内の本物の .git（remote）と .lfsconfig（LFS URL）。
  * GitHub は SSH 前提（鍵はマシン側）。LFS は Basic 認証を safeStorage 経由で非対話注入する。
  */
-
-/** packaged Electron は PATH が最小になりがちなので git/git-lfs の場所を足す */
-function gitEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-    const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin']
-    const current = process.env.PATH ?? ''
-    const merged = [...extraPaths, ...current.split(':').filter(Boolean)]
-    const seen = new Set<string>()
-    const PATH = merged.filter((p) => (seen.has(p) ? false : (seen.add(p), true))).join(':')
-    return {
-        ...process.env,
-        PATH,
-        // 対話プロンプトで固まらせず、資格情報が無ければ即エラーにする
-        GIT_TERMINAL_PROMPT: '0',
-        GCM_INTERACTIVE: 'never',
-        ...extra
-    }
-}
-
-interface RunResult {
-    code: number
-    stdout: string
-    stderr: string
-}
-
-/** git を cwd で実行し、失敗しても reject せず結果を返す */
-function runGit(cwd: string, args: string[], stdin?: string): Promise<RunResult> {
-    return new Promise((resolve) => {
-        const child = execFile(
-            'git',
-            args,
-            { cwd, env: gitEnv(), maxBuffer: 64 * 1024 * 1024 },
-            (err, stdout, stderr) => {
-                const code = err && typeof (err as { code?: unknown }).code === 'number' ? (err as { code: number }).code : err ? 1 : 0
-                resolve({ code, stdout: stdout ?? '', stderr: stderr ?? '' })
-            }
-        )
-        if (stdin !== undefined && child.stdin) {
-            child.stdin.write(stdin)
-            child.stdin.end()
-        }
-    })
-}
-
-function logOf(label: string, r: RunResult): string {
-    const parts = [`$ git ${label}`]
-    if (r.stdout.trim()) parts.push(r.stdout.trimEnd())
-    if (r.stderr.trim()) parts.push(r.stderr.trimEnd())
-    return parts.join('\n')
-}
 
 /** ログから LFS 認証の失敗を検知し、対処ヒントを返す（無ければ null） */
 function authHint(log: string): string | null {
@@ -343,16 +294,10 @@ export function registerGitHandlers(): void {
             const logs: string[] = []
             await seedLfsCredential(cwd)
 
-            const add = await runGit(cwd, ['add', '-A'])
-            if (add.stderr.trim()) logs.push(logOf('add -A', add))
-            const staged = await runGit(cwd, ['diff', '--cached', '--quiet'])
-            if (staged.code !== 0) {
-                const msg = (message ?? '').trim() || `update ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-                const commit = await runGit(cwd, ['commit', '-m', msg])
-                logs.push(logOf('commit', commit))
-            } else {
-                logs.push('（コミットする変更はありません）')
-            }
+            const msg = (message ?? '').trim() || `update ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+            const committed = await commitAllIfDirty(cwd, msg)
+            logs.push(...committed.logs)
+            if (committed.ok && !committed.committed) logs.push('（コミットする変更はありません）')
 
             const branchR = await runGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD'])
             const branch = branchR.stdout.trim() || 'main'
@@ -483,29 +428,26 @@ export function registerGitHandlers(): void {
 
         await seedLfsCredential(cwd)
         const logs: string[] = []
-        // index+worktree を対象コミットのツリーに一致させる（HEADは動かさない）。
-        // LFS 追跡ファイルは smudge フィルタ経由で該当バージョンが取得される。
-        const read = await runGit(cwd, ['read-tree', '-u', '--reset', target])
-        logs.push(logOf(`read-tree -u --reset ${target.slice(0, 8)}`, read))
-        if (read.code !== 0) {
-            let log = logs.join('\n\n')
+        const fail = async (reason: string): Promise<{ ok: false; log: string; status: GitStatus }> => {
+            let log = [reason, ...logs].filter(Boolean).join('\n\n')
             const hint = authHint(log)
             if (hint) log = hint + '\n\n' + log
             return { ok: false, log, status: await getStatus(cwd) }
         }
-        // LFS 実体を念のため materialize（ローカルキャッシュ/サーバから）
-        const lfsco = await runGit(cwd, ['lfs', 'checkout'])
-        if (lfsco.stderr.trim()) logs.push(logOf('lfs checkout', lfsco))
 
-        // index が HEAD と同じ＝既にその状態
-        const staged = await runGit(cwd, ['diff', '--cached', '--quiet'])
-        if (staged.code === 0) {
-            logs.push('（現在すでにこの状態です。変更はありません）')
-            return { ok: true, log: logs.join('\n\n'), status: await getStatus(cwd) }
-        }
-        const short = target.slice(0, 8)
-        const commit = await runGit(cwd, ['commit', '-m', `restore: ${short} の状態に復元`])
-        logs.push(logOf('commit', commit))
-        return { ok: commit.code === 0, log: logs.join('\n\n'), status: await getStatus(cwd) }
+        // 1) 未コミットの作業（自動保存された manga.json 等）を退避コミットする。
+        //    復元は作業ツリーを上書きするため、これが無いと直前までの作業が失われる。
+        //    退避に失敗したら復元しない（作業を消さないことを優先）。
+        const stamp = new Date().toLocaleString('ja-JP', { hour12: false })
+        const backup = await commitAllIfDirty(cwd, `auto: 復元前の作業を保存（${stamp}）`)
+        logs.push(...backup.logs)
+        if (!backup.ok) return fail('復元前の作業をコミットできなかったため、復元を中止しました（作業は残っています）。')
+        if (backup.committed) logs.push('（復元前の作業を「auto: 復元前の作業を保存」として履歴に残しました。この履歴から元に戻せます）')
+
+        // 2) 作業ツリーを対象コミットの内容に揃えて、新しいコミットとして記録（HEAD の履歴は巻き戻さない）
+        const restored = await restoreWorktreeTo(cwd, target)
+        logs.push(...restored.logs)
+        if (!restored.ok) return fail('')
+        return { ok: true, log: logs.join('\n\n'), status: await getStatus(cwd) }
     })
 }

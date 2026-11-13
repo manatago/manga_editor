@@ -164,11 +164,13 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose, onR
         const ok = await confirmMessage(
             `「${target?.short} ${target?.subject ?? ''}」の状態に復元します。\n\n` +
                 'この内容を新しいコミットとして記録します（履歴は巻き戻しません）。\n' +
-                '⚠ 未コミットの変更は失われます。よろしいですか？'
+                '復元前の作業は自動でコミットして履歴に残すので、あとから元に戻せます。'
         )
         if (!ok) return
         setBusy('restore')
         try {
+            // 自動保存の待ち（1 秒）にある編集もディスクへ書いてから退避コミットさせる
+            await useMangaStore.getState().saveProject()
             const res = await window.electron.gitRestoreTo(currentProjectPath!, selectedHash)
             setStatus(res.status)
             setLog(res.log)

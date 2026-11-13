@@ -75,228 +75,126 @@ function resolveAssetPathWithFallback(projectRoot: string, stored: string): stri
     return candidates[0] ?? toAbs(projectRoot, norm)
 }
 
+/**
+ * レンダラーへ公開する API（window.electron）。定義はここ 1 か所だけ。
+ * 型は renderer/src/env.d.ts の Window['electron'] を契約とし、ずれたら型チェックで検出する。
+ */
+const api: Window['electron'] = {
+    selectFolder: () => ipcRenderer.invoke('select-folder'),
+    createProject: (path: string, name: string) => ipcRenderer.invoke('create-project', { path, name }),
+    loadProject: (path: string) => ipcRenderer.invoke('load-project', path),
+    saveProject: (path: string, data: unknown) => ipcRenderer.invoke('save-project', { path, data }),
+    saveProjectSync: (path: string, data: unknown) => ipcRenderer.sendSync('save-project-sync', { path, data }),
+    getTemplates: () => ipcRenderer.invoke('get-templates'),
+    saveTemplate: (template: unknown) => ipcRenderer.invoke('save-template', template),
+    deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
+    exportPNG: (path: string, name: string, data: string, format?: 'png' | 'jpeg') => ipcRenderer.invoke('export-png', { path, name, data, format }),
+    exportText: (path: string, data: string) => ipcRenderer.invoke('export-text', { path, data }),
+    exportPdfBegin: (projectPath: string) => ipcRenderer.invoke('export-pdf-begin', { projectPath }),
+    exportPdfAddPage: (sessionId: string, data: string, pageWidthPx: number, pageHeightPx: number) =>
+        ipcRenderer.invoke('export-pdf-add-page', { sessionId, data, pageWidthPx, pageHeightPx }),
+    exportPdfFinish: (sessionId: string) => ipcRenderer.invoke('export-pdf-finish', { sessionId }),
+    exportPdfCancel: (sessionId: string) => ipcRenderer.invoke('export-pdf-cancel', { sessionId }),
+    saveCompositePng: (projectPath: string, data: string) =>
+        ipcRenderer.invoke('save-composite-png', { projectPath, data }),
+    selectFile: () => ipcRenderer.invoke('select-file'),
+    selectOraFile: () => ipcRenderer.invoke('select-ora-file'),
+    readOraFile: (filePath: string) => ipcRenderer.invoke('read-ora-file', filePath),
+    copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) =>
+        ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
+    startDragFile: (absolutePath: string) => ipcRenderer.send('start-drag-file', absolutePath),
+    rembgRemoveBackground: (projectPath: string, inputRelativePath: string) =>
+        ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
+    saveWandPng: (projectPath: string, assetsSubPath: string, baseName: string, data: string) =>
+        ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
+    saveMangaPng: (projectPath: string, panelId: string, kind: string, data: string) =>
+        ipcRenderer.invoke('save-manga-png', { projectPath, panelId, kind, data }),
+    getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
+    addCustomTone: (sourcePath: string, name: string) =>
+        ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
+    deleteCustomTone: (id: string) => ipcRenderer.invoke('delete-custom-tone', { id }),
+    renameCustomTone: (id: string, name: string) => ipcRenderer.invoke('rename-custom-tone', { id, name }),
+    resolveCustomTone: (id: string) => ipcRenderer.invoke('resolve-custom-tone', { id }),
+    getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
+    deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
+    moveAssetToTrash: (projectPath: string, absoluteFilePath: string) =>
+        ipcRenderer.invoke('move-asset-to-trash', { projectPath, absoluteFilePath }),
+    pathToUrl: (p: string) => {
+        if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
+        const encodedPath = encodeURI(p)
+        const standardPath = encodedPath.startsWith('/') ? encodedPath : `/${encodedPath}`
+        return `local-file://${standardPath}`
+    },
+    /** manga.json の assets/... 相対パス、またはレガシー絶対パスを実ファイルの絶対パスに解決 */
+    resolveAssetPath: (projectRoot: string, stored: string) =>
+        resolveAssetPathWithFallback(projectRoot, stored),
+    getPathForFile: (file: File) => webUtils.getPathForFile(file),
+    log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args),
+    showMessage: (payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => ipcRenderer.invoke('show-message', payload),
+    confirmMessage: (payload: { title?: string; message: string }) => ipcRenderer.invoke('confirm-message', payload),
+    novelaiSaveToken: (token: string) => ipcRenderer.invoke('novelai:save-token', { token }),
+    novelaiLoadToken: () => ipcRenderer.invoke('novelai:load-token'),
+    novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
+    novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
+    novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
+    novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
+    novelaiBackgroundMask: (projectPath: string, sourceRelativePath: string) =>
+        ipcRenderer.invoke('novelai:background-mask', { projectPath, sourceRelativePath }),
+    novelaiImportImage: (projectPath: string, panelId: string, sourcePath: string) =>
+        ipcRenderer.invoke('novelai:import-image', { projectPath, panelId, sourcePath }),
+    novelaiForegroundCutout: (projectPath: string, sourceRelativePath: string) =>
+        ipcRenderer.invoke('novelai:foreground-cutout', { projectPath, sourceRelativePath }),
+    novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
+        ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
+    novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
+        ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath }),
+    exportTranslationSheet: (defaultName: string, content: string) =>
+        ipcRenderer.invoke('export-translation-sheet', { defaultName, content }),
+    selectTranslationSheet: () => ipcRenderer.invoke('select-translation-sheet'),
+    createLocalizedProject: (sourcePath: string, folderName: string, data: unknown) =>
+        ipcRenderer.invoke('create-localized-project', { sourcePath, folderName, data }),
+    gitRepoStatus: (projectPath: string) => ipcRenderer.invoke('git-repo-status', { projectPath }),
+    gitInitConfig: (projectPath: string, remoteUrl: string, lfsUrl: string) =>
+        ipcRenderer.invoke('git-init-config', { projectPath, remoteUrl, lfsUrl }),
+    gitPush: (projectPath: string, message: string) =>
+        ipcRenderer.invoke('git-push', { projectPath, message }),
+    gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
+    gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
+        ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
+    gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults'),
+    gitLog: (projectPath: string, limit?: number) =>
+        ipcRenderer.invoke('git-log', { projectPath, limit }),
+    gitRestoreTo: (projectPath: string, hash: string) =>
+        ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
+    gitFetchStatus: (projectPath: string) =>
+        ipcRenderer.invoke('git-fetch-status', { projectPath }),
+    referencePagesList: (projectPath: string) =>
+        ipcRenderer.invoke('reference-pages:list', { projectPath }),
+    referencePagesAdd: (projectPath: string) =>
+        ipcRenderer.invoke('reference-pages:add', { projectPath }),
+    referencePagesReveal: (projectPath: string) =>
+        ipcRenderer.invoke('reference-pages:reveal', { projectPath }),
+    referencePagesDelete: (projectPath: string, name: string) =>
+        ipcRenderer.invoke('reference-pages:delete', { projectPath, name }),
+    onAppBeforeClose: (cb: () => void) => {
+        const listener = (): void => cb()
+        ipcRenderer.on('app-before-close', listener)
+        return () => ipcRenderer.removeListener('app-before-close', listener)
+    },
+    confirmAppClose: () => ipcRenderer.send('app-confirm-close'),
+    onCanvasZoomKey: (cb: (cmd: CanvasZoomCommand) => void) => {
+        const listener = (_e: unknown, cmd: CanvasZoomCommand): void => cb(cmd)
+        ipcRenderer.on('canvas-zoom-key', listener)
+        return () => { ipcRenderer.removeListener('canvas-zoom-key', listener) }
+    }
+}
+
 if (process.contextIsolated) {
     try {
-        contextBridge.exposeInMainWorld('electron', {
-            selectFolder: () => ipcRenderer.invoke('select-folder'),
-            createProject: (path: string, name: string) => ipcRenderer.invoke('create-project', { path, name }),
-            loadProject: (path: string) => ipcRenderer.invoke('load-project', path),
-            saveProject: (path: string, data: unknown) => ipcRenderer.invoke('save-project', { path, data }),
-            saveProjectSync: (path: string, data: unknown) => ipcRenderer.sendSync('save-project-sync', { path, data }),
-            getTemplates: () => ipcRenderer.invoke('get-templates'),
-            saveTemplate: (template: unknown) => ipcRenderer.invoke('save-template', template),
-            deleteTemplate: (templateId: string) => ipcRenderer.invoke('delete-template', templateId),
-            exportPNG: (path: string, name: string, data: string, format?: 'png' | 'jpeg') => ipcRenderer.invoke('export-png', { path, name, data, format }),
-            exportText: (path: string, data: string) => ipcRenderer.invoke('export-text', { path, data }),
-            exportPdfBegin: (projectPath: string) => ipcRenderer.invoke('export-pdf-begin', { projectPath }),
-            exportPdfAddPage: (sessionId: string, data: string, pageWidthPx: number, pageHeightPx: number) =>
-                ipcRenderer.invoke('export-pdf-add-page', { sessionId, data, pageWidthPx, pageHeightPx }),
-            exportPdfFinish: (sessionId: string) => ipcRenderer.invoke('export-pdf-finish', { sessionId }),
-            exportPdfCancel: (sessionId: string) => ipcRenderer.invoke('export-pdf-cancel', { sessionId }),
-            saveCompositePng: (projectPath: string, data: string) =>
-                ipcRenderer.invoke('save-composite-png', { projectPath, data }),
-            selectFile: () => ipcRenderer.invoke('select-file'),
-            selectOraFile: () => ipcRenderer.invoke('select-ora-file'),
-            readOraFile: (filePath: string) => ipcRenderer.invoke('read-ora-file', filePath),
-            copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) =>
-                ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
-            startDragFile: (absolutePath: string) => ipcRenderer.send('start-drag-file', absolutePath),
-            rembgRemoveBackground: (projectPath: string, inputRelativePath: string) =>
-                ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
-            saveWandPng: (projectPath: string, assetsSubPath: string, baseName: string, data: string) =>
-                ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
-            saveMangaPng: (projectPath: string, panelId: string, kind: string, data: string) =>
-                ipcRenderer.invoke('save-manga-png', { projectPath, panelId, kind, data }),
-            getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
-            addCustomTone: (sourcePath: string, name: string) =>
-                ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
-            deleteCustomTone: (id: string) => ipcRenderer.invoke('delete-custom-tone', { id }),
-            renameCustomTone: (id: string, name: string) => ipcRenderer.invoke('rename-custom-tone', { id, name }),
-            resolveCustomTone: (id: string) => ipcRenderer.invoke('resolve-custom-tone', { id }),
-            getAssets: (projectPath: string) => ipcRenderer.invoke('get-assets', projectPath),
-            deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
-            moveAssetToTrash: (projectPath: string, absoluteFilePath: string) =>
-                ipcRenderer.invoke('move-asset-to-trash', { projectPath, absoluteFilePath }),
-            pathToUrl: (p: string) => {
-                if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
-                const encodedPath = encodeURI(p)
-                const standardPath = encodedPath.startsWith('/') ? encodedPath : `/${encodedPath}`
-                return `local-file://${standardPath}`
-            },
-            /** manga.json の assets/... 相対パス、またはレガシー絶対パスを実ファイルの絶対パスに解決 */
-            resolveAssetPath: (projectRoot: string, stored: string) =>
-                resolveAssetPathWithFallback(projectRoot, stored),
-            getPathForFile: (file: File) => webUtils.getPathForFile(file),
-            log: (level: string, ...args: any[]) => ipcRenderer.send('renderer-log', level, ...args),
-            showMessage: (payload: { title?: string; message: string; type?: 'none' | 'info' | 'error' | 'warning' }) => ipcRenderer.invoke('show-message', payload),
-            confirmMessage: (payload: { title?: string; message: string }) => ipcRenderer.invoke('confirm-message', payload),
-            novelaiSaveToken: (token: string) => ipcRenderer.invoke('novelai:save-token', { token }),
-            novelaiLoadToken: () => ipcRenderer.invoke('novelai:load-token'),
-            novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
-            novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
-            novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
-            novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
-            novelaiBackgroundMask: (projectPath: string, sourceRelativePath: string) =>
-                ipcRenderer.invoke('novelai:background-mask', { projectPath, sourceRelativePath }),
-            novelaiImportImage: (projectPath: string, panelId: string, sourcePath: string) =>
-                ipcRenderer.invoke('novelai:import-image', { projectPath, panelId, sourcePath }),
-            novelaiForegroundCutout: (projectPath: string, sourceRelativePath: string) =>
-                ipcRenderer.invoke('novelai:foreground-cutout', { projectPath, sourceRelativePath }),
-            novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
-                ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
-            novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
-                ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath }),
-            exportTranslationSheet: (defaultName: string, content: string) =>
-                ipcRenderer.invoke('export-translation-sheet', { defaultName, content }),
-            selectTranslationSheet: () => ipcRenderer.invoke('select-translation-sheet'),
-            createLocalizedProject: (sourcePath: string, folderName: string, data: unknown) =>
-                ipcRenderer.invoke('create-localized-project', { sourcePath, folderName, data }),
-            gitRepoStatus: (projectPath: string) => ipcRenderer.invoke('git-repo-status', { projectPath }),
-            gitInitConfig: (projectPath: string, remoteUrl: string, lfsUrl: string) =>
-                ipcRenderer.invoke('git-init-config', { projectPath, remoteUrl, lfsUrl }),
-            gitPush: (projectPath: string, message: string) =>
-                ipcRenderer.invoke('git-push', { projectPath, message }),
-            gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
-            gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
-                ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
-            gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults'),
-            gitLog: (projectPath: string, limit?: number) =>
-                ipcRenderer.invoke('git-log', { projectPath, limit }),
-            gitRestoreTo: (projectPath: string, hash: string) =>
-                ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
-            gitFetchStatus: (projectPath: string) =>
-                ipcRenderer.invoke('git-fetch-status', { projectPath }),
-            referencePagesList: (projectPath: string) =>
-                ipcRenderer.invoke('reference-pages:list', { projectPath }),
-            referencePagesAdd: (projectPath: string) =>
-                ipcRenderer.invoke('reference-pages:add', { projectPath }),
-            referencePagesReveal: (projectPath: string) =>
-                ipcRenderer.invoke('reference-pages:reveal', { projectPath }),
-            referencePagesDelete: (projectPath: string, name: string) =>
-                ipcRenderer.invoke('reference-pages:delete', { projectPath, name }),
-            onAppBeforeClose: (cb: () => void) => {
-                const listener = (): void => cb()
-                ipcRenderer.on('app-before-close', listener)
-                return () => ipcRenderer.removeListener('app-before-close', listener)
-            },
-            confirmAppClose: () => ipcRenderer.send('app-confirm-close'),
-            onCanvasZoomKey: (cb: (cmd: CanvasZoomCommand) => void) => {
-                const listener = (_e: unknown, cmd: CanvasZoomCommand): void => cb(cmd)
-                ipcRenderer.on('canvas-zoom-key', listener)
-                return () => { ipcRenderer.removeListener('canvas-zoom-key', listener) }
-            }
-        })
+        contextBridge.exposeInMainWorld('electron', api)
     } catch (error) {
         console.error(error)
     }
 } else {
-    // @ts-ignore (define in dts)
-    window.electron = {
-        selectFolder: () => ipcRenderer.invoke('select-folder'),
-        createProject: (path, name) => ipcRenderer.invoke('create-project', { path, name }),
-        loadProject: (path) => ipcRenderer.invoke('load-project', path),
-        saveProject: (path, data) => ipcRenderer.invoke('save-project', { path, data }),
-        saveProjectSync: (path, data) => ipcRenderer.sendSync('save-project-sync', { path, data }),
-        getTemplates: () => ipcRenderer.invoke('get-templates'),
-        saveTemplate: (template) => ipcRenderer.invoke('save-template', template),
-        deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
-        exportPNG: (path, name, data, format) => ipcRenderer.invoke('export-png', { path, name, data, format }),
-        exportText: (path, data) => ipcRenderer.invoke('export-text', { path, data }),
-        exportPdfBegin: (projectPath) => ipcRenderer.invoke('export-pdf-begin', { projectPath }),
-        exportPdfAddPage: (sessionId, data, pageWidthPx, pageHeightPx) =>
-            ipcRenderer.invoke('export-pdf-add-page', { sessionId, data, pageWidthPx, pageHeightPx }),
-        exportPdfFinish: (sessionId) => ipcRenderer.invoke('export-pdf-finish', { sessionId }),
-        exportPdfCancel: (sessionId) => ipcRenderer.invoke('export-pdf-cancel', { sessionId }),
-        saveCompositePng: (projectPath, data) =>
-            ipcRenderer.invoke('save-composite-png', { projectPath, data }),
-        selectFile: () => ipcRenderer.invoke('select-file'),
-        selectOraFile: () => ipcRenderer.invoke('select-ora-file'),
-        readOraFile: (filePath: string) => ipcRenderer.invoke('read-ora-file', filePath),
-        copyFileToProject: (projectPath, sourcePath, assetsSubPath) =>
-            ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
-        startDragFile: (absolutePath) => ipcRenderer.send('start-drag-file', absolutePath),
-        rembgRemoveBackground: (projectPath, inputRelativePath) =>
-            ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
-        saveWandPng: (projectPath, assetsSubPath, baseName, data) =>
-            ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
-        saveMangaPng: (projectPath, panelId, kind, data) =>
-            ipcRenderer.invoke('save-manga-png', { projectPath, panelId, kind, data }),
-        getCustomTones: () => ipcRenderer.invoke('get-custom-tones'),
-        addCustomTone: (sourcePath, name) =>
-            ipcRenderer.invoke('add-custom-tone', { sourcePath, name }),
-        deleteCustomTone: (id) => ipcRenderer.invoke('delete-custom-tone', { id }),
-        renameCustomTone: (id, name) => ipcRenderer.invoke('rename-custom-tone', { id, name }),
-        resolveCustomTone: (id) => ipcRenderer.invoke('resolve-custom-tone', { id }),
-        getAssets: (projectPath) => ipcRenderer.invoke('get-assets', projectPath),
-        deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
-        moveAssetToTrash: (projectPath, absoluteFilePath) =>
-            ipcRenderer.invoke('move-asset-to-trash', { projectPath, absoluteFilePath }),
-        pathToUrl: (p) => {
-            if (!p || p.startsWith('data:') || p.startsWith('local-file://')) return p
-            const encodedPath = encodeURI(p)
-            const standardPath = encodedPath.startsWith('/') ? encodedPath : `/${encodedPath}`
-            return `local-file://${standardPath}`
-        },
-        resolveAssetPath: (projectRoot: string, stored: string) =>
-            resolveAssetPathWithFallback(projectRoot, stored),
-        getPathForFile: (file) => webUtils.getPathForFile(file),
-        log: (level, ...args) => ipcRenderer.send('renderer-log', level, ...args),
-        showMessage: (payload) => ipcRenderer.invoke('show-message', payload),
-        confirmMessage: (payload) => ipcRenderer.invoke('confirm-message', payload),
-        novelaiSaveToken: (token: string) => ipcRenderer.invoke('novelai:save-token', { token }),
-        novelaiLoadToken: () => ipcRenderer.invoke('novelai:load-token'),
-        novelaiClearToken: () => ipcRenderer.invoke('novelai:clear-token'),
-        novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
-        novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
-        novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
-        novelaiBackgroundMask: (projectPath: string, sourceRelativePath: string) =>
-            ipcRenderer.invoke('novelai:background-mask', { projectPath, sourceRelativePath }),
-        novelaiImportImage: (projectPath: string, panelId: string, sourcePath: string) =>
-            ipcRenderer.invoke('novelai:import-image', { projectPath, panelId, sourcePath }),
-        novelaiForegroundCutout: (projectPath: string, sourceRelativePath: string) =>
-            ipcRenderer.invoke('novelai:foreground-cutout', { projectPath, sourceRelativePath }),
-        novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
-            ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
-        novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
-            ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath }),
-        exportTranslationSheet: (defaultName: string, content: string) =>
-            ipcRenderer.invoke('export-translation-sheet', { defaultName, content }),
-        selectTranslationSheet: () => ipcRenderer.invoke('select-translation-sheet'),
-        createLocalizedProject: (sourcePath: string, folderName: string, data: unknown) =>
-            ipcRenderer.invoke('create-localized-project', { sourcePath, folderName, data }),
-        gitRepoStatus: (projectPath: string) => ipcRenderer.invoke('git-repo-status', { projectPath }),
-        gitInitConfig: (projectPath: string, remoteUrl: string, lfsUrl: string) =>
-            ipcRenderer.invoke('git-init-config', { projectPath, remoteUrl, lfsUrl }),
-        gitPush: (projectPath: string, message: string) =>
-            ipcRenderer.invoke('git-push', { projectPath, message }),
-        gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', { projectPath }),
-        gitSaveLfsCredential: (lfsUrl: string, username: string, password: string) =>
-            ipcRenderer.invoke('git-save-lfs-cred', { lfsUrl, username, password }),
-        gitConnDefaults: () => ipcRenderer.invoke('git-conn-defaults'),
-        gitLog: (projectPath: string, limit?: number) =>
-            ipcRenderer.invoke('git-log', { projectPath, limit }),
-        gitRestoreTo: (projectPath: string, hash: string) =>
-            ipcRenderer.invoke('git-restore-to', { projectPath, hash }),
-        gitFetchStatus: (projectPath: string) =>
-            ipcRenderer.invoke('git-fetch-status', { projectPath }),
-        referencePagesList: (projectPath: string) =>
-            ipcRenderer.invoke('reference-pages:list', { projectPath }),
-        referencePagesAdd: (projectPath: string) =>
-            ipcRenderer.invoke('reference-pages:add', { projectPath }),
-        referencePagesReveal: (projectPath: string) =>
-            ipcRenderer.invoke('reference-pages:reveal', { projectPath }),
-        referencePagesDelete: (projectPath: string, name: string) =>
-            ipcRenderer.invoke('reference-pages:delete', { projectPath, name }),
-        onAppBeforeClose: (cb: () => void) => {
-            const listener = (): void => cb()
-            ipcRenderer.on('app-before-close', listener)
-            return () => ipcRenderer.removeListener('app-before-close', listener)
-        },
-        confirmAppClose: () => ipcRenderer.send('app-confirm-close'),
-        onCanvasZoomKey: (cb: (cmd: CanvasZoomCommand) => void) => {
-            const listener = (_e: unknown, cmd: CanvasZoomCommand): void => cb(cmd)
-            ipcRenderer.on('canvas-zoom-key', listener)
-            return () => { ipcRenderer.removeListener('canvas-zoom-key', listener) }
-        }
-    }
+    window.electron = api
 }
