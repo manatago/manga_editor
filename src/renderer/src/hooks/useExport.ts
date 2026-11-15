@@ -18,14 +18,66 @@ const prepareStageForCapture = async (stage: Konva.Stage | null) => {
     await waitFrames(2)
 }
 
+/** ステージ上で実際に描画に使われている HTMLImageElement を全部集める。
+ *  コマ主画像は Shape の fillPatternImage、はみ出し人物は Konva.Image の image() に入る。 */
+const collectImageEls = (stage: Konva.Stage | null): HTMLImageElement[] => {
+    if (!stage) return []
+    const els = new Set<HTMLImageElement>()
+    for (const node of stage.find('Shape')) {
+        const anyNode = node as unknown as { fillPatternImage?: () => unknown; image?: () => unknown }
+        const fp = anyNode.fillPatternImage?.()
+        if (fp instanceof HTMLImageElement) els.add(fp)
+        const im = anyNode.image?.()
+        if (im instanceof HTMLImageElement) els.add(im)
+    }
+    return [...els]
+}
+
+const isLoaded = (img: HTMLImageElement): boolean => img.complete && img.naturalWidth > 0
+
+/** 与えられた画像要素がデコード完了するまで待つ（全体で deadline まで）。 */
+const decodeAll = async (els: HTMLImageElement[], deadline: number): Promise<void> => {
+    const waitOne = (img: HTMLImageElement): Promise<void> =>
+        isLoaded(img)
+            ? Promise.resolve()
+            : new Promise<void>((resolve) => {
+                  const done = (): void => {
+                      img.removeEventListener('load', done)
+                      img.removeEventListener('error', done)
+                      resolve()
+                  }
+                  img.addEventListener('load', done, { once: true })
+                  img.addEventListener('error', done, { once: true })
+              })
+    const all = Promise.all(els.map(waitOne)).then(() => undefined)
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, deadline - Date.now())))
+    await Promise.race([all, timeout])
+}
+
 /**
- * ページ切替後、use-image 等の非同期デコードが終わるまで待つ。
- * 待ちが短いと一括 PNG でコマ画像だけ欠けた状態で toDataURL される（1ページ目は既に表示中で再現しにくい）。
+ * ページ切替後、コマ画像（fillPattern）やはみ出し画像（Konva.Image）の非同期デコードが
+ * 実際に終わるまで待つ。use-image は描画後の effect で読み込みを始めるため、要素は数フレーム
+ * 遅れて差し替わる。固定待ち（旧実装の setTimeout 350ms）だと大きい画像・多コマのページで
+ * コマだけ欠けた状態のまま toDataURL され、無言で白抜け PNG/PDF が焼かれることがあった。
+ * ここでは「読み込み済み画像の枚数が 2 回連続で変化しなくなる」まで待ち、最大 2.5 秒で打ち切る。
  */
-const waitForImagesAfterPageSwitch = async (stage: Konva.Stage | null) => {
+const waitForImagesAfterPageSwitch = async (stage: Konva.Stage | null): Promise<void> => {
     stage?.batchDraw?.()
-    await waitFrames(6)
-    await new Promise<void>((r) => setTimeout(r, 350))
+    const deadline = Date.now() + 2500
+    let prevCount = -1
+    let stable = 0
+    while (Date.now() < deadline) {
+        await decodeAll(collectImageEls(stage), deadline)
+        await waitFrames(2)
+        const count = collectImageEls(stage).filter(isLoaded).length
+        if (count === prevCount) {
+            stable += 1
+            if (stable >= 2) break
+        } else {
+            stable = 0
+            prevCount = count
+        }
+    }
     stage?.batchDraw?.()
     await waitFrames(2)
 }

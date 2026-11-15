@@ -60,8 +60,12 @@ export const flateRgbPage = (
     pageHeightPt
 })
 
-/** JPEG の SOF マーカーから画素サイズを読む */
-export function jpegSize(jpeg: Buffer): { width: number; height: number } {
+/**
+ * JPEG の SOF マーカーから画素サイズと成分数を読む。
+ * components=3 が通常のカラー（YCbCr→PDF では DeviceRGB 扱いでよい）。
+ * 1=グレースケール, 4=CMYK は DeviceRGB 固定だと破損表示になるため、呼び出し側で再デコード経路に回す。
+ */
+export function jpegSize(jpeg: Buffer): { width: number; height: number; components: number } {
     if (jpeg[0] !== 0xff || jpeg[1] !== 0xd8) throw new Error('not a JPEG')
     let i = 2
     while (i + 9 < jpeg.length) {
@@ -73,7 +77,8 @@ export function jpegSize(jpeg: Buffer): { width: number; height: number } {
         const len = jpeg.readUInt16BE(i + 2)
         // SOF0..SOF15（DHT=C4, JPG=C8, DAC=CC を除く）
         if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-            return { height: jpeg.readUInt16BE(i + 5), width: jpeg.readUInt16BE(i + 7) }
+            // SOF: len(2) precision(1) height(2) width(2) components(1)
+            return { height: jpeg.readUInt16BE(i + 5), width: jpeg.readUInt16BE(i + 7), components: jpeg[i + 9] }
         }
         i += 2 + len
     }

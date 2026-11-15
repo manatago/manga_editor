@@ -19,6 +19,21 @@ export const limitHistory = <T>(list: T[]): T[] =>
     list.length > HISTORY_LIMIT ? list.slice(-HISTORY_LIMIT) : list
 
 /**
+ * 開発ビルドでのみ、履歴に取り込むツリーを deep freeze する。
+ * 参照保持（下記 snapshot）はストアがイミュータブル更新であることが前提の設計で、
+ * どこか 1 箇所でも in-place 変更すると live 状態と全履歴スナップショットが同時に壊れる。
+ * freeze しておけば、その違反を開発中に即座に例外として検知できる（本番は凍結しない＝コスト 0）。
+ * イミュータブル更新は変更パスだけ新オブジェクトを作るので、未変更の部分木は既に凍結済み＝増分コスト。
+ */
+const DEV = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV
+const deepFreeze = <T>(obj: T): T => {
+    if (obj === null || typeof obj !== 'object' || Object.isFrozen(obj)) return obj
+    Object.freeze(obj)
+    for (const key of Object.keys(obj as object)) deepFreeze((obj as Record<string, unknown>)[key])
+    return obj
+}
+
+/**
  * 現在の状態を履歴エントリにする。
  * ストアは常にイミュータブルに更新される（既存オブジェクトを書き換えない）ため、
  * ディープコピーせず参照をそのまま保持してよい（構造共有でメモリも節約できる）。
@@ -27,11 +42,15 @@ export const snapshot = (state: {
     pages: Page[]
     archivedPages?: Page[]
     currentPageId: string | null
-}): HistoryEntry => ({
-    pages: state.pages,
-    archivedPages: state.archivedPages ?? [],
-    currentPageId: state.currentPageId
-})
+}): HistoryEntry => {
+    const pages = state.pages
+    const archivedPages = state.archivedPages ?? []
+    if (DEV) {
+        deepFreeze(pages)
+        deepFreeze(archivedPages)
+    }
+    return { pages, archivedPages, currentPageId: state.currentPageId }
+}
 
 /** 「まとめ」判定用に、対象 ID と変更フィールド名から履歴キーを作る */
 export const historyKey = (kind: string, id: string, updates: object): string =>

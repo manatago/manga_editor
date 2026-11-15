@@ -68,12 +68,12 @@ export function createBubble(
         autoFitMode: 'expand-bubble',
         ...lastStyle,
         ...props,
-        id: Math.random().toString(36).substr(2, 9),
+        id: newId('bubble'),
         text: props.text ?? 'テキストを入力'
     }
 }
 
-export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = (set) => ({
+export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = (set, get) => ({
     selectedBubbleId: null,
     clipboardBubble: null,
     clipboardBubbleCopiedAt: null,
@@ -99,33 +99,41 @@ export const createBubbleSlice: StateCreator<MangaState, [], [], BubbleSlice> = 
         }
     }),
 
-    updateBubble: (id, updates, undoable = true) => set((state) => {
-        if (!state.currentPageId) return state
-        const history = undoable ? saveHistory(state, historyKey('bubble', id, updates)) : {}
-        let nextBubble: Bubble | null = null
-        const pages = state.pages.map((p) =>
-            p.id === state.currentPageId
-                ? {
-                      ...p,
-                      bubbles: p.bubbles.map((b) => {
-                          if (b.id !== id) return b
-                          const merged = { ...b, ...updates }
-                          nextBubble = merged
-                          return merged
-                      })
-                  }
-                : p
-        )
-        let bubbleLastStyleByType = state.bubbleLastStyleByType
-        if (nextBubble) {
-            bubbleLastStyleByType = {
-                ...state.bubbleLastStyleByType,
-                [(nextBubble as Bubble).type]: bubbleToLastStyleSlice(nextBubble as Bubble)
+    updateBubble: (id, updates, undoable = true) => {
+        let changed = false
+        set((state) => {
+            if (!state.currentPageId) return state
+            const history = undoable ? saveHistory(state, historyKey('bubble', id, updates)) : {}
+            let nextBubble: Bubble | null = null
+            const pages = state.pages.map((p) =>
+                p.id === state.currentPageId
+                    ? {
+                          ...p,
+                          bubbles: p.bubbles.map((b) => {
+                              if (b.id !== id) return b
+                              const merged = { ...b, ...updates }
+                              nextBubble = merged
+                              return merged
+                          })
+                      }
+                    : p
+            )
+            let bubbleLastStyleByType = state.bubbleLastStyleByType
+            if (nextBubble) {
+                changed = true
+                bubbleLastStyleByType = {
+                    ...state.bubbleLastStyleByType,
+                    [(nextBubble as Bubble).type]: bubbleToLastStyleSlice(nextBubble as Bubble)
+                }
             }
-            saveBubbleLastStylesToStorage(bubbleLastStyleByType)
+            return { ...state, ...history, pages, bubbleLastStyleByType }
+        })
+        // 永続化は set updater の外（副作用を純粋な updater に入れない）かつコミット時だけ。
+        // ドラッグ/スライダーの連続更新（undoable=false）では毎フレーム同期 localStorage 書き込みをしない。
+        if (changed && undoable) {
+            saveBubbleLastStylesToStorage(get().bubbleLastStyleByType)
         }
-        return { ...state, ...history, pages, bubbleLastStyleByType }
-    }),
+    },
 
     removeBubble: (id) => set((state) => {
         if (!state.currentPageId) return state

@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import * as zlib from 'zlib'
 import { buildPdf, bitmapToRgb, flateRgbPage, jpegSize, pxToPt, type PdfImagePage } from './pdfWriter'
 
-/** 最小の JPEG ヘッダ（SOI + APP0 + SOF0）。サイズ読み取りのテスト用 */
-const fakeJpeg = (w: number, h: number): Buffer =>
+/** 最小の JPEG ヘッダ（SOI + APP0 + SOF0）。サイズ読み取りのテスト用。comp=成分数(3=カラー) */
+const fakeJpeg = (w: number, h: number, comp = 3): Buffer =>
     Buffer.from([
         0xff, 0xd8,
         0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
-        0xff, 0xc0, 0x00, 0x11, 0x08, h >> 8, h & 0xff, w >> 8, w & 0xff, 0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+        0xff, 0xc0, 0x00, 0x11, 0x08, h >> 8, h & 0xff, w >> 8, w & 0xff, comp, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
         0xff, 0xd9
     ])
 
@@ -39,8 +39,12 @@ describe('bitmapToRgb', () => {
 })
 
 describe('jpegSize / pxToPt', () => {
-    it('SOF から幅と高さを読む', () => {
-        expect(jpegSize(fakeJpeg(1680, 2376))).toEqual({ width: 1680, height: 2376 })
+    it('SOF から幅・高さ・成分数を読む', () => {
+        expect(jpegSize(fakeJpeg(1680, 2376))).toEqual({ width: 1680, height: 2376, components: 3 })
+    })
+    it('グレースケール/CMYK JPEG の成分数を見分ける（DeviceRGB 埋め込みの可否判定用）', () => {
+        expect(jpegSize(fakeJpeg(100, 100, 1)).components).toBe(1)
+        expect(jpegSize(fakeJpeg(100, 100, 4)).components).toBe(4)
     })
     it('JPEG でなければエラー', () => {
         expect(() => jpegSize(Buffer.from([0x89, 0x50]))).toThrow()

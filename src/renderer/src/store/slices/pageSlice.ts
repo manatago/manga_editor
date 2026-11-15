@@ -29,13 +29,27 @@ export interface PageSlice {
 /**
  * ページを ID を振り直して複製する。吹き出し・素材が持つ所属コマ（panelId）も新しいコマ ID に付け替える。
  * 画像ファイルは複製せず同じパスを参照する（Assets整理では参照中として保護される）。
+ *
+ * ただし「漫画化PNG」は assets/manga/<panelId>_<kind>.png という panelId 固定名で上書き保存される
+ * キャッシュなので、旧 panelId のまま引き継ぐと元コマの再焼き（トグル/強さ変更）で複製側の画像まで
+ * 無言で差し替わってしまう。これだけは引き継がず OFF 状態で複製する（必要なら新 ID で焼き直せる。
+ * imagePath から再生成可能なキャッシュであり、元画像は失われない）。
  */
 export function clonePageWithNewIds(page: Page): Page {
     const panelIdMap = new Map<string, string>()
     const panels = page.panels.map((p) => {
         const id = newId('panel')
         panelIdMap.set(p.id, id)
-        return { ...p, id }
+        const {
+            isManga: _isManga,
+            mangaImagePath: _mangaImagePath,
+            mangaProtrudePath: _mangaProtrudePath,
+            mangaLevel: _mangaLevel,
+            mangaStamp: _mangaStamp,
+            ...panelRest
+        } = p
+        // novelai は入れ子のオブジェクト・配列なので、参照共有だと将来の in-place 変更で元コマと巻き添えになる。複製時に deep copy する。
+        return { ...panelRest, id, ...(p.novelai ? { novelai: structuredClone(p.novelai) } : {}) }
     })
     const remap = (panelId: string | undefined): string | undefined =>
         panelId === undefined ? undefined : (panelIdMap.get(panelId) ?? panelId)
@@ -130,11 +144,9 @@ export const createPageSlice: StateCreator<MangaState, [], [], PageSlice> = (set
         if (!archived) return state
 
         const history = saveHistory(state)
-        // id の衝突を避けて末尾へ復元
+        // id の衝突を避けて末尾へ復元（Date.now() 採番は同一ミリ秒で衝突しうるため newId を使う）
         const existingIds = new Set(state.pages.map((p) => p.id))
-        const restoredId = existingIds.has(archived.id)
-            ? `page_${new Date().getTime()}`
-            : archived.id
+        const restoredId = existingIds.has(archived.id) ? newId('page') : archived.id
         const { archivedAt: _archivedAt, ...rest } = archived
         const restored: Page = { ...rest, id: restoredId }
 

@@ -52,6 +52,29 @@ describe('clonePageWithNewIds', () => {
         const dup = clonePageWithNewIds({ ...source(), archivedAt: 123 })
         expect(dup.archivedAt).toBeUndefined()
     })
+
+    it('漫画化キャッシュ（panelId 固定名で上書き保存される）は引き継がない', () => {
+        // 旧 panelId のキャッシュを共有すると、元コマの再焼きで複製側まで差し替わるため OFF で複製する
+        const src = source()
+        src.panels[0] = panel('a', {
+            imagePath: 'assets/images/a.png',
+            isManga: true,
+            mangaImagePath: 'assets/manga/a_main.png',
+            mangaProtrudePath: 'assets/manga/a_people.png',
+            mangaLevel: 'mid',
+            mangaStamp: 999
+        })
+        const dup = clonePageWithNewIds(src)
+        const p = dup.panels[0]
+        expect(p.imagePath).toBe('assets/images/a.png') // 元画像は残す
+        expect(p.isManga).toBeUndefined()
+        expect(p.mangaImagePath).toBeUndefined()
+        expect(p.mangaProtrudePath).toBeUndefined()
+        expect(p.mangaLevel).toBeUndefined()
+        expect(p.mangaStamp).toBeUndefined()
+        // 元ページは壊さない
+        expect(src.panels[0].mangaImagePath).toBe('assets/manga/a_main.png')
+    })
 })
 
 describe('duplicatePage', () => {

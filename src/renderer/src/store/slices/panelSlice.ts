@@ -25,7 +25,7 @@ export interface PanelSlice {
 /** デフォルト値を埋めた Panel を id 付きで生成する（addPanel / 台本生成で共有） */
 export function createPanel(props: Partial<Omit<Panel, 'id'>>): Panel {
     return {
-        id: Math.random().toString(36).substr(2, 9),
+        id: newId('panel'),
         type: 'rect',
         x: 100,
         y: 100,
