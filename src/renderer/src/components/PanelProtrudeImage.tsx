@@ -4,7 +4,7 @@ import { Group, Image as KonvaImage } from 'react-konva'
 import useImage from 'use-image'
 import type { Panel } from '../store/types'
 import { getPanelPoints } from './utils/drawPaths'
-import { ALL_EDGES, protrudeRegions } from '../utils/ora/protrudeClip'
+import { ALL_EDGES, clockwise, protrudeInset, protrudeRegions } from '../utils/ora/protrudeClip'
 
 /**
  * コマ枠からはみ出させた人物画像。
@@ -84,8 +84,9 @@ export const PanelProtrudeImage: React.FC<{
                 for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1])
                 ctx.closePath()
             }
-            for (const r of protrudeRegions(pts, edges, (panel.strokeWidth ?? 1) / 2)) poly(r)
-            if (!panel.protrudeOutsideOnly) poly(pts)
+            // 向きをそろえて足す（逆向きが重なると nonzero で打ち消され、枠線の内側半分が人物の上に透けていた）
+            for (const r of protrudeRegions(pts, edges, protrudeInset(panel.strokeWidth))) poly(r)
+            if (!panel.protrudeOutsideOnly) poly(clockwise(pts))
         }
         : undefined
 

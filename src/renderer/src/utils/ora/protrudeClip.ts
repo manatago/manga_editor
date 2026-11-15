@@ -8,6 +8,17 @@
 export type ProtrudeEdge = 'top' | 'right' | 'bottom' | 'left'
 export type ProtrudeEdges = Partial<Record<ProtrudeEdge, boolean>>
 
+/**
+ * はみ出し人物を、枠線の内側の縁よりさらにこれだけ内側から描く（コマの座標の単位）。
+ * 人物の切り抜きの端と枠線の内側の縁が同じ位置だと、境界のピクセルで両方が半透明に混ざり、
+ * 人物の上に枠線がうっすら透けて見える。コマの内側では人物の下に同じ絵が同じ位置で描かれているので、
+ * 少し内側まで重ねても見た目は変わらない。
+ */
+export const PROTRUDE_SEAM_MARGIN = 2
+
+/** 線の太さから、はみ出し範囲を辺から内側へずらす量を決める */
+export const protrudeInset = (strokeWidth: number | undefined): number => (strokeWidth ?? 1) / 2 + PROTRUDE_SEAM_MARGIN
+
 /** 全部の辺を許す（設定が無いときの既定） */
 export const ALL_EDGES: Record<ProtrudeEdge, boolean> = { top: true, right: true, bottom: true, left: true }
 
@@ -17,12 +28,35 @@ export function edgeSide(nx: number, ny: number): ProtrudeEdge {
     return ny > 0 ? 'bottom' : 'top'
 }
 
+/** 多角形の符号付き面積の 2 倍（画面座標で正なら時計回り） */
+export function signedArea2(poly: number[]): number {
+    const n = poly.length / 2
+    let a = 0
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n
+        a += poly[i * 2] * poly[j * 2 + 1] - poly[j * 2] * poly[i * 2 + 1]
+    }
+    return a
+}
+
+/**
+ * 多角形の向きを時計回り（面積が正）にそろえる。
+ * Canvas の clip は nonzero ルールなので、向きの違う図形を重ねると重なりが打ち消されて穴になる。
+ * はみ出し範囲は「辺の外の四角」と「コマの形」を重ねて作るため、全部の向きをそろえてから足すこと。
+ */
+export function clockwise(poly: number[]): number[] {
+    if (signedArea2(poly) >= 0) return poly
+    const out: number[] = []
+    for (let i = poly.length / 2 - 1; i >= 0; i--) out.push(poly[i * 2], poly[i * 2 + 1])
+    return out
+}
+
 /**
  * @param points コマの多角形 [x0, y0, x1, y1, ...]（getPanelPoints と同じ）
  * @param edges 許す辺
  * @param inset 辺をこれだけ内側へずらしてから伸ばす（線の太さの半分）
  * @param far 外へ伸ばす長さ
- * @returns 多角形の一覧（それぞれ [x0, y0, ...]）。これらを合わせた範囲に描く
+ * @returns 多角形の一覧（それぞれ [x0, y0, ...]、向きは時計回りにそろえ済み）。これらを合わせた範囲に描く
  */
 export function protrudeRegions(points: number[], edges: ProtrudeEdges, inset = 0, far = 100000): number[][] {
     const n = points.length / 2
@@ -60,5 +94,5 @@ export function protrudeRegions(points: number[], edges: ProtrudeEdges, inset = 
             out.push([cx, cy, cx + nx * far, cy + ny * far, cx + (nx + mx) * far, cy + (ny + my) * far, cx + mx * far, cy + my * far])
         }
     }
-    return out
+    return out.map(clockwise)
 }
