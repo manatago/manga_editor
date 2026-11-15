@@ -7,6 +7,7 @@ import { DOT_CIRCLE_COLORS } from '../effects/StippleCircles'
 import { importOraToPanel } from '../../utils/ora/importOra'
 import { ALL_EDGES, type ProtrudeEdge } from '../../utils/ora/protrudeClip'
 import { SliderField } from './SliderField'
+import { setPanelImage } from '../../store/panelImage'
 
 const SECTION_TITLE_CLASS = 'text-xs font-bold text-zinc-100 tracking-wide bg-zinc-800/70 border border-zinc-700 rounded-md px-2 py-1 inline-block'
 
@@ -57,13 +58,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
         if (sourcePath) {
             try {
                 const projectLocalPath = await window.electron.copyFileToProject(currentProjectPath, sourcePath)
-                updatePanel(panel.id, {
-                    imagePath: projectLocalPath,
-                    imageX: panel.width / 2,
-                    imageY: panel.height / 2,
-                    imageScale: 1,
-                    imageRotation: 0
-                })
+                updatePanel(panel.id, setPanelImage(panel, projectLocalPath))
             } catch (error) {
                 console.error('PanelSettings: Failed to copy image to project:', error)
             }

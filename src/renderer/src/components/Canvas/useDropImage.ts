@@ -3,6 +3,7 @@ import Konva from 'konva'
 import type { Material, Panel } from '../../store/useMangaStore'
 import { getOrientedImagePixelSize, type FileWithNativePath } from './helpers'
 import { importOraToPanel, isOraPath } from '../../utils/ora/importOra'
+import { setPanelImage } from '../../store/panelImage'
 
 type Args = {
     stageRef: React.RefObject<Konva.Stage | null>
@@ -109,13 +110,7 @@ export function useDropImage({
 
             if (targetPanel && !targetPanel.imagePath) {
                 // First image on empty panel: Set as background
-                updatePanel(targetPanel.id, {
-                    imagePath: projectLocalPath,
-                    imageScale: 1,
-                    imageRotation: 0,
-                    imageX: targetPanel.width / 2,
-                    imageY: targetPanel.height / 2
-                })
+                updatePanel(targetPanel.id, setPanelImage(targetPanel, projectLocalPath))
             } else if (targetPanel) {
                 // Subsequent image or dropped on panel with background: Create Material (clipped)
                 addMaterial({

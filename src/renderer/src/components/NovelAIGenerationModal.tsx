@@ -26,6 +26,7 @@ import { CharacterRefSelector } from './NovelAIGeneration/CharacterRefSelector'
 import { PreciseRefList } from './NovelAIGeneration/PreciseRefList'
 import { HistoryGallery } from './NovelAIGeneration/HistoryGallery'
 import { HistoryZoomOverlay } from './NovelAIGeneration/HistoryZoomOverlay'
+import { clearPanelImage, setPanelImage } from '../store/panelImage'
 
 export const NovelAIGenerationModal: React.FC = () => {
     const targetPanelId = useMangaStore((s) => s.novelaiTargetPanelId)
@@ -386,14 +387,7 @@ export const NovelAIGenerationModal: React.FC = () => {
         if (!selectedEntry || !panel) return
         const nextForm = { ...form, lastSeed: selectedEntry.seed }
         persistForm(nextForm)
-        updatePanel(panel.id, {
-            imagePath: selectedEntry.relativePath,
-            imageX: panel.width / 2,
-            imageY: panel.height / 2,
-            imageScale: undefined,
-            imageRotation: 0,
-            imageFlipX: false
-        }, true)
+        updatePanel(panel.id, setPanelImage(panel, selectedEntry.relativePath, { imageScale: undefined }), true)
         close()
     }
 
@@ -408,7 +402,7 @@ export const NovelAIGenerationModal: React.FC = () => {
         const nextHistory = (panel.novelai?.history ?? []).filter((h) => h.relativePath !== entry.relativePath)
         // 採用中だった場合はコマの imagePath をクリア
         if (panel.imagePath === entry.relativePath) {
-            updatePanel(panel.id, { imagePath: undefined }, true)
+            updatePanel(panel.id, clearPanelImage(), true)
         }
         persistForm(form, nextHistory)
         if (selectedRelativePath === entry.relativePath) {

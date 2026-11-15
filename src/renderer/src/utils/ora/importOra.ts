@@ -4,6 +4,7 @@
 import type { Panel } from '../../store/types'
 import { oraImages } from './oraComposite'
 import { readOra } from './readOra'
+import { DERIVED_IMAGE_RESET } from '../../store/panelImage'
 
 export const isOraPath = (p: string): boolean => /\.ora$/i.test(p)
 
@@ -29,6 +30,8 @@ export async function importOraToPanel(
     // 初めてならコマを覆う大きさで中央に
     const fit = Math.max(panel.width / img.width, panel.height / img.height)
     updatePanel(panel.id, {
+        // 前の画像の漫画化などが残っていると、そちらが優先して描かれる
+        ...DERIVED_IMAGE_RESET,
         imagePath: full.relativePath,
         protrudeImagePath: fig?.relativePath,
         imageProtrude: !!fig,

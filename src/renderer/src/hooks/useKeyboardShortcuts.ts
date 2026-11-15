@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useMangaStore } from '../store/useMangaStore'
 import { useShortcutHelp } from '../components/ShortcutHelp'
+import { clearPanelImage } from '../store/panelImage'
 
 const ARROWS: Record<string, [number, number]> = {
     ArrowLeft: [-1, 0],
@@ -130,16 +131,8 @@ export const useKeyboardShortcuts = (): void => {
                     const panel = currentPage?.panels.find((p) => p.id === selectedPanelId)
                     if (panel?.imagePath) {
                         // 画像のあるコマは、まず画像だけを外す
-                        s.updatePanel(selectedPanelId, {
-                            imagePath: undefined,
-                            imageX: undefined,
-                            imageY: undefined,
-                            imageScale: undefined,
-                            imageRotation: undefined,
-                            imageFlipX: undefined,
-                            isGrayscale: false,
-                            grayscaleBrightness: 0
-                        })
+                        // 漫画化・はみ出しの派生画像も一緒に外す（残すと次に入れた画像より優先して描かれる）
+                        s.updatePanel(selectedPanelId, clearPanelImage())
                     } else {
                         s.removePanel(selectedPanelId)
                     }

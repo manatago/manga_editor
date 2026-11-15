@@ -6,6 +6,7 @@ import { FONT_OPTIONS, characterFontFor } from '../data/fontFamilies'
 import { showError } from '../utils/dialogs'
 import { MagicWandEditorModal } from './MagicWandEditorModal'
 import { ReferenceCharacterAIGenerationPanel } from './ReferenceCharacterAIGenerationPanel'
+import { setPanelImage } from '../store/panelImage'
 
 interface ReferenceCharactersModalProps {
     isOpen: boolean
@@ -111,13 +112,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
 
     const handleInsertToPanel = (relativePath: string) => {
         if (!selectedPanelId || !selectedPanel) return
-        updatePanel(selectedPanelId, {
-            imagePath: relativePath,
-            imageScale: 1,
-            imageRotation: 0,
-            imageX: selectedPanel.width / 2,
-            imageY: selectedPanel.height / 2
-        })
+        updatePanel(selectedPanelId, setPanelImage(selectedPanel, relativePath))
     }
 
     const handleOpenWandEditor = (characterId: string, imageId: string, relativePath: string, url: string) => {
