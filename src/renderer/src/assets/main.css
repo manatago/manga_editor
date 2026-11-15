@@ -6,6 +6,42 @@
     }
 }
 
+/*
+ * ライトテーマ。
+ * UI はほぼ全面的に zinc スケール（背景=950/900/800、文字=100/300…）で組んであるため、
+ * Tailwind v4 が各ユーティリティを var(--color-zinc-*) 経由で描画するのを利用し、
+ * zinc ランプを「上下反転」して差し替えるだけで、コンポーネントに手を入れず明暗を入れ替える。
+ * （反転ペア: 50↔950 / 100↔900 / 200↔800 / 300↔700 / 400↔600 / 500=500）
+ * アクセント色（blue/emerald/indigo…）はそのまま。純白文字はアクセントボタン上だけ残し、
+ * クローム上の文字は text-zinc-50 に寄せてあるので、この反転で自動的に濃色化する。
+ */
+:root[data-theme="light"] {
+    --color-zinc-50: oklch(14.1% .005 285.823);
+    --color-zinc-100: oklch(21% .006 285.885);
+    --color-zinc-200: oklch(27.4% .006 286.033);
+    --color-zinc-300: oklch(37% .013 285.805);
+    --color-zinc-400: oklch(44.2% .017 285.786);
+    --color-zinc-500: oklch(55.2% .016 285.938);
+    --color-zinc-600: oklch(70.5% .015 286.067);
+    --color-zinc-700: oklch(87.1% .006 286.286);
+    --color-zinc-800: oklch(92% .004 286.32);
+    --color-zinc-900: oklch(96.7% .001 286.375);
+    --color-zinc-950: oklch(98.5% .001 286.375);
+}
+
+/* ライト時はスクロールバーも明色基調へ */
+:root[data-theme="light"] .manga-scrollbar {
+    scrollbar-color: rgba(113, 113, 122, 0.55) rgba(228, 228, 231, 0.6);
+}
+:root[data-theme="light"] .manga-scrollbar::-webkit-scrollbar-track {
+    background: rgba(228, 228, 231, 0.6);
+}
+:root[data-theme="light"] .manga-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(161, 161, 170, 0.8), rgba(113, 113, 122, 0.8));
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
 /* Shared scrollbar styling for dark UI panels */
 .manga-scrollbar {
     scrollbar-width: thin;

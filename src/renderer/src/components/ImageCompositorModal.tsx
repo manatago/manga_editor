@@ -406,7 +406,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                     setAspectPresetId(e.target.value)
                     bgInitRef.current = false
                 }}
-                className="bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-sm text-white"
+                className="bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-sm text-zinc-50"
             >
                 <optgroup label="横長">
                     {ASPECT_PRESETS.filter((p) => p.category === '横長').map((p) => (
@@ -441,7 +441,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col shadow-2xl">
                 <div className="p-4 border-b border-zinc-800 flex justify-between items-start gap-3 shrink-0">
                     <div>
-                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-zinc-50 flex items-center gap-2">
                             <ImagePlus className="text-pink-400" size={22} />
                             背景＋人物の合成
                         </h2>
@@ -632,7 +632,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                                             </button>
                                             <button
                                                 type="button"
-                                                className="p-1 text-zinc-500 hover:text-white"
+                                                className="p-1 text-zinc-500 hover:text-zinc-50"
                                                 title="前面へ"
                                                 onClick={() => bringForward(c.instanceId)}
                                             >
@@ -640,7 +640,7 @@ export const ImageCompositorModal: React.FC<ImageCompositorModalProps> = ({
                                             </button>
                                             <button
                                                 type="button"
-                                                className="p-1 text-zinc-500 hover:text-white"
+                                                className="p-1 text-zinc-500 hover:text-zinc-50"
                                                 title="背面へ"
                                                 onClick={() => sendBackward(c.instanceId)}
                                             >

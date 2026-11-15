@@ -114,7 +114,7 @@ export const ReferencePagesModal: React.FC<ReferencePagesModalProps> = ({ isOpen
         <div className="fixed inset-0 z-[70] flex flex-col bg-black/90">
             {/* ヘッダ */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800 bg-zinc-900/80">
-                <div className="flex items-center gap-2 text-white">
+                <div className="flex items-center gap-2 text-zinc-50">
                     <BookOpen size={18} className="text-amber-400" />
                     <h2 className="text-base font-semibold">参考資料</h2>
                     {pages.length > 0 && (
@@ -154,7 +154,7 @@ export const ReferencePagesModal: React.FC<ReferencePagesModalProps> = ({ isOpen
                         <button
                             type="button"
                             onClick={handleDelete}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs bg-zinc-800 hover:bg-red-900/60 text-zinc-300 hover:text-white border border-zinc-700"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs bg-zinc-800 hover:bg-red-900/60 text-zinc-300 hover:text-zinc-50 border border-zinc-700"
                         >
                             <Trash2 size={14} />
                             削除
@@ -163,7 +163,7 @@ export const ReferencePagesModal: React.FC<ReferencePagesModalProps> = ({ isOpen
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white ml-1"
+                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50 ml-1"
                     >
                         <X size={18} />
                     </button>
@@ -191,7 +191,7 @@ export const ReferencePagesModal: React.FC<ReferencePagesModalProps> = ({ isOpen
                     <button
                         type="button"
                         onClick={() => go(-1)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-zinc-900/70 hover:bg-zinc-800 text-white border border-zinc-700"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-zinc-900/70 hover:bg-zinc-800 text-zinc-50 border border-zinc-700"
                         aria-label="前へ"
                     >
                         <ChevronLeft size={24} />
@@ -208,7 +208,7 @@ export const ReferencePagesModal: React.FC<ReferencePagesModalProps> = ({ isOpen
                     <button
                         type="button"
                         onClick={() => go(1)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-zinc-900/70 hover:bg-zinc-800 text-white border border-zinc-700"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-zinc-900/70 hover:bg-zinc-800 text-zinc-50 border border-zinc-700"
                         aria-label="次へ"
                     >
                         <ChevronRight size={24} />

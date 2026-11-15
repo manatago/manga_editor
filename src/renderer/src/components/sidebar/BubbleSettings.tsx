@@ -77,7 +77,7 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                             step="0.1"
                             value={bubble.borderWidth ?? 2}
                             onChange={(e) => updateBubble(bubble.id, { borderWidth: parseFloat(e.target.value) })}
-                            className="w-full bg-transparent p-2 text-xs text-white focus:outline-none"
+                            className="w-full bg-transparent p-2 text-xs text-zinc-50 focus:outline-none"
                         />
                     </div>
                 </div>
@@ -158,7 +158,7 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                         <button
                             type="button"
                             onClick={() => updateBubble(bubble.id, { tailX: 0, tailY: 0, tailControlX: 0, tailControlY: 0 })}
-                            className="text-[10px] text-zinc-500 hover:text-white transition-colors"
+                            className="text-[10px] text-zinc-500 hover:text-zinc-50 transition-colors"
                         >
                             リセット
                         </button>
@@ -221,7 +221,7 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                     <textarea
                         value={bubble.text}
                         onChange={(e) => updateBubble(bubble.id, { text: e.target.value })}
-                        className="w-full h-24 bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-blue-500/50 resize-none"
+                        className="w-full h-24 bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-50 focus:outline-none focus:border-blue-500/50 resize-none"
                         placeholder="セリフを入力..."
                     />
                 </div>
@@ -277,7 +277,7 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                                 type="number"
                                 value={bubble.fontSize}
                                 onChange={(e) => updateBubble(bubble.id, { fontSize: parseInt(e.target.value) })}
-                                className="w-full bg-transparent p-2 text-xs text-white focus:outline-none"
+                                className="w-full bg-transparent p-2 text-xs text-zinc-50 focus:outline-none"
                             />
                         </div>
                     </div>
@@ -365,7 +365,7 @@ const BubbleSettings: React.FC<BubbleSettingsProps> = ({ bubble, updateBubble, r
                         <select
                             value={bubble.fontFamily}
                             onChange={(e) => updateBubble(bubble.id, { fontFamily: e.target.value })}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                         >
                             <option value="sans-serif">ゴシック体</option>
                             <option value="serif">明朝体</option>

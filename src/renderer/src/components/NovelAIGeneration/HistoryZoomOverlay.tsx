@@ -220,7 +220,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                     type="button"
                     onClick={() => { if (inpaint) setInpaint(false); else onClose() }}
                     disabled={busy}
-                    className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700 disabled:opacity-40"
+                    className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-zinc-50 hover:bg-zinc-800 border border-zinc-700 disabled:opacity-40"
                     title={inpaint ? '部分再描画を終了 (Esc)' : '閉じる (Esc)'}
                 >
                     <X size={18} />
@@ -347,7 +347,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                             type="button"
                             onClick={() => prev && onSelect(prev.relativePath)}
                             disabled={!prev}
-                            className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
+                            className="text-zinc-400 hover:text-zinc-50 disabled:opacity-30 px-1"
                             title="前（新しい）"
                         >◀</button>
                         <span>{entry.imported ? '外部読込' : `seed: ${entry.seed}`}</span>
@@ -362,7 +362,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                             type="button"
                             onClick={() => next && onSelect(next.relativePath)}
                             disabled={!next}
-                            className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
+                            className="text-zinc-400 hover:text-zinc-50 disabled:opacity-30 px-1"
                             title="次（古い）"
                         >▶</button>
                         {onInpaint && (

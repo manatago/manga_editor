@@ -59,7 +59,7 @@ export const CompositeZoomOverlay: React.FC<Props> = ({
                 <button
                     type="button"
                     onClick={onClose}
-                    className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700"
+                    className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-zinc-50 hover:bg-zinc-800 border border-zinc-700"
                     title="閉じる (Esc)"
                 >
                     <X size={18} />
@@ -78,7 +78,7 @@ export const CompositeZoomOverlay: React.FC<Props> = ({
                         type="button"
                         onClick={() => prev && onSelect(prev)}
                         disabled={!prev}
-                        className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
+                        className="text-zinc-400 hover:text-zinc-50 disabled:opacity-30 px-1"
                         title="前（新しい）"
                     >◀</button>
                     <span className="truncate max-w-[50vw]">{base}</span>
@@ -86,7 +86,7 @@ export const CompositeZoomOverlay: React.FC<Props> = ({
                         type="button"
                         onClick={() => next && onSelect(next)}
                         disabled={!next}
-                        className="text-zinc-400 hover:text-white disabled:opacity-30 px-1"
+                        className="text-zinc-400 hover:text-zinc-50 disabled:opacity-30 px-1"
                         title="次（古い）"
                     >▶</button>
                     <button

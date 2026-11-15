@@ -306,7 +306,7 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                     {/* ヘッダー */}
                     <div className="p-4 border-b border-zinc-800 flex justify-between items-start gap-3 shrink-0">
                         <div>
-                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-zinc-50 flex items-center gap-2">
                                 <Layers className="text-sky-400" size={22} />
                                 背景ライブラリ
                             </h2>
@@ -500,7 +500,7 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                                                             type="text"
                                                             value={tone.name}
                                                             onChange={(e) => renameCustomTone(tone.id, e.target.value)}
-                                                            className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[11px] text-white"
+                                                            className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[11px] text-zinc-50"
                                                             placeholder="名前"
                                                         />
                                                         <div className="flex gap-1">
@@ -562,7 +562,7 @@ export const BackgroundLibraryModal: React.FC<BackgroundLibraryModalProps> = ({ 
                                                         type="text"
                                                         value={item.name}
                                                         onChange={(e) => updateBackgroundLibraryImage(item.id, { name: e.target.value })}
-                                                        className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[11px] text-white"
+                                                        className="w-full bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-[11px] text-zinc-50"
                                                         placeholder="名前"
                                                     />
                                                     <div className="flex gap-1">

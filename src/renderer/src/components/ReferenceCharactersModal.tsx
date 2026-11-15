@@ -152,7 +152,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                 <button
                     type="button"
                     onClick={() => setLightbox(null)}
-                    className="absolute top-4 right-4 z-10 p-2 rounded-full bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 hover:text-white border border-zinc-600"
+                    className="absolute top-4 right-4 z-10 p-2 rounded-full bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 hover:text-zinc-50 border border-zinc-600"
                     title="閉じる (Esc)"
                 >
                     <X size={22} />
@@ -189,7 +189,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                     <div className="p-5 border-b border-zinc-800 flex justify-between items-center shrink-0">
                         <div>
-                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-zinc-50 flex items-center gap-2">
                                 <Users className="text-violet-400" size={22} />
                                 参照キャラクター
                             </h2>
@@ -227,7 +227,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                         onClick={() => setSelectedId(c.id)}
                                         className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors ${
                                             selectedId === c.id
-                                                ? 'bg-zinc-800 text-white border border-zinc-700'
+                                                ? 'bg-zinc-800 text-zinc-50 border border-zinc-700'
                                                 : 'text-zinc-400 hover:bg-zinc-800/60 border border-transparent'
                                         }`}
                                     >
@@ -252,7 +252,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                 onChange={(e) =>
                                                     updateReferenceCharacter(selected.id, { name: e.target.value })
                                                 }
-                                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-50"
                                                 placeholder="キャラ名"
                                             />
                                             <button
@@ -280,7 +280,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                 | undefined
                                                         })
                                                     }
-                                                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                                                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-50"
                                                 >
                                                     <option value="">未設定</option>
                                                     <option value="male">男性（既定＝ヒラギノ明朝）</option>
@@ -299,7 +299,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                             defaultFontFamily: e.target.value || undefined
                                                         })
                                                     }
-                                                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+                                                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-50"
                                                 >
                                                     <option value="">（未設定：性別から自動）</option>
                                                     {FONT_OPTIONS.filter((o) => !o.group).map((o) => (

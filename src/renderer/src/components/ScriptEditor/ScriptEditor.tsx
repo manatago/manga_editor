@@ -150,7 +150,7 @@ const LayoutPicker: React.FC<{ current?: string; templates: PageTemplate[]; onPi
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-700 bg-zinc-800 text-xs text-white hover:border-indigo-500"
+                className="flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-700 bg-zinc-800 text-xs text-zinc-50 hover:border-indigo-500"
             >
                 <LayoutGrid size={14} /> {current || 'レイアウトを選ぶ'}
             </button>
@@ -319,7 +319,7 @@ const LineRow: React.FC<{ bubble: Bubble }> = ({ bubble }) => {
                     onChange={(e) => updateLine(bubble.id, { speaker: e.target.value })}
                     placeholder="話者"
                     disabled={kind === 'narration'}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white disabled:opacity-40"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-50 disabled:opacity-40"
                 />
                 <select
                     value={kind}
@@ -339,7 +339,7 @@ const LineRow: React.FC<{ bubble: Bubble }> = ({ bubble }) => {
                     onChange={(e) => updateLine(bubble.id, { text: e.target.value })}
                     rows={2}
                     placeholder="セリフ（改行OK）"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-white resize-y"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-50 resize-y"
                 />
                 <div className="flex gap-1">
                     <input
@@ -498,7 +498,7 @@ export const ScriptEditor: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={addPanelToPage}
-                                className="w-full flex items-center justify-center gap-1.5 py-2 rounded border border-dashed border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-white text-sm"
+                                className="w-full flex items-center justify-center gap-1.5 py-2 rounded border border-dashed border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-zinc-50 text-sm"
                             >
                                 <Plus size={15} /> コマを追加
                             </button>

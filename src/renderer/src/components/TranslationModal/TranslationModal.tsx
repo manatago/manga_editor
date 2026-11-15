@@ -135,14 +135,14 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
             <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl">
                 {/* ヘッダ */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex items-center gap-2 text-zinc-50">
                         <Languages size={18} className="text-indigo-400" />
                         <h2 className="text-base font-semibold">翻訳版を作成</h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50"
                     >
                         <X size={18} />
                     </button>
@@ -167,7 +167,7 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
                                     className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                                         locale === l.value
                                             ? 'bg-indigo-600 border-indigo-500 text-white'
-                                            : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-white'
+                                            : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-zinc-50'
                                     }`}
                                 >
                                     {l.label}
@@ -186,7 +186,7 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
                                 className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                                     !horizontal
                                         ? 'bg-indigo-600 border-indigo-500 text-white'
-                                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-white'
+                                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-zinc-50'
                                 }`}
                             >
                                 縦書き（原版のまま）
@@ -197,7 +197,7 @@ export const TranslationModal: React.FC<TranslationModalProps> = ({ isOpen, onCl
                                 className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                                     horizontal
                                         ? 'bg-indigo-600 border-indigo-500 text-white'
-                                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-white'
+                                        : 'bg-zinc-800/60 border-zinc-700 text-zinc-300 hover:text-zinc-50'
                                 }`}
                             >
                                 横書きにする

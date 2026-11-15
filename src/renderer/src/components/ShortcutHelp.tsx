@@ -65,7 +65,7 @@ export const ShortcutHelpButton: React.FC = () => {
             type="button"
             onClick={toggle}
             title="ショートカット一覧（?）"
-            className="shrink-0 rounded-md p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-white"
+            className="shrink-0 rounded-md p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-50"
         >
             <Keyboard size={16} />
         </button>
@@ -98,11 +98,11 @@ export const ShortcutHelp: React.FC = () => {
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex items-center gap-2 text-zinc-50">
                         <Keyboard size={18} className="text-blue-400" />
                         <h2 className="text-base font-semibold">ショートカット一覧</h2>
                     </div>
-                    <button type="button" onClick={() => setOpen(false)} className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-white" title="閉じる（Esc）">
+                    <button type="button" onClick={() => setOpen(false)} className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-50" title="閉じる（Esc）">
                         <X size={16} />
                     </button>
                 </div>

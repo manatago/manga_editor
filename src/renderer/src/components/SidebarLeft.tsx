@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
-import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Copy, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Sparkles, Archive, RotateCcw, FileDown } from 'lucide-react'
+import { Plus, FolderOpen, Download, FileText, ChevronUp, ChevronDown, Plus as PlusIcon, Layout, Trash2, Copy, Eraser, ChevronLeft, Users, Layers, ImagePlus, Grid2x2, Eye, EyeOff, Pencil, Archive, RotateCcw, FileDown } from 'lucide-react'
 import { ReferenceCharactersModal } from './ReferenceCharactersModal'
 import { BackgroundLibraryModal } from './BackgroundLibraryModal'
 import { ImageCompositorModal } from './ImageCompositorModal'
-import { NovelAISettingsModal } from './NovelAISettingsModal'
 import { useMangaStore } from '../store/useMangaStore'
 import { useShallow } from 'zustand/react/shallow'
 import type { MosaicType } from '../store/types'
@@ -87,21 +86,18 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
     const [referenceModalOpen, setReferenceModalOpen] = useState(false)
     const [backgroundLibraryOpen, setBackgroundLibraryOpen] = useState(false)
     const [compositorOpen, setCompositorOpen] = useState(false)
-    const [novelaiSettingsOpen, setNovelaiSettingsOpen] = useState(false)
     const [toolsOpen, setToolsOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<ExportFormat>('png')
-    const novelaiConnection = useMangaStore((s) => s.novelaiConnection)
-    const novelaiConnectedOk = novelaiConnection.state === 'ok'
 
     return (
         <div className="h-full flex flex-col min-h-0 bg-zinc-900">
             <div className="p-3 sm:p-4 border-b border-zinc-800 flex items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
                     <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
-                        <span className="text-white font-bold text-xs">M</span>
+                        <span className="text-zinc-50 font-bold text-xs">M</span>
                     </div>
-                    <h1 className="font-bold text-white tracking-tight truncate text-sm sm:text-base">漫画野郎</h1>
+                    <h1 className="font-bold text-zinc-50 tracking-tight truncate text-sm sm:text-base">漫画野郎</h1>
                 </div>
                 {onCollapse && (
                     <button
@@ -118,11 +114,11 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
             <div className="flex-1 overflow-y-auto p-3 space-y-6 manga-scrollbar">
                 {!currentProjectPath ? (
                     <div className="space-y-2">
-                        <button onClick={handleCreateNew} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white group">
+                        <button onClick={handleCreateNew} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-50 group">
                             <Plus size={18} className="group-hover:text-blue-500 transition-colors" />
                             <span className="text-sm font-medium">新規プロジェクト</span>
                         </button>
-                        <button onClick={handleOpenProject} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white group">
+                        <button onClick={handleOpenProject} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-50 group">
                             <FolderOpen size={18} className="group-hover:text-blue-500 transition-colors" />
                             <span className="text-sm font-medium">プロジェクトを開く</span>
                         </button>
@@ -134,7 +130,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                             <button
                                 type="button"
                                 onClick={() => setToolsOpen((v) => !v)}
-                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-sm font-bold"
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-zinc-50 text-sm font-bold"
                             >
                                 <span>ツール</span>
                                 <ChevronDown size={15} className={`transition-transform duration-200 ${toolsOpen ? 'rotate-180' : ''}`} />
@@ -164,7 +160,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     <button
                                         onClick={() => onExportAllPagesPNG(exportFormat)}
                                         disabled={!currentPageId || pages.length === 0}
-                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-zinc-50 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Download size={15} />
                                         <span>全ページ一括 {exportFormat === 'jpeg' ? 'JPEG' : 'PNG'}（モザイクあり）</span>
@@ -172,7 +168,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     <button
                                         onClick={() => onExportAllPagesPNGNoMosaic(exportFormat)}
                                         disabled={!currentPageId || pages.length === 0}
-                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-zinc-50 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Download size={15} />
                                         <span>全ページ一括 {exportFormat === 'jpeg' ? 'JPEG' : 'PNG'}（モザイクなし）</span>
@@ -189,7 +185,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                                 onClick={() => onExportAllPagesPDF(exportFormat, hide)}
                                                 disabled={!currentPageId || pages.length === 0}
                                                 title={`全ページを 1 つの PDF に書き出し（${exportFormat === 'jpeg' ? 'JPEG 圧縮・軽量' : '劣化なし'}）`}
-                                                className="flex-1 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-[10px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="flex-1 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-zinc-50 text-[10px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {hide ? 'モザイクなし' : 'モザイクあり'}
                                             </button>
@@ -198,7 +194,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     <button
                                         onClick={onExportText}
                                         disabled={pages.length === 0}
-                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 hover:text-zinc-50 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <FileText size={15} />
                                         <span>セリフ一覧 TXT</span>
@@ -226,21 +222,6 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                     >
                                         <ImagePlus size={15} />
                                         <span>背景＋人物の合成</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setNovelaiSettingsOpen(true)}
-                                        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-800/40 transition-colors text-indigo-100 hover:text-indigo-50 text-xs font-bold"
-                                        title="NovelAI トークン設定・疎通確認"
-                                    >
-                                        <span className="flex items-center gap-2.5">
-                                            <Sparkles size={15} />
-                                            NovelAI 設定
-                                        </span>
-                                        <span
-                                            className={`w-2 h-2 rounded-full ${novelaiConnectedOk ? 'bg-emerald-400' : 'bg-zinc-600'}`}
-                                            title={novelaiConnectedOk ? '接続 OK' : '未接続'}
-                                        />
                                     </button>
                                 </div>
                             )}
@@ -337,7 +318,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                         <div key={page.id} className="group relative">
                                             <button
                                                 onClick={() => selectPage(page.id)}
-                                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 border border-transparent'}`}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${currentPageId === page.id ? 'bg-zinc-800 text-zinc-50 border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 border border-transparent'}`}
                                             >
                                                 <span className="truncate flex-1 text-left font-mono font-medium">{page.name}</span>
                                             </button>
@@ -345,7 +326,7 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); movePage(page.id, 'down'); }}
                                                     disabled={originalIdx === pages.length - 1}
-                                                    className="p-1 text-zinc-500 hover:text-white disabled:opacity-0 transition-colors"
+                                                    className="p-1 text-zinc-500 hover:text-zinc-50 disabled:opacity-0 transition-colors"
                                                     title="上に移動"
                                                 >
                                                     <ChevronUp size={14} />
@@ -353,14 +334,14 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); movePage(page.id, 'up'); }}
                                                     disabled={originalIdx === 0}
-                                                    className="p-1 text-zinc-500 hover:text-white disabled:opacity-0 transition-colors"
+                                                    className="p-1 text-zinc-500 hover:text-zinc-50 disabled:opacity-0 transition-colors"
                                                     title="下に移動"
                                                 >
                                                     <ChevronDown size={14} />
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); duplicatePage(page.id); }}
-                                                    className="p-1 text-zinc-500 hover:text-white transition-colors"
+                                                    className="p-1 text-zinc-500 hover:text-zinc-50 transition-colors"
                                                     title="ページを複製"
                                                 >
                                                     <Copy size={14} />
@@ -460,10 +441,6 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                 isOpen={compositorOpen}
                 onClose={() => setCompositorOpen(false)}
                 currentProjectPath={currentProjectPath}
-            />
-            <NovelAISettingsModal
-                isOpen={novelaiSettingsOpen}
-                onClose={() => setNovelaiSettingsOpen(false)}
             />
         </div>
     )

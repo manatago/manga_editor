@@ -119,7 +119,7 @@ export const CharacterRefSelector: React.FC<Props> = ({
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-bold text-white truncate">{c.name}</div>
+                                        <div className="text-xs font-bold text-zinc-50 truncate">{c.name}</div>
                                         <div className="text-[10px] text-zinc-500 truncate">
                                             {selectedImgEntries.length > 0
                                                 ? `精密参照 ${selectedImgEntries.length} 枚`
@@ -132,7 +132,7 @@ export const CharacterRefSelector: React.FC<Props> = ({
                                         <button
                                             type="button"
                                             onClick={() => toggleExpanded(c.id)}
-                                            className="p-1 text-zinc-400 hover:text-white"
+                                            className="p-1 text-zinc-400 hover:text-zinc-50"
                                             title={isExpanded ? '折りたたむ' : '画像を表示'}
                                         >
                                             {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -142,14 +142,14 @@ export const CharacterRefSelector: React.FC<Props> = ({
                                         type="button"
                                         disabled={idx === 0}
                                         onClick={() => onMove(c.id, -1)}
-                                        className="text-indigo-300 hover:text-white disabled:opacity-30 text-[10px] px-0.5"
+                                        className="text-indigo-300 hover:text-zinc-50 disabled:opacity-30 text-[10px] px-0.5"
                                         title="左に移動"
                                     >◂</button>
                                     <button
                                         type="button"
                                         disabled={idx === selectedCharacters.length - 1}
                                         onClick={() => onMove(c.id, 1)}
-                                        className="text-indigo-300 hover:text-white disabled:opacity-30 text-[10px] px-0.5"
+                                        className="text-indigo-300 hover:text-zinc-50 disabled:opacity-30 text-[10px] px-0.5"
                                         title="右に移動"
                                     >▸</button>
                                     <button
@@ -195,7 +195,7 @@ export const CharacterRefSelector: React.FC<Props> = ({
                                                         )}
                                                         {selected && (
                                                             <div className="absolute top-0.5 right-0.5 bg-violet-500 rounded-full p-0.5">
-                                                                <Check size={9} className="text-white" />
+                                                                <Check size={9} className="text-zinc-50" />
                                                             </div>
                                                         )}
                                                     </button>
@@ -301,7 +301,7 @@ export const CharacterRefSelector: React.FC<Props> = ({
                                             ? 'bg-indigo-900/30 border-indigo-700/40 text-zinc-500 cursor-default'
                                             : limitReached
                                                 ? 'bg-zinc-800 border-zinc-800 text-zinc-600 cursor-not-allowed'
-                                                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white'
+                                                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-zinc-50'
                                     }`}
                                 >
                                     <div className="w-10 h-10 bg-zinc-950 rounded overflow-hidden shrink-0 flex items-center justify-center">

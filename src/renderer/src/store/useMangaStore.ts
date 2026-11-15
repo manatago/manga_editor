@@ -16,6 +16,9 @@ import { createNovelAISlice, type NovelAISlice } from './slices/novelaiSlice'
 import { createAlignmentSlice, type AlignmentSlice } from './slices/alignmentSlice'
 import { createManuscriptSlice, type ManuscriptSlice } from './slices/manuscriptSlice'
 import { createStructuredSlice, type StructuredSlice } from './slices/structuredSlice'
+import { createThemeSlice, type ThemeSlice } from './slices/themeSlice'
+
+export type { ThemeMode } from './slices/themeSlice'
 
 // Re-export all domain types so existing imports from this file continue to work
 export type {
@@ -52,7 +55,8 @@ export type MangaState =
     NovelAISlice &
     AlignmentSlice &
     ManuscriptSlice &
-    StructuredSlice
+    StructuredSlice &
+    ThemeSlice
 
 export const useMangaStore = create<MangaState>()((...a) => ({
     ...createHistorySlice(...a),
@@ -68,5 +72,6 @@ export const useMangaStore = create<MangaState>()((...a) => ({
     ...createNovelAISlice(...a),
     ...createAlignmentSlice(...a),
     ...createManuscriptSlice(...a),
-    ...createStructuredSlice(...a)
+    ...createStructuredSlice(...a),
+    ...createThemeSlice(...a)
 }))

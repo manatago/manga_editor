@@ -8,7 +8,7 @@ import BubbleSettings from './sidebar/BubbleSettings'
 import MaterialSettings from './sidebar/MaterialSettings'
 import PageSettings from './sidebar/PageSettings'
 
-const SidebarRight: React.FC = () => {
+const SidebarRight: React.FC<{ onOpenSettings?: () => void }> = ({ onOpenSettings }) => {
     const {
         pages,
         currentPageId,
@@ -57,9 +57,6 @@ const SidebarRight: React.FC = () => {
     return (
         <div className="w-80 bg-zinc-950/90 backdrop-blur-xl border-l border-zinc-900 flex flex-col h-full shadow-2xl relative z-10">
             <div className="p-4 border-b border-zinc-900/50 bg-black/20 flex-shrink-0 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500">
-                    <Settings size={16} />
-                </div>
                 <div>
                     <h2 className="text-xs font-bold text-zinc-100">Properties</h2>
                     <p className="text-[10px] text-zinc-500">{
@@ -69,6 +66,15 @@ const SidebarRight: React.FC = () => {
                         'page options'
                     }</p>
                 </div>
+                <button
+                    type="button"
+                    onClick={onOpenSettings}
+                    disabled={!onOpenSettings}
+                    title="アプリ設定"
+                    className="ml-auto w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 hover:bg-blue-500/20 hover:text-blue-400 transition-colors disabled:opacity-40 disabled:cursor-default"
+                >
+                    <Settings size={16} />
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 manga-scrollbar">

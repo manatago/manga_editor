@@ -190,14 +190,14 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose, onR
             <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl">
                 {/* ヘッダ */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex items-center gap-2 text-zinc-50">
                         <GitBranch size={18} className="text-emerald-400" />
                         <h2 className="text-base font-semibold">同期（Git / LFS）</h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50"
                     >
                         <X size={18} />
                     </button>
@@ -217,7 +217,7 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose, onR
                             <button
                                 type="button"
                                 onClick={() => void refresh()}
-                                className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white"
+                                className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-50"
                             >
                                 <RefreshCw size={13} /> 更新
                             </button>
@@ -359,7 +359,7 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose, onR
                                 <button
                                     type="button"
                                     onClick={() => void loadHistory()}
-                                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white"
+                                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-50"
                                 >
                                     <RefreshCw size={13} /> 更新
                                 </button>

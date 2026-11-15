@@ -142,7 +142,7 @@ export const PreciseRefList: React.FC<Props> = ({
                                         )}
                                         {!selected && (
                                             <div className="absolute inset-0 flex items-end justify-end p-1 opacity-0 hover:opacity-100 bg-black/50 transition-opacity">
-                                                <Plus size={14} className="text-white" />
+                                                <Plus size={14} className="text-zinc-50" />
                                             </div>
                                         )}
                                     </button>

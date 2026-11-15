@@ -46,7 +46,7 @@ export const ManuscriptPanel: React.FC = () => {
                 <button
                     type="button"
                     onClick={() => setOpen((v) => !v)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-zinc-50 transition-colors"
                 >
                     <FileText size={14} />
                     原稿メモ

@@ -54,7 +54,7 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                     max={4000}
                                     value={pageWidth}
                                     onChange={(e) => currentPageId && updatePage(currentPageId, { pageWidth: Math.max(400, Number(e.target.value) || 400) })}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                                 />
                             </div>
                             <div>
@@ -65,7 +65,7 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                     max={8000}
                                     value={pageHeight}
                                     onChange={(e) => currentPageId && updatePage(currentPageId, { pageHeight: Math.max(400, Number(e.target.value) || 400) })}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                                 />
                             </div>
                         </div>
@@ -139,7 +139,7 @@ const PageSettings: React.FC<PageSettingsProps> = ({ currentPage, currentPageId,
                                 <select
                                     value={currentPage?.bgGradientType || 'none'}
                                     onChange={(e) => currentPageId && updatePage(currentPageId, { bgGradientType: e.target.value as GradientType })}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                                    className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                                 >
                                     <option value="none">None</option>
                                     <option value="linear">Linear</option>

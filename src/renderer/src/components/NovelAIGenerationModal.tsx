@@ -541,7 +541,7 @@ export const NovelAIGenerationModal: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-[1040px] max-w-[96vw] max-h-[92vh] flex flex-col">
                 <div className="px-5 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
-                    <h2 className="text-white font-bold flex items-center gap-2">
+                    <h2 className="text-zinc-50 font-bold flex items-center gap-2">
                         <Sparkles size={16} className="text-indigo-400" />
                         NovelAI 画像生成（コマ: {panel.id.slice(0, 6)}）
                     </h2>
@@ -549,7 +549,7 @@ export const NovelAIGenerationModal: React.FC = () => {
                         type="button"
                         onClick={handleClose}
                         disabled={busy}
-                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white disabled:opacity-40"
+                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50 disabled:opacity-40"
                     >
                         <X size={18} />
                     </button>

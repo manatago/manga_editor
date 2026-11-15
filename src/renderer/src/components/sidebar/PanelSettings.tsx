@@ -252,28 +252,28 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                 <div className="grid grid-cols-2 gap-2">
                     <button
                         onClick={() => reorderPanel(panel.id, 'front')}
-                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700 flex items-center justify-center"
+                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-zinc-50 hover:bg-zinc-700 flex items-center justify-center"
                         title="最前面へ"
                     >
                         <ChevronsUp size={16} />
                     </button>
                     <button
                         onClick={() => reorderPanel(panel.id, 'back')}
-                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700 flex items-center justify-center"
+                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-zinc-50 hover:bg-zinc-700 flex items-center justify-center"
                         title="最背面へ"
                     >
                         <ChevronsDown size={16} />
                     </button>
                     <button
                         onClick={() => reorderPanel(panel.id, 'up')}
-                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700 flex items-center justify-center"
+                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-zinc-50 hover:bg-zinc-700 flex items-center justify-center"
                         title="1つ前へ"
                     >
                         <ArrowUp size={16} />
                     </button>
                     <button
                         onClick={() => reorderPanel(panel.id, 'down')}
-                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700 flex items-center justify-center"
+                        className="py-2 px-3 rounded-lg border text-[10px] font-bold transition-all bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-zinc-50 hover:bg-zinc-700 flex items-center justify-center"
                         title="1つ後ろへ"
                     >
                         <ArrowDown size={16} />
@@ -316,7 +316,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                             type="number"
                             value={panel.width}
                             onChange={(e) => updatePanel(panel.id, { width: parseInt(e.target.value) })}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                         />
                     </div>
                     <div>
@@ -325,7 +325,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                             type="number"
                             value={panel.height}
                             onChange={(e) => updatePanel(panel.id, { height: parseInt(e.target.value) })}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                         />
                     </div>
                 </div>
@@ -335,7 +335,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                 <h3 className={SECTION_TITLE_CLASS}>画像</h3>
                 <button
                     onClick={handleImageUpload}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition-all font-bold group"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-50 border border-zinc-700 transition-all font-bold group"
                 >
                     <FolderOpen size={16} className="group-hover:text-blue-500 transition-colors" />
                     <span className="text-xs">画像をアップロード/変更</span>
@@ -344,7 +344,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                     onClick={() => void handleOra(false)}
                     disabled={oraBusy}
                     title="gousei で作ったシーン（背景・トーン・人物・前面物を重ねた .ora）を読み込みます。人物と前面物だけをコマからはみ出せます"
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition-all font-bold group disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-50 border border-zinc-700 transition-all font-bold group disabled:opacity-50"
                 >
                     <Layers size={16} className="group-hover:text-blue-500 transition-colors" />
                     <span className="text-xs">{oraBusy ? '読み込み中…' : 'gousei のシーン（.ora）を読み込む'}</span>
@@ -392,7 +392,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                         <select
                             value={panel.bgGradientType || 'none'}
                             onChange={(e) => updatePanel(panel.id, { bgGradientType: e.target.value as GradientType })}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-50 focus:outline-none focus:border-blue-500/50"
                         >
                             <option value="none">なし</option>
                             <option value="linear">線形</option>
@@ -506,7 +506,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
                                         imageSaturation: 0
                                     })
                                 }
-                                className="text-[10px] text-zinc-400 hover:text-white underline"
+                                className="text-[10px] text-zinc-400 hover:text-zinc-50 underline"
                             >
                                 明るさ・コントラスト・彩度をリセット
                             </button>

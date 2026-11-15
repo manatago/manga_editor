@@ -41,7 +41,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                 <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
                     <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-zinc-50 flex items-center gap-2">
                             <BookTemplate className="text-blue-500" />
                             プロジェクト作成 / テンプレート
                         </h2>
@@ -62,7 +62,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                                     <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                         <Layout className="text-blue-500" />
                                     </div>
-                                    <div className="font-bold text-white text-sm">新規プロジェクト</div>
+                                    <div className="font-bold text-zinc-50 text-sm">新規プロジェクト</div>
                                     <div className="text-zinc-500 text-[10px] mt-1">フォルダを選択して開始</div>
                                 </button>
                                 <button
@@ -72,7 +72,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                                     <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                         <BookTemplate className="text-zinc-400" />
                                     </div>
-                                    <div className="font-bold text-white text-sm">プロジェクトを開く</div>
+                                    <div className="font-bold text-zinc-50 text-sm">プロジェクトを開く</div>
                                     <div className="text-zinc-500 text-[10px] mt-1">既存の manga.json を選択</div>
                                 </button>
                             </div>
@@ -96,7 +96,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                                                 placeholder="テンプレート名"
                                                 value={templateName}
                                                 onChange={(e) => setTemplateName(e.target.value)}
-                                                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                                                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-zinc-50 focus:outline-none focus:border-blue-500"
                                             />
                                             <button
                                                 onClick={async () => {
@@ -136,7 +136,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                                                 <Table size={16} />
                                             </div>
                                             <div className="text-left">
-                                                <div className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{template.name}</div>
+                                                <div className="text-sm font-bold text-zinc-200 group-hover:text-zinc-50 transition-colors">{template.name}</div>
                                                 <div className="text-[10px] text-zinc-600">{template.panels.length} panels</div>
                                             </div>
                                         </div>

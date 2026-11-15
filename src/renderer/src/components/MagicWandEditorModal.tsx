@@ -321,7 +321,7 @@ export const MagicWandEditorModal: React.FC<MagicWandEditorModalProps> = ({
         <div className="fixed inset-0 z-[10001] bg-black/95 flex flex-col">
             {/* ヘッダー */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900 shrink-0">
-                <span className="text-white font-bold text-sm">マジックワンド編集</span>
+                <span className="text-zinc-50 font-bold text-sm">マジックワンド編集</span>
                 <span className="text-zinc-500 text-xs hidden xl:inline">
                     {tool === 'wand'
                         ? `クリックで${mode === 'contiguous' ? '繋がった同色領域' : '画像全体の同色部分'}を透明化`

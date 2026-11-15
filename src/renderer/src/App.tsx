@@ -15,6 +15,8 @@ import { ModeToggle } from './components/ModeToggle'
 import { TranslationModal } from './components/TranslationModal/TranslationModal'
 import { GitSyncModal } from './components/GitSyncModal/GitSyncModal'
 import { ReferencePagesModal } from './components/ReferencePagesModal/ReferencePagesModal'
+import { AppSettingsModal } from './components/AppSettingsModal'
+import { NovelAISettingsModal } from './components/NovelAISettingsModal'
 import { useMangaStore, PanelType, type BubbleType } from './store/useMangaStore'
 import { lastPageKey } from './store/slices/projectSlice'
 import {
@@ -22,7 +24,7 @@ import {
     standardPanelWidth,
     computePanelInsertion
 } from './utils/panelInsertion'
-import { PanelTop, PanelLeft, Languages, GitBranch, BookOpen, Check, Loader2, AlertCircle, Circle } from 'lucide-react'
+import { PanelTop, PanelLeft, Languages, GitBranch, BookOpen, Check, Loader2, AlertCircle, Circle, MoreHorizontal } from 'lucide-react'
 import { showError } from './utils/dialogs'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -51,6 +53,7 @@ function App(): React.JSX.Element {
         currentProjectPath,
         currentPageId,
         selectedPanelId,
+        scriptEditorOpen,
         isExporting,
         isSaving,
         lastSavedAt,
@@ -63,6 +66,7 @@ function App(): React.JSX.Element {
             currentProjectPath: s.currentProjectPath,
             currentPageId: s.currentPageId,
             selectedPanelId: s.selectedPanelId,
+            scriptEditorOpen: s.scriptEditorOpen,
             isExporting: s.isExporting,
             isSaving: s.isSaving,
             lastSavedAt: s.lastSavedAt,
@@ -84,6 +88,9 @@ function App(): React.JSX.Element {
     const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false)
     const [isGitSyncModalOpen, setIsGitSyncModalOpen] = useState(false)
     const [isReferencePagesOpen, setIsReferencePagesOpen] = useState(false)
+    const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false)
+    const [isNovelaiSettingsOpen, setIsNovelaiSettingsOpen] = useState(false)
+    const [projectMenuOpen, setProjectMenuOpen] = useState(false)
     const [closePrompt, setClosePrompt] = useState<GitRepoStatus | null>(null)
     const [closeBusy, setCloseBusy] = useState(false)
     const [openPullPrompt, setOpenPullPrompt] = useState<GitRepoStatus | null>(null)
@@ -329,7 +336,7 @@ function App(): React.JSX.Element {
             {!leftSidebarOpen && (
                 <button
                     type="button"
-                    className="fixed left-0 top-1/2 z-50 -translate-y-1/2 py-8 pl-1 pr-1.5 rounded-r-md bg-zinc-800/95 border border-zinc-700 border-l-0 text-zinc-400 hover:bg-zinc-700 hover:text-white shadow-lg"
+                    className="fixed left-0 top-1/2 z-50 -translate-y-1/2 py-8 pl-1 pr-1.5 rounded-r-md bg-zinc-800/95 border border-zinc-700 border-l-0 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-50 shadow-lg"
                     onClick={() => setLeftSidebarOpen(true)}
                     title="ページ一覧・メニューを表示"
                 >
@@ -338,47 +345,17 @@ function App(): React.JSX.Element {
             )}
 
             <div className="flex-1 flex flex-col min-w-0">
-                <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 justify-between shrink-0 min-w-0 gap-3">
-                    <div className="flex items-center gap-2 min-w-0 overflow-x-auto manga-scrollbar">
+                {/* 画面が狭い（縦置きモニタ / 小さな MacBook Air 等）ときは横スクロールさせず、
+                    ツール群を次の段へ折り返す。min-h で段数に応じて高さが伸びる。 */}
+                <div className="min-h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 sm:px-6 py-1.5 justify-between shrink-0 min-w-0 gap-3">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 flex-1">
                         {currentProjectPath && <ModeToggle />}
-                        {currentProjectPath && (
-                            <button
-                                type="button"
-                                onClick={() => setIsTranslationModalOpen(true)}
-                                title="翻訳版を作成"
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-white shrink-0"
-                            >
-                                <Languages size={16} />
-                                <span className="hidden md:inline">翻訳版</span>
-                            </button>
-                        )}
-                        {currentProjectPath && (
-                            <button
-                                type="button"
-                                onClick={() => setIsGitSyncModalOpen(true)}
-                                title="同期（Git / LFS）"
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-white shrink-0"
-                            >
-                                <GitBranch size={16} />
-                                <span className="hidden md:inline">同期</span>
-                            </button>
-                        )}
-                        {currentProjectPath && (
-                            <button
-                                type="button"
-                                onClick={() => setIsReferencePagesOpen(true)}
-                                title="参考資料（スライドショー）"
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-white shrink-0"
-                            >
-                                <BookOpen size={16} />
-                                <span className="hidden md:inline">参考資料</span>
-                            </button>
-                        )}
-                        {currentPageId && (
+                        {/* 作画モードのときだけ作図ツール（コマ形・吹き出し形）を出す。台本モードでは不要なので隠す */}
+                        {currentPageId && !scriptEditorOpen && (
                             <>
                                 <div className="flex shrink-0 bg-zinc-800/50 p-1 rounded-lg border border-zinc-800">
                                     {PANEL_ADD_BUTTONS.map(({ type, title }) => (
-                                        <button key={type} onClick={() => handleAddPanelWithType(type)} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-all flex items-center justify-center px-3" title={title}>
+                                        <button key={type} onClick={() => handleAddPanelWithType(type)} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-zinc-50 transition-all flex items-center justify-center px-3" title={title}>
                                             <PanelTypeIcon type={type} size={16} />
                                         </button>
                                     ))}
@@ -392,7 +369,7 @@ function App(): React.JSX.Element {
                                             disabled={!selectedPanelId}
                                             title={BUBBLE_TYPE_LABELS[type]}
                                             className={`p-1.5 rounded transition-all flex items-center justify-center min-w-[32px] ${
-                                                selectedPanelId ? 'hover:bg-zinc-700 text-zinc-400 hover:text-white' : 'text-zinc-700 cursor-not-allowed'
+                                                selectedPanelId ? 'hover:bg-zinc-700 text-zinc-400 hover:text-zinc-50' : 'text-zinc-700 cursor-not-allowed'
                                             }`}
                                         >
                                             <BubbleTypeIcon type={type} size={14} />
@@ -403,6 +380,52 @@ function App(): React.JSX.Element {
                         )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                    {currentProjectPath && (
+                        <>
+                            {/* 同期はよく使う＆状態を持つので単独で残す */}
+                            <button
+                                type="button"
+                                onClick={() => setIsGitSyncModalOpen(true)}
+                                title="同期（Git / LFS）"
+                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-zinc-50 shrink-0"
+                            >
+                                <GitBranch size={16} />
+                            </button>
+                            {/* 翻訳版・参考資料はたまに使うのでオーバーフローにまとめる */}
+                            <div className="relative shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setProjectMenuOpen((v) => !v)}
+                                    title="その他（翻訳版・参考資料）"
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-800/60 border border-zinc-800 text-zinc-400 hover:text-zinc-50"
+                                >
+                                    <MoreHorizontal size={16} />
+                                </button>
+                                {projectMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setProjectMenuOpen(false)} />
+                                        <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-zinc-700 bg-zinc-900 shadow-2xl p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setProjectMenuOpen(false); setIsTranslationModalOpen(true) }}
+                                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+                                            >
+                                                <Languages size={16} /> 翻訳版を作成
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setProjectMenuOpen(false); setIsReferencePagesOpen(true) }}
+                                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+                                            >
+                                                <BookOpen size={16} /> 参考資料
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )}
+                    {/* 設定は Properties 見出しの歯車に一本化（重複回避） */}
                     <ShortcutHelpButton />
                     {currentProjectPath && (
                         <div
@@ -436,7 +459,7 @@ function App(): React.JSX.Element {
                 {currentProjectPath && <ManuscriptPanel />}
             </div>
 
-            <SidebarRight />
+            <SidebarRight onOpenSettings={() => setIsAppSettingsOpen(true)} />
 
             <TemplateModal
                 isOpen={isTemplateModalOpen}
@@ -477,10 +500,22 @@ function App(): React.JSX.Element {
                 onClose={() => setIsReferencePagesOpen(false)}
             />
 
+            <AppSettingsModal
+                isOpen={isAppSettingsOpen}
+                onClose={() => setIsAppSettingsOpen(false)}
+                onOpenGitSync={() => setIsGitSyncModalOpen(true)}
+                onOpenNovelai={() => setIsNovelaiSettingsOpen(true)}
+            />
+
+            <NovelAISettingsModal
+                isOpen={isNovelaiSettingsOpen}
+                onClose={() => setIsNovelaiSettingsOpen(false)}
+            />
+
             {closePrompt && (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
                     <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-5">
-                        <div className="flex items-center gap-2 text-white mb-2">
+                        <div className="flex items-center gap-2 text-zinc-50 mb-2">
                             <GitBranch size={18} className="text-amber-400" />
                             <h2 className="text-base font-semibold">変更があります</h2>
                         </div>
@@ -525,7 +560,7 @@ function App(): React.JSX.Element {
             {openPullPrompt && (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
                     <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-5">
-                        <div className="flex items-center gap-2 text-white mb-2">
+                        <div className="flex items-center gap-2 text-zinc-50 mb-2">
                             <GitBranch size={18} className="text-indigo-400" />
                             <h2 className="text-base font-semibold">新しい変更があります</h2>
                         </div>

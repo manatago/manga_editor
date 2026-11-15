@@ -162,7 +162,7 @@ export const CanvasViewport: React.FC<{ children: React.ReactNode }> = ({ childr
                     <button
                         type="button"
                         onClick={() => zoomTo(stepZoom(zoom, -1))}
-                        className="rounded p-1.5 hover:bg-zinc-700 hover:text-white"
+                        className="rounded p-1.5 hover:bg-zinc-700 hover:text-zinc-50"
                         title="縮小（Cmd + -）"
                     >
                         <Minus size={14} />
@@ -170,7 +170,7 @@ export const CanvasViewport: React.FC<{ children: React.ReactNode }> = ({ childr
                     <button
                         type="button"
                         onClick={() => zoomTo(1)}
-                        className="min-w-[3.25rem] rounded px-1.5 py-1 text-center font-mono text-xs hover:bg-zinc-700 hover:text-white"
+                        className="min-w-[3.25rem] rounded px-1.5 py-1 text-center font-mono text-xs hover:bg-zinc-700 hover:text-zinc-50"
                         title="100% 表示（Cmd + 1）"
                     >
                         {Math.round(zoom * 100)}%
@@ -178,7 +178,7 @@ export const CanvasViewport: React.FC<{ children: React.ReactNode }> = ({ childr
                     <button
                         type="button"
                         onClick={() => zoomTo(stepZoom(zoom, 1))}
-                        className="rounded p-1.5 hover:bg-zinc-700 hover:text-white"
+                        className="rounded p-1.5 hover:bg-zinc-700 hover:text-zinc-50"
                         title="拡大（Cmd + =）"
                     >
                         <Plus size={14} />
@@ -186,7 +186,7 @@ export const CanvasViewport: React.FC<{ children: React.ReactNode }> = ({ childr
                     <button
                         type="button"
                         onClick={zoomToFit}
-                        className="rounded p-1.5 hover:bg-zinc-700 hover:text-white"
+                        className="rounded p-1.5 hover:bg-zinc-700 hover:text-zinc-50"
                         title="ページ全体を表示（Cmd + 0）"
                     >
                         <Maximize size={14} />

@@ -62,11 +62,11 @@ export const NovelAISettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-white">NovelAI 設定</h2>
+                    <h2 className="text-lg font-bold text-zinc-50">NovelAI 設定</h2>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                        className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50"
                     >
                         <X size={18} />
                     </button>
@@ -146,7 +146,7 @@ export const NovelAISettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                             </div>
                             {connection.anlas != null ? (
                                 <div className="text-zinc-300 text-xs font-mono">
-                                    残 Anlas: <span className="text-white font-bold">{connection.anlas.toLocaleString()}</span>
+                                    残 Anlas: <span className="text-zinc-50 font-bold">{connection.anlas.toLocaleString()}</span>
                                     <span className="text-zinc-500 ml-2">
                                         (fixed {(connection.fixedAnlas ?? 0).toLocaleString()} / purchased {(connection.purchasedAnlas ?? 0).toLocaleString()})
                                     </span>

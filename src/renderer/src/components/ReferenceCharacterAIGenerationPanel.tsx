@@ -204,7 +204,7 @@ export const ReferenceCharacterAIGenerationPanel: React.FC<Props> = ({
                 <button
                     type="button"
                     onClick={onClose}
-                    className="p-1 text-zinc-400 hover:text-white"
+                    className="p-1 text-zinc-400 hover:text-zinc-50"
                     title="閉じる"
                 >
                     <X size={14} />
@@ -277,7 +277,7 @@ export const ReferenceCharacterAIGenerationPanel: React.FC<Props> = ({
                                     )}
                                     {selected && (
                                         <div className="absolute top-0.5 right-0.5 bg-violet-500 rounded-full p-0.5">
-                                            <Check size={10} className="text-white" />
+                                            <Check size={10} className="text-zinc-50" />
                                         </div>
                                     )}
                                 </button>
