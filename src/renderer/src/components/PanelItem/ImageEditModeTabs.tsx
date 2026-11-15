@@ -14,12 +14,8 @@ export const ImageEditModeTabs: React.FC<{
     imageFlipX: boolean
     onToggleGrayscale: () => void
     onToggleFlipX: () => void
-    rembgEnabled?: boolean
-    rembgBusy?: boolean
-    onRembg?: () => void
     onWand?: () => void
     imageProtrude?: boolean
-    protrudeBusy?: boolean
     onToggleProtrude?: () => void
     isManga?: boolean
     mangaLevel?: MangaLevel
@@ -35,12 +31,8 @@ export const ImageEditModeTabs: React.FC<{
     imageFlipX,
     onToggleGrayscale,
     onToggleFlipX,
-    rembgEnabled,
-    rembgBusy,
-    onRembg,
     onWand,
     imageProtrude,
-    protrudeBusy,
     onToggleProtrude,
     isManga,
     mangaLevel,
@@ -55,14 +47,11 @@ export const ImageEditModeTabs: React.FC<{
         { key: 'rotate', title: '回転' }
     ]
 
-    const showRembg = hasImage && !!rembgEnabled && !!onRembg
     const showWand = hasImage && !!onWand
     const showProtrude = hasImage && !!onToggleProtrude
     const showManga = hasImage && !!onSetManga
-    // rembg（自動）→ ワンド（手動）→ はみ出し → 漫画化 → NovelAI の順に縦積み。各行 28px + 余白 4px = 32px。
+    // ワンド（手動）→ はみ出し → 漫画化 → NovelAI の順に縦積み。各行 28px + 余白 4px = 32px。
     let stackY = 38
-    const rembgY = stackY
-    if (showRembg) stackY += 32
     const wandY = stackY
     if (showWand) stackY += 32
     const protrudeY = stackY
@@ -187,44 +176,6 @@ export const ImageEditModeTabs: React.FC<{
                 <Line points={[18, 10, 20, 13, 18, 16]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={2} listening={false} />
                 <Line points={[14, 8, 14, 18]} stroke={imageFlipX ? '#ffffff' : '#a1a1aa'} strokeWidth={1.5} dash={[2, 2]} listening={false} />
             </Group>
-            {showRembg ? (
-                <Group y={rembgY}>
-                    <Rect
-                        x={0}
-                        y={0}
-                        width={170}
-                        height={28}
-                        cornerRadius={6}
-                        fill="rgba(24,24,27,0.95)"
-                        stroke="#3f3f46"
-                        strokeWidth={1}
-                        onMouseDown={(e) => {
-                            e.cancelBubble = true
-                        }}
-                        onMouseUp={(e) => {
-                            e.cancelBubble = true
-                        }}
-                        onClick={(e) => {
-                            e.cancelBubble = true
-                            if (!rembgBusy) onRembg!()
-                        }}
-                        onTap={(e) => {
-                            e.cancelBubble = true
-                            if (!rembgBusy) onRembg!()
-                        }}
-                    />
-                    <Text
-                        x={0}
-                        y={7}
-                        width={170}
-                        align="center"
-                        text={rembgBusy ? '背景除去中…' : '背景除去 (rembg)'}
-                        fontSize={11}
-                        fill={rembgBusy ? '#71717a' : '#e4e4e7'}
-                        listening={false}
-                    />
-                </Group>
-            ) : null}
             {showWand ? (
                 <Group y={wandY}>
                     <Rect
@@ -282,11 +233,11 @@ export const ImageEditModeTabs: React.FC<{
                         }}
                         onClick={(e) => {
                             e.cancelBubble = true
-                            if (!protrudeBusy) onToggleProtrude!()
+                            onToggleProtrude!()
                         }}
                         onTap={(e) => {
                             e.cancelBubble = true
-                            if (!protrudeBusy) onToggleProtrude!()
+                            onToggleProtrude!()
                         }}
                     />
                     <Text
@@ -294,9 +245,9 @@ export const ImageEditModeTabs: React.FC<{
                         y={7}
                         width={170}
                         align="center"
-                        text={protrudeBusy ? 'はみ出し用に切り抜き中…' : imageProtrude ? 'コマからはみ出す：ON' : 'コマからはみ出す'}
+                        text={imageProtrude ? 'コマからはみ出す：ON' : 'コマからはみ出す'}
                         fontSize={11}
-                        fill={protrudeBusy ? '#71717a' : imageProtrude ? '#ffffff' : '#e4e4e7'}
+                        fill={imageProtrude ? '#ffffff' : '#e4e4e7'}
                         listening={false}
                     />
                 </Group>

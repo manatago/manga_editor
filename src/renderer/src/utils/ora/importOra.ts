@@ -1,5 +1,5 @@
 // gousei のシーン（.ora）をコマに読み込む。右の欄のボタンと、コマへのドラッグ＆ドロップで共通に使う。
-// 全体の絵をコマの画像に、人物・前面物だけの絵をはみ出し用にする（gousei の切り抜きそのものなので rembg より確実）。
+// 全体の絵をコマの画像に、人物・前面物だけの絵をはみ出し用にする（レイヤー分離は gousei 側で済ませてある）。
 
 import type { Panel } from '../../store/types'
 import { oraImages } from './oraComposite'

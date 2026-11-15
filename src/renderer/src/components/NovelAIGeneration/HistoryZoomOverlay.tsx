@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { X, Paintbrush, Loader2, Eraser, Wand2, Trash2, Grid2x2 } from 'lucide-react'
+import { X, Paintbrush, Loader2, Eraser, Trash2 } from 'lucide-react'
 import type { NovelAIHistoryEntry } from '../../store/types'
 import { showError } from '../../utils/dialogs'
-import { SCREEN_TONE_CATALOG } from '../../utils/screenToneCatalog'
 import { pathFromRelative, toDisplayUrl } from './types'
 
 // マスク（再描画範囲）の表示色。白黒漫画の上でも見えるよう鮮やかな赤ピンクにする。
@@ -27,21 +26,6 @@ type Props = {
         /** 背景（マスク領域）のぼかし強度 0..1。0 で無効。 */
         backgroundBlur: number
     ) => Promise<NovelAIHistoryEntry | null>
-    /**
-     * 背景マスク自動生成（rembg）。元画像から「背景＝白(再描画)」のマスク data URL を返す。
-     * 渡されると部分再描画モードに「背景を自動選択」ボタンと「背景だけ再描画」導線が出る。
-     */
-    onBackgroundMask?: (sourceRelativePath: string) => Promise<string | null>
-    /**
-     * 背景をスクリーントーンに差し替える。rembg で前景を切り抜き、選んだトーンを敷いた背景へ
-     * 重ねて合成し、新しい履歴エントリを返す（失敗・キャンセル時は null）。
-     * 渡されると「背景をトーンに」ボタンが出る。
-     */
-    onToneBackground?: (
-        sourceRelativePath: string,
-        toneId: string,
-        scale: number
-    ) => Promise<NovelAIHistoryEntry | null>
 }
 
 export const HistoryZoomOverlay: React.FC<Props> = ({
@@ -51,32 +35,21 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
     adoptedRelativePath,
     onClose,
     onSelect,
-    onInpaint,
-    onBackgroundMask,
-    onToneBackground
+    onInpaint
 }) => {
     const [inpaint, setInpaint] = useState(false)
     const [inpaintPrompt, setInpaintPrompt] = useState('')
     const [brush, setBrush] = useState(48)
     const [erase, setErase] = useState(false)
-    // 背景ぼかし強度（0〜100%）。背景だけ再描画で被写界深度風にしたいとき使う。
+    // 背景ぼかし強度（0〜100%）。再描画領域を被写界深度風にしたいとき使う。
     const [bgBlur, setBgBlur] = useState(0)
-    // 背景トーン差し替えのピッカー表示・タイル倍率・合成中フラグ
-    const [tonePickerOpen, setTonePickerOpen] = useState(false)
-    const [toneScale, setToneScale] = useState(1)
-    const [toneBusy, setToneBusy] = useState(false)
     const [busy, setBusy] = useState(false)
-    // 背景マスク生成（rembg）中フラグ。infill の busy とは分けて、
-    // 「再描画」ボタンが回って“再描画が走っている”ように見えるのを防ぐ。
-    const [maskBusy, setMaskBusy] = useState(false)
     // ブラシサイズのプレビューリング（カーソル追従、画面 px）
     const [cursor, setCursor] = useState<{ x: number; y: number; d: number } | null>(null)
     const maskRef = useRef<HTMLCanvasElement>(null)
     const paintRef = useRef<{ x: number; y: number } | null>(null)
     // inpaint モードに入った直後だけマスクをクリアする。再描画後の画像差し替えでは塗りを保持。
     const resetMaskRef = useRef(true)
-    // 「背景だけ再描画」で入ったときは、マスクサイズ確定後に背景を自動選択する
-    const pendingAutoBgRef = useRef(false)
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent): void => {
@@ -124,64 +97,6 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
             mask.getContext('2d')?.clearRect(0, 0, w, h)
             resetMaskRef.current = false
         }
-        // 「背景だけ再描画」導線：マスクサイズが確定したので背景を自動選択する
-        if (pendingAutoBgRef.current) {
-            pendingAutoBgRef.current = false
-            void autoFillBackground()
-        }
-    }
-
-    // rembg のアルファから背景マスクを取得し、マスクキャンバスに白(=再描画)で流し込む
-    async function autoFillBackground(): Promise<void> {
-        const mask = maskRef.current
-        if (!mask || !onBackgroundMask || !entry) return
-        setMaskBusy(true)
-        try {
-            const maskUrl = await onBackgroundMask(entry.relativePath)
-            if (!maskUrl) {
-                await showError('背景マスクを生成できませんでした（背景除去に失敗した可能性があります）')
-                return
-            }
-            await new Promise<void>((resolve, reject) => {
-                const img = new Image()
-                img.onload = () => {
-                    const ctx = mask.getContext('2d')
-                    if (!ctx) return reject(new Error('canvas が使えません'))
-                    ctx.clearRect(0, 0, mask.width, mask.height)
-                    ctx.globalCompositeOperation = 'source-over'
-                    ctx.drawImage(img, 0, 0, mask.width, mask.height)
-                    // 白い自動マスクを視認しやすい色に置き換える（アルファ＝選択範囲は保持）
-                    ctx.globalCompositeOperation = 'source-in'
-                    ctx.fillStyle = MASK_COLOR
-                    ctx.fillRect(0, 0, mask.width, mask.height)
-                    ctx.globalCompositeOperation = 'source-over'
-                    resolve()
-                }
-                img.onerror = () => reject(new Error('背景マスクの読み込みに失敗しました'))
-                img.src = maskUrl
-            })
-        } catch (e) {
-            await showError(e instanceof Error ? e.message : String(e))
-        } finally {
-            setMaskBusy(false)
-        }
-    }
-
-    // rembg で前景を切り抜き、選んだトーンを背景に敷いて合成する
-    async function applyToneBackground(toneId: string): Promise<void> {
-        if (!onToneBackground || !entry || toneBusy) return
-        setToneBusy(true)
-        try {
-            const result = await onToneBackground(entry.relativePath, toneId, toneScale)
-            if (result) {
-                setTonePickerOpen(false)
-                onSelect(result.relativePath)
-            }
-        } catch (e) {
-            await showError(e instanceof Error ? e.message : String(e))
-        } finally {
-            setToneBusy(false)
-        }
     }
 
     // ---- マスクブラシ ----
@@ -214,7 +129,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
         ctx.globalCompositeOperation = 'source-over'
     }
     function maskDown(e: React.PointerEvent): void {
-        if (busy || maskBusy) return
+        if (busy) return
         const p = maskXY(e)
         paintRef.current = p
         paintStroke(null, p)
@@ -304,7 +219,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                 <button
                     type="button"
                     onClick={() => { if (inpaint) setInpaint(false); else onClose() }}
-                    disabled={busy || maskBusy}
+                    disabled={busy}
                     className="absolute -top-1 -right-1 translate-x-full p-2 rounded-full bg-zinc-900/90 text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700 disabled:opacity-40"
                     title={inpaint ? '部分再描画を終了 (Esc)' : '閉じる (Esc)'}
                 >
@@ -356,18 +271,6 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                             placeholder="塗った範囲に描く内容（任意・英語タグ。例: open mouth）"
                             className="flex-1 min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-indigo-500"
                         />
-                        {onBackgroundMask && (
-                            <button
-                                type="button"
-                                onClick={() => void autoFillBackground()}
-                                disabled={busy || maskBusy}
-                                className="flex shrink-0 items-center gap-1.5 rounded-md border border-emerald-700/60 bg-emerald-600/15 px-3 py-1.5 text-sm text-emerald-300 hover:bg-emerald-600/25 disabled:opacity-40"
-                                title="rembg で背景を自動でマスク（白=再描画）"
-                            >
-                                {maskBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                                {maskBusy ? '背景を解析中…' : '背景を自動選択'}
-                            </button>
-                        )}
                         <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-zinc-700 p-0.5">
                             <button
                                 type="button"
@@ -399,7 +302,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                         </label>
                         <label
                             className="flex shrink-0 items-center gap-1 text-[11px] text-zinc-400"
-                            title="再描画した領域（背景だけ再描画なら背景）を後処理でぼかす。0% で無効。"
+                            title="再描画した領域を後処理でぼかす。0% で無効。"
                         >
                             背景ぼかし
                             <input
@@ -415,7 +318,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                         <button
                             type="button"
                             onClick={() => void runInpaint()}
-                            disabled={busy || maskBusy}
+                            disabled={busy}
                             className="flex shrink-0 items-center gap-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 text-sm font-bold text-white disabled:opacity-40"
                         >
                             {busy ? <Loader2 size={14} className="animate-spin" /> : <Paintbrush size={14} />}
@@ -424,7 +327,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                         <button
                             type="button"
                             onClick={clearMask}
-                            disabled={busy || maskBusy}
+                            disabled={busy}
                             className="flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/10 disabled:opacity-40"
                         >
                             <Trash2 size={14} /> クリア
@@ -432,7 +335,7 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                         <button
                             type="button"
                             onClick={() => setInpaint(false)}
-                            disabled={busy || maskBusy}
+                            disabled={busy}
                             className="shrink-0 rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/10 disabled:opacity-40"
                         >
                             完了
@@ -477,97 +380,9 @@ export const HistoryZoomOverlay: React.FC<Props> = ({
                                 <Paintbrush size={12} /> 部分再描画
                             </button>
                         )}
-                        {onInpaint && onBackgroundMask && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    resetMaskRef.current = true
-                                    pendingAutoBgRef.current = true // マスク確定後に背景を自動選択
-                                    setErase(false)
-                                    setCursor(null)
-                                    setInpaint(true)
-                                }}
-                                className="flex items-center gap-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-500 px-3 py-1 text-[11px] font-sans font-bold text-white"
-                                title="rembg で背景を自動マスクして、背景だけ NovelAI で描き直す"
-                            >
-                                <Wand2 size={12} /> 背景だけ再描画
-                            </button>
-                        )}
-                        {onToneBackground && (
-                            <button
-                                type="button"
-                                onClick={() => setTonePickerOpen(true)}
-                                className="flex items-center gap-1.5 rounded-full bg-sky-600/90 hover:bg-sky-500 px-3 py-1 text-[11px] font-sans font-bold text-white"
-                                title="rembg で前景を切り抜き、背景をスクリーントーンに差し替える"
-                            >
-                                <Grid2x2 size={12} /> 背景をトーンに
-                            </button>
-                        )}
                     </div>
                 )}
             </div>
-
-            {tonePickerOpen && onToneBackground && (
-                <div
-                    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-6"
-                    onClick={() => { if (!toneBusy) setTonePickerOpen(false) }}
-                >
-                    <div
-                        className="relative flex max-h-[82vh] w-[600px] max-w-[92vw] flex-col gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between">
-                            <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                                <Grid2x2 size={16} className="text-sky-400" />
-                                背景に敷くトーンを選ぶ
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => { if (!toneBusy) setTonePickerOpen(false) }}
-                                className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                                title="閉じる"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <label className="flex items-center gap-3 text-xs text-zinc-400">
-                            <span className="shrink-0 w-16">タイルの大きさ</span>
-                            <input
-                                type="range"
-                                min={0.3}
-                                max={3}
-                                step={0.1}
-                                value={toneScale}
-                                onChange={(e) => setToneScale(Number(e.target.value))}
-                                className="flex-1 accent-sky-500"
-                            />
-                            <span className="w-10 text-right font-mono text-zinc-500">{Math.round(toneScale * 100)}%</span>
-                        </label>
-                        <p className="text-[11px] text-zinc-500">
-                            前景（キャラ）を自動で切り抜いて、選んだトーンの上に重ねます。クリックで合成します。
-                        </p>
-                        <div className="grid grid-cols-6 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-8">
-                            {SCREEN_TONE_CATALOG.map((tone) => (
-                                <button
-                                    key={tone.id}
-                                    type="button"
-                                    onClick={() => void applyToneBackground(tone.id)}
-                                    disabled={toneBusy}
-                                    className="aspect-square overflow-hidden rounded-lg border border-zinc-700 bg-white hover:border-sky-500 disabled:opacity-40"
-                                    title={tone.name}
-                                >
-                                    <img src={tone.dataUrl} alt="" className="h-full w-full object-cover" />
-                                </button>
-                            ))}
-                        </div>
-                        {toneBusy && (
-                            <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-2xl bg-zinc-950/70 text-sm text-zinc-200">
-                                <Loader2 size={16} className="animate-spin" /> 背景を合成中…
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

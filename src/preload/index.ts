@@ -103,8 +103,6 @@ const api: Window['electron'] = {
     copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) =>
         ipcRenderer.invoke('copy-file-to-project', { projectPath, sourcePath, assetsSubPath }),
     startDragFile: (absolutePath: string) => ipcRenderer.send('start-drag-file', absolutePath),
-    rembgRemoveBackground: (projectPath: string, inputRelativePath: string) =>
-        ipcRenderer.invoke('rembg-remove-background', { projectPath, inputRelativePath }),
     saveWandPng: (projectPath: string, assetsSubPath: string, baseName: string, data: string) =>
         ipcRenderer.invoke('save-wand-png', { projectPath, assetsSubPath, baseName, data }),
     saveMangaPng: (projectPath: string, panelId: string, kind: string, data: string) =>
@@ -138,14 +136,8 @@ const api: Window['electron'] = {
     novelaiTestConnection: (token?: string) => ipcRenderer.invoke('novelai:test-connection', { token }),
     novelaiGenerate: (payload: unknown) => ipcRenderer.invoke('novelai:generate', payload),
     novelaiInpaint: (payload: unknown) => ipcRenderer.invoke('novelai:inpaint', payload),
-    novelaiBackgroundMask: (projectPath: string, sourceRelativePath: string) =>
-        ipcRenderer.invoke('novelai:background-mask', { projectPath, sourceRelativePath }),
     novelaiImportImage: (projectPath: string, panelId: string, sourcePath: string) =>
         ipcRenderer.invoke('novelai:import-image', { projectPath, panelId, sourcePath }),
-    novelaiForegroundCutout: (projectPath: string, sourceRelativePath: string) =>
-        ipcRenderer.invoke('novelai:foreground-cutout', { projectPath, sourceRelativePath }),
-    novelaiSaveImage: (projectPath: string, panelId: string, dataUrl: string) =>
-        ipcRenderer.invoke('novelai:save-image', { projectPath, panelId, dataUrl }),
     novelaiDeleteGeneration: (projectPath: string, relativePath: string) =>
         ipcRenderer.invoke('novelai:delete-generation', { projectPath, relativePath }),
     exportTranslationSheet: (defaultName: string, content: string) =>

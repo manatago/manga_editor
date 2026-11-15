@@ -56,11 +56,6 @@ declare global {
             readOraFile: (filePath: string) => Promise<Uint8Array>
             copyFileToProject: (projectPath: string, sourcePath: string, assetsSubPath?: string) => Promise<string>
             startDragFile: (absolutePath: string) => void
-            /** rembg（isnet-anime 既定）で背景除去。出力は同フォルダの *_nobg.png */
-            rembgRemoveBackground: (
-                projectPath: string,
-                inputRelativePath: string
-            ) => Promise<{ relativePath: string }>
             /** マジックワンド編集後の PNG を assets/{assetsSubPath}/{baseName}_wand.png に保存 */
             saveWandPng: (
                 projectPath: string,
@@ -166,17 +161,6 @@ declare global {
                 | { ok: false; error: string; status?: number; message?: string }
             >
             /**
-             * 背景マスク自動生成。rembg のアルファから「背景＝白(再描画)」の PNG マスク
-             * （data URL）を作って返す。部分再描画(infill)に渡すと背景だけ描き直せる。
-             */
-            novelaiBackgroundMask: (
-                projectPath: string,
-                sourceRelativePath: string
-            ) => Promise<
-                | { ok: true; maskBase64Png: string; width: number; height: number }
-                | { ok: false; error: string; message?: string }
-            >
-            /**
              * 外部画像をこのコマの生成履歴に取り込む。サイズを 64px グリッドへ正規化して
              * novelai/<panelId>/ に PNG 保存し、相対パスと正規化後サイズを返す。
              */
@@ -186,29 +170,6 @@ declare global {
                 sourcePath: string
             ) => Promise<
                 | { ok: true; relativePath: string; width: number; height: number }
-                | { ok: false; error: string; message?: string }
-            >
-            /**
-             * 前景（キャラ）切り抜き取得。rembg で背景を透過させた PNG を data URL で返す。
-             * これを好きな背景（スクリーントーン等）に重ねて背景差し替え合成できる。
-             */
-            novelaiForegroundCutout: (
-                projectPath: string,
-                sourceRelativePath: string
-            ) => Promise<
-                | { ok: true; dataUrl: string; width: number; height: number }
-                | { ok: false; error: string; message?: string }
-            >
-            /**
-             * レンダラで合成した PNG（data URL）をこのコマの生成履歴フォルダに保存する。
-             * NovelAI を介さず作った画像（トーン背景合成など）を履歴に載せる用途。
-             */
-            novelaiSaveImage: (
-                projectPath: string,
-                panelId: string,
-                dataUrl: string
-            ) => Promise<
-                | { ok: true; relativePath: string; width: number; height: number; createdAt: number }
                 | { ok: false; error: string; message?: string }
             >
             /** 生成履歴を 1 件削除（assets/dust/ へ物理移動） */

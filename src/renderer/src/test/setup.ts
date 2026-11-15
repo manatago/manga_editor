@@ -23,7 +23,6 @@ const electronBridge = {
   selectOraFile: vi.fn(async () => null),
   readOraFile: vi.fn(async () => new Uint8Array()),
   startDragFile: vi.fn(),
-  rembgRemoveBackground: vi.fn(async () => ({ relativePath: 'assets/references/characters/x/out_nobg.png' })),
   // Add other mocks as needed
 }
 

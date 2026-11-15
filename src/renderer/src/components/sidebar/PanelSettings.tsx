@@ -71,7 +71,7 @@ const PanelSettings: React.FC<PanelSettingsProps> = ({ panel, updatePanel, remov
     }
 
     // gousei のシーン（.ora）を読む。全体の絵をコマの画像に、人物・前面物だけの絵をはみ出し用にする。
-    // はみ出し用は gousei の切り抜きそのものなので、rembg で推し量るより確実（ユーザー）
+    // はみ出し用は gousei が分離した切り抜きそのものを使う（レイヤー分離は gousei 側で行う）。
     const [oraBusy, setOraBusy] = React.useState(false)
     const [oraMsg, setOraMsg] = React.useState('')
     const handleOra = async (reload: boolean) => {

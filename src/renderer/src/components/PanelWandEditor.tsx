@@ -4,7 +4,7 @@ import { MagicWandEditorModal } from './MagicWandEditorModal'
 
 /**
  * コマ画像のマジックワンド編集モーダル。
- * rembg の自動背景除去で取り切れなかった箇所を、クリックで手動透明化するための入口。
+ * 画像の背景など不要な箇所を、クリックで手動透明化するための入口。
  * PanelItem のツールバー「手動で背景消し（ワンド）」から開かれる（ストア駆動）。
  * Konva ツリー内から DOM モーダルを直接描けないため、App 直下（DOM 階層）で描画する。
  */
@@ -27,7 +27,7 @@ export const PanelWandEditor: React.FC = () => {
 
     // はみ出しモードの時は「はみ出し用の切り抜き(protrudeImagePath)」を編集する。
     // こうすると枠内の元画像(imagePath, 背景つき)は無傷のまま、枠外へ出る人物の
-    // シルエットだけをワンドで詰められる（rembg の取りこぼしを手動で補正）。
+    // シルエットだけをワンドで詰められる。
     const editingProtrude = !!panel?.imageProtrude
     const sourcePath = editingProtrude ? panel?.protrudeImagePath || panel?.imagePath : panel?.imagePath
 

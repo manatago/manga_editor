@@ -11,7 +11,6 @@ import type {
     ReferenceCharacter
 } from '../store/types'
 import { normalizeReferenceImageToBase64Png } from '../utils/novelaiReferenceImage'
-import { getScreenToneDataUrl } from '../utils/screenToneCatalog'
 import { showError } from '../utils/dialogs'
 import {
     ASPECT_DIMS,
@@ -27,52 +26,6 @@ import { CharacterRefSelector } from './NovelAIGeneration/CharacterRefSelector'
 import { PreciseRefList } from './NovelAIGeneration/PreciseRefList'
 import { HistoryGallery } from './NovelAIGeneration/HistoryGallery'
 import { HistoryZoomOverlay } from './NovelAIGeneration/HistoryZoomOverlay'
-
-/** data URL / URL を HTMLImageElement として読み込む */
-function loadImageEl(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const img = new Image()
-        img.onload = () => resolve(img)
-        img.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
-        img.src = src
-    })
-}
-
-/**
- * 前景（キャラ）切り抜きを、白い紙にスクリーントーンをタイル敷きした背景へ重ねて合成し、
- * PNG の data URL を返す。トーンは SVG data URL なので canvas は汚染されず toDataURL できる。
- */
-async function composeToneBackground(
-    cutoutDataUrl: string,
-    width: number,
-    height: number,
-    toneDataUrl: string,
-    scale: number
-): Promise<string> {
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('canvas が使えません')
-    // 紙（白）
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, width, height)
-    // トーンをタイル敷き（scale でタイルの大きさを調整）
-    const toneImg = await loadImageEl(toneDataUrl)
-    const pattern = ctx.createPattern(toneImg, 'repeat')
-    if (pattern) {
-        const s = Math.max(0.1, scale)
-        if (typeof pattern.setTransform === 'function') {
-            pattern.setTransform(new DOMMatrix([s, 0, 0, s, 0, 0]))
-        }
-        ctx.fillStyle = pattern
-        ctx.fillRect(0, 0, width, height)
-    }
-    // 前景（キャラ）を上に重ねる
-    const fgImg = await loadImageEl(cutoutDataUrl)
-    ctx.drawImage(fgImg, 0, 0, width, height)
-    return canvas.toDataURL('image/png')
-}
 
 export const NovelAIGenerationModal: React.FC = () => {
     const targetPanelId = useMangaStore((s) => s.novelaiTargetPanelId)
@@ -568,67 +521,6 @@ export const NovelAIGenerationModal: React.FC = () => {
         return entry
     }
 
-    // rembg で背景を自動マスク化（白=再描画）。HistoryZoomOverlay の「背景だけ再描画」用。
-    const handleBackgroundMask = async (sourceRelativePath: string): Promise<string | null> => {
-        if (!window.electron?.novelaiBackgroundMask || !currentProjectPath) return null
-        const resp = await window.electron.novelaiBackgroundMask(currentProjectPath, sourceRelativePath)
-        if (!resp.ok) {
-            await showError(`背景マスクの生成に失敗しました: ${resp.error}${resp.message ? ` ${resp.message}` : ''}`)
-            return null
-        }
-        return resp.maskBase64Png
-    }
-
-    /**
-     * 背景をスクリーントーンに差し替える。rembg で前景（キャラ）を切り抜き、選んだトーンを
-     * 敷いた背景へ重ねて合成し、新しい履歴エントリとして保存・選択する。NovelAI は使わない。
-     */
-    const handleToneBackground = async (
-        sourceRelativePath: string,
-        toneId: string,
-        scale: number
-    ): Promise<NovelAIHistoryEntry | null> => {
-        if (!window.electron?.novelaiForegroundCutout || !window.electron?.novelaiSaveImage) return null
-        if (!panel || !currentProjectPath) return null
-        const toneUrl = getScreenToneDataUrl(toneId)
-        if (!toneUrl) {
-            await showError('選択したトーンが見つかりませんでした')
-            return null
-        }
-        const cut = await window.electron.novelaiForegroundCutout(currentProjectPath, sourceRelativePath)
-        if (!cut.ok) {
-            await showError(`前景の切り抜きに失敗しました: ${cut.error}${cut.message ? ` ${cut.message}` : ''}`)
-            return null
-        }
-        let composed: string
-        try {
-            composed = await composeToneBackground(cut.dataUrl, cut.width, cut.height, toneUrl, scale)
-        } catch (e) {
-            await showError(e instanceof Error ? e.message : String(e))
-            return null
-        }
-        const resp = await window.electron.novelaiSaveImage(currentProjectPath, panel.id, composed)
-        if (!resp.ok) {
-            await showError(`背景トーン合成の保存に失敗しました: ${resp.error}${resp.message ? ` ${resp.message}` : ''}`)
-            return null
-        }
-        const entry: NovelAIHistoryEntry = {
-            relativePath: resp.relativePath,
-            seed: 0,
-            createdAt: resp.createdAt,
-            situationPrompt: (form.situationPrompt ?? '').trim() || undefined,
-            supplementaryPrompt: (form.supplementaryPrompt ?? '').trim() || undefined,
-            aspect: form.aspect ?? 'portrait',
-            width: resp.width,
-            height: resp.height,
-            imported: true
-        }
-        const nextHistory = [...(panel.novelai?.history ?? []), entry]
-        persistForm(form, nextHistory)
-        setSelectedRelativePath(entry.relativePath)
-        return entry
-    }
-
     if (!targetPanelId || !panel) return null
 
     const preciseList = form.preciseRefs ?? []
@@ -877,8 +769,6 @@ export const NovelAIGenerationModal: React.FC = () => {
                     onClose={() => setZoomedRelativePath(null)}
                     onSelect={setZoomedRelativePath}
                     onInpaint={handleInpaint}
-                    onBackgroundMask={handleBackgroundMask}
-                    onToneBackground={handleToneBackground}
                 />
             )}
         </div>

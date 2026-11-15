@@ -9,11 +9,8 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "pack": "electron-vite build && electron-builder --dir",
-    "bundle-rembg": "node scripts/bundle-rembg.mjs",
     "dist": "electron-vite build && electron-builder",
-    "dist:with-rembg": "npm run bundle-rembg && electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win",
-    "dist:win:with-rembg": "npm run bundle-rembg && electron-vite build && electron-builder --win",
     "test": "vitest run"
   },
   "build": {
@@ -27,15 +24,6 @@
     "files": [
       "out/**/*",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "resources/bundled-rembg/${os}-${arch}",
-        "to": "rembg",
-        "filter": [
-          "**/*"
-        ]
-      }
     ],
     "mac": {
       "target": [

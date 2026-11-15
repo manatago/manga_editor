@@ -1,10 +1,8 @@
 import { app, ipcMain, nativeImage, net, safeStorage } from 'electron'
 import * as fs from 'fs'
-import * as os from 'os'
 import * as pathModule from 'path'
 import { unzipSync } from 'fflate'
 import { ASSETS_DUST_DIR, ASSETS_IMAGES_DIR } from '../assetsLayoutRoot'
-import { runRembgToFile } from '../rembgRunner'
 import { sanitizePanelId } from './sanitizers'
 
 const NOVELAI_DEFAULT_NEGATIVE =
@@ -549,70 +547,6 @@ export function registerNovelAIHandlers(): void {
         return postGenerateAndSave(token, body, projectRoot, outDir, seed, width, height, transform)
     })
 
-    // 背景マスク自動生成。rembg のアルファから「背景＝白(再描画) / 前景＝透明」の
-    // マスク PNG（data URL）を作って返す。これを部分再描画(infill)に渡すと、
-    // キャラ（前景）はそのまま背景だけを NovelAI で描き直せる。
-    ipcMain.handle(
-        'novelai:background-mask',
-        async (_, payload: { projectPath: string; sourceRelativePath: string }) => {
-            const projectRoot = String(payload?.projectPath ?? '').trim()
-            if (!projectRoot || !fs.existsSync(projectRoot)) {
-                return { ok: false as const, error: 'project-missing' as const }
-            }
-            // 元画像をプロジェクト内に限定して解決
-            const rel = String(payload?.sourceRelativePath ?? '').replace(/\\/g, '/').replace(/^\/+/, '')
-            if (!rel) return { ok: false as const, error: 'source-missing' as const }
-            const srcAbs = pathModule.resolve(pathModule.join(projectRoot, ...rel.split('/')))
-            const assetsRoot = pathModule.resolve(pathModule.join(projectRoot, 'assets'))
-            const relFromAssets = pathModule.relative(assetsRoot, srcAbs)
-            if (relFromAssets.startsWith('..') || pathModule.isAbsolute(relFromAssets)) {
-                return { ok: false as const, error: 'out-of-project' as const }
-            }
-            if (!fs.existsSync(srcAbs)) return { ok: false as const, error: 'source-missing' as const }
-
-            // rembg はプロジェクト内に _nobg を残さないよう一時ファイルへ出力する
-            const tmpOut = pathModule.join(
-                os.tmpdir(),
-                `mangas-bgmask-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`
-            )
-            try {
-                await runRembgToFile(srcAbs, tmpOut)
-                const nobgBuf = fs.readFileSync(tmpOut)
-                const img = nativeImage.createFromBuffer(nobgBuf)
-                const { width, height } = img.getSize()
-                if (!width || !height) return { ok: false as const, error: 'rembg-decode' as const }
-                // toBitmap は BGRA。アルファ（index+3）だけ参照すればよい。
-                // アルファが薄い＝背景 → 白(再描画)、前景 → 透明。
-                const bitmap = img.toBitmap()
-                const THRESHOLD = 128
-                const count = width * height
-                const out = Buffer.alloc(count * 4)
-                for (let i = 0; i < count; i++) {
-                    const isBg = bitmap[i * 4 + 3] < THRESHOLD
-                    const v = isBg ? 255 : 0
-                    out[i * 4 + 0] = v
-                    out[i * 4 + 1] = v
-                    out[i * 4 + 2] = v
-                    out[i * 4 + 3] = v
-                }
-                const maskImg = nativeImage.createFromBitmap(out, { width, height })
-                return { ok: true as const, maskBase64Png: maskImg.toDataURL(), width, height }
-            } catch (e) {
-                return {
-                    ok: false as const,
-                    error: 'rembg-failed' as const,
-                    message: e instanceof Error ? e.message : String(e)
-                }
-            } finally {
-                try {
-                    if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut)
-                } catch {
-                    /* ignore */
-                }
-            }
-        }
-    )
-
     // 外部画像をこのコマの生成履歴に取り込む。サイズを NovelAI の 64px グリッドへ
     // 正規化（アスペクト比維持・面積上限内）してから novelai/<panelId>/ に PNG 保存する。
     ipcMain.handle(
@@ -659,86 +593,6 @@ export function registerNovelAIHandlers(): void {
                 return {
                     ok: false as const,
                     error: 'import-failed' as const,
-                    message: e instanceof Error ? e.message : String(e)
-                }
-            }
-        }
-    )
-
-    // 前景（キャラ）切り抜き取得。rembg で背景を透過させた PNG を data URL で返す。
-    // レンダラ側でこの切り抜きを好きな背景（スクリーントーン等）に重ねて合成できる。
-    ipcMain.handle(
-        'novelai:foreground-cutout',
-        async (_, payload: { projectPath: string; sourceRelativePath: string }) => {
-            const projectRoot = String(payload?.projectPath ?? '').trim()
-            if (!projectRoot || !fs.existsSync(projectRoot)) {
-                return { ok: false as const, error: 'project-missing' as const }
-            }
-            const srcAbs = resolveInProject(projectRoot, payload?.sourceRelativePath)
-            if (!srcAbs || !fs.existsSync(srcAbs)) {
-                return { ok: false as const, error: 'source-missing' as const }
-            }
-            const tmpOut = pathModule.join(
-                os.tmpdir(),
-                `mangas-cutout-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`
-            )
-            try {
-                await runRembgToFile(srcAbs, tmpOut)
-                const nobgBuf = fs.readFileSync(tmpOut)
-                const img = nativeImage.createFromBuffer(nobgBuf)
-                const { width, height } = img.getSize()
-                if (!width || !height) return { ok: false as const, error: 'rembg-decode' as const }
-                return { ok: true as const, dataUrl: img.toDataURL(), width, height }
-            } catch (e) {
-                return {
-                    ok: false as const,
-                    error: 'rembg-failed' as const,
-                    message: e instanceof Error ? e.message : String(e)
-                }
-            } finally {
-                try {
-                    if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut)
-                } catch {
-                    /* ignore */
-                }
-            }
-        }
-    )
-
-    // レンダラで合成した PNG（data URL）をこのコマの生成履歴フォルダに保存する。
-    // トーン背景合成など、NovelAI を介さず作った画像を履歴に載せる用途。
-    ipcMain.handle(
-        'novelai:save-image',
-        async (_, payload: { projectPath: string; panelId: string; dataUrl: string }) => {
-            const projectRoot = String(payload?.projectPath ?? '').trim()
-            if (!projectRoot || !fs.existsSync(projectRoot)) {
-                return { ok: false as const, error: 'project-missing' as const }
-            }
-            const buf = decodeBase64Image(payload?.dataUrl ?? '')
-            if (buf.length === 0) return { ok: false as const, error: 'data-missing' as const }
-            const outDir = resolveOutDir(projectRoot, { panelId: payload.panelId })
-            if (!outDir) return { ok: false as const, error: 'invalid-output-path' as const }
-            try {
-                const img = nativeImage.createFromBuffer(buf)
-                const { width, height } = img.getSize()
-                if (!width || !height) return { ok: false as const, error: 'decode-failed' as const }
-                if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
-                const now = new Date()
-                const pad = (n: number): string => String(n).padStart(2, '0')
-                const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}_bg`
-                let filePath = pathModule.join(outDir, `${stamp}.png`)
-                let suffix = 0
-                while (fs.existsSync(filePath)) {
-                    suffix += 1
-                    filePath = pathModule.join(outDir, `${stamp}_${suffix}.png`)
-                }
-                fs.writeFileSync(filePath, buf)
-                const rel = pathModule.relative(projectRoot, filePath).split(pathModule.sep).join('/')
-                return { ok: true as const, relativePath: rel, width, height, createdAt: now.getTime() }
-            } catch (e) {
-                return {
-                    ok: false as const,
-                    error: 'save-failed' as const,
                     message: e instanceof Error ? e.message : String(e)
                 }
             }

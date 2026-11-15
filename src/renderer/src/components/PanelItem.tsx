@@ -36,8 +36,6 @@ export const PanelItem: React.FC<{
     const currentProjectPath = useMangaStore((s) => s.currentProjectPath)
     const [isShiftPressed, setIsShiftPressed] = React.useState(false)
     const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>('move')
-    const [rembgBusy, setRembgBusy] = useState(false)
-    const [protrudeBusy, setProtrudeBusy] = useState(false)
     const [mangaBusy, setMangaBusy] = useState(false)
     const openPanelWandEditor = useMangaStore((s) => s.openPanelWandEditor)
     const points = getPanelPoints(panel)
@@ -132,56 +130,10 @@ export const PanelItem: React.FC<{
     const openNovelAIForPanel = useMangaStore((s) => s.openNovelAIForPanel)
     const novelaiActive = novelaiConnection.state === 'ok'
 
-    const handlePanelRembg = async () => {
-        if (!currentProjectPath || !panel.imagePath || rembgBusy || !window.electron) return
-        const abs = window.electron.resolveAssetPath(currentProjectPath, panel.imagePath)
-        if (!abs) {
-            await showError('プロジェクト内の画像のみ背景除去できます')
-            return
-        }
-        setRembgBusy(true)
-        try {
-            const { relativePath } = await window.electron.rembgRemoveBackground(
-                currentProjectPath,
-                panel.imagePath
-            )
-            onUpdate(panel.id, { imagePath: relativePath }, true)
-        } catch (e: unknown) {
-            const msg =
-                e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string'
-                    ? (e as { message: string }).message
-                    : '背景除去に失敗しました（rembg が PATH にあるか確認してください）'
-            console.error('PanelItem: rembg', e)
-            await showError(msg)
-        } finally {
-            setRembgBusy(false)
-        }
-    }
-
-    // 「コマからはみ出す」トグル。ON にした時、まだ切り抜きが無ければ
-    // 元画像(imagePath)を壊さずに rembg で切り抜きを作り protrudeImagePath に入れる。
-    // （枠内は元画像のまま背景を残し、枠外へは切り抜き人物だけを出すため）
-    const handleToggleProtrude = async () => {
-        const next = !panel.imageProtrude
-        if (!next) {
-            onUpdate(panel.id, { imageProtrude: false })
-            return
-        }
-        onUpdate(panel.id, { imageProtrude: true })
-        // 既に切り抜き済み、またはプロジェクト外画像なら自動生成しない（ワンドで手動可）
-        if (panel.protrudeImagePath || protrudeBusy || !currentProjectPath || !panel.imagePath || !window.electron) return
-        const abs = window.electron.resolveAssetPath(currentProjectPath, panel.imagePath)
-        if (!abs) return
-        setProtrudeBusy(true)
-        try {
-            const { relativePath } = await window.electron.rembgRemoveBackground(currentProjectPath, panel.imagePath)
-            onUpdate(panel.id, { protrudeImagePath: relativePath }, true)
-        } catch (e: unknown) {
-            console.error('PanelItem: protrude rembg', e)
-            await showError('はみ出し用の切り抜き生成に失敗しました。手動（ワンド）で調整してください。')
-        } finally {
-            setProtrudeBusy(false)
-        }
+    // 「コマからはみ出す」トグル。切り抜き(protrudeImagePath)は .ora 取り込み時の人物レイヤー、
+    // または手動（ワンド）で用意する。元画像(imagePath)は壊さない。
+    const handleToggleProtrude = () => {
+        onUpdate(panel.id, { imageProtrude: !panel.imageProtrude })
     }
 
     // 「漫画の絵にする」トグル。ON で元画像を漫画化して焼き込み（非破壊：元画像は残す）、OFF で元に戻す。
@@ -424,12 +376,8 @@ export const PanelItem: React.FC<{
                                 imageY: panel.height / 2
                             })
                         }
-                        rembgEnabled={!!currentProjectPath && !!panel.imagePath}
-                        rembgBusy={rembgBusy}
-                        onRembg={handlePanelRembg}
                         onWand={!!currentProjectPath && !!panel.imagePath ? () => openPanelWandEditor(panel.id) : undefined}
                         imageProtrude={!!panel.imageProtrude}
-                        protrudeBusy={protrudeBusy}
                         onToggleProtrude={handleToggleProtrude}
                         isManga={!!panel.isManga}
                         mangaLevel={panel.mangaLevel}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Users, Plus, Trash2, ImagePlus, Wand2, Loader2, X, Scissors, ImageIcon, Sparkles } from 'lucide-react'
+import { Users, Plus, Trash2, ImagePlus, X, Scissors, ImageIcon, Sparkles } from 'lucide-react'
 import { useMangaStore } from '../store/useMangaStore'
 import { referenceAssetsSubdir } from '../utils/referenceCharacters'
 import { FONT_OPTIONS, characterFontFor } from '../data/fontFamilies'
@@ -27,7 +27,6 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
     const selectedPanel = pages.find((p) => p.id === currentPageId)?.panels.find((p) => p.id === selectedPanelId) ?? null
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
-    const [rembgBusyImageId, setRembgBusyImageId] = useState<string | null>(null)
     const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null)
     const [aiPanelOpen, setAiPanelOpen] = useState(false)
     const [wandEditor, setWandEditor] = useState<{
@@ -107,27 +106,6 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
         const abs = window.electron.resolveAssetPath(currentProjectPath, relativePath)
         if (abs) {
             window.electron.startDragFile(abs)
-        }
-    }
-
-    const handleRembg = async (characterId: string, imageId: string, relativePath: string) => {
-        if (!currentProjectPath || !window.electron || rembgBusyImageId) return
-        setRembgBusyImageId(imageId)
-        try {
-            const { relativePath: outRel } = await window.electron.rembgRemoveBackground(
-                currentProjectPath,
-                relativePath
-            )
-            registerReferenceCharacterImage(characterId, outRel)
-        } catch (e: unknown) {
-            const msg =
-                e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string'
-                    ? (e as { message: string }).message
-                    : '背景除去に失敗しました（rembg が PATH にあるか確認してください）'
-            console.error('ReferenceCharactersModal: rembg', e)
-            await showError(msg)
-        } finally {
-            setRembgBusyImageId(null)
         }
     }
 
@@ -217,7 +195,6 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                             </h2>
                             <p className="text-zinc-500 text-xs mt-1">
                                 人物参照用画像とプロンプトをキャラ単位で管理します（manga.json に保存）。
-                                背景除去は rembg（既定モデル isnet-anime）を CLI 経由で実行します。
                             </p>
                         </div>
                         <button
@@ -432,7 +409,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                     ここに画像をドラッグ＆ドロップするか、「ファイルから追加」で取り込みます。
                                                     <br />
                                                     <span className="text-zinc-700 text-xs mt-2 inline-block">
-                                                        画像をクリックで拡大表示。サムネを外にドラッグでエクスポート。左下の杖で背景除去（rembg）、ハサミでマジックワンド編集。コマ選択中は緑のアイコンでそのコマに画像を入れられます。
+                                                        画像をクリックで拡大表示。サムネを外にドラッグでエクスポート。左下のハサミでマジックワンド編集。コマ選択中は緑のアイコンでそのコマに画像を入れられます。
                                                     </span>
                                                 </p>
                                             ) : (
@@ -446,7 +423,6 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                   )
                                                               )
                                                             : ''
-                                                        const busy = rembgBusyImageId === im.id
                                                         return (
                                                             <div
                                                                 key={im.id}
@@ -469,7 +445,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                         <img
                                                                             src={url}
                                                                             alt=""
-                                                                            className={`w-full h-full object-cover pointer-events-none select-none ${busy ? 'opacity-50' : ''}`}
+                                                                            className="w-full h-full object-cover pointer-events-none select-none"
                                                                         />
                                                                     </button>
                                                                 ) : (
@@ -477,43 +453,13 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                         {im.relativePath}
                                                                     </div>
                                                                 )}
-                                                                {busy ? (
-                                                                    <div
-                                                                        role="status"
-                                                                        aria-live="polite"
-                                                                        aria-busy="true"
-                                                                        className="absolute inset-0 z-[40] flex flex-col items-center justify-center gap-2 bg-black/55 backdrop-blur-[2px]"
-                                                                    >
-                                                                        <Loader2
-                                                                            className="text-amber-300 animate-spin"
-                                                                            size={28}
-                                                                            strokeWidth={2.5}
-                                                                            aria-hidden
-                                                                        />
-                                                                        <span className="text-[10px] font-bold text-amber-100/95 tracking-wide uppercase">
-                                                                            背景除去中…
-                                                                        </span>
-                                                                    </div>
-                                                                ) : null}
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={!!rembgBusyImageId}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        handleRembg(selected.id, im.id, im.relativePath)
-                                                                    }}
-                                                                    className="absolute bottom-1 left-1 z-30 p-1 rounded bg-black/60 text-amber-200/90 opacity-0 group-hover:opacity-100 hover:text-amber-100 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                    title="背景除去（rembg / isnet-anime）"
-                                                                >
-                                                                    <Wand2 size={14} />
-                                                                </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
                                                                         if (url) handleOpenWandEditor(selected.id, im.id, im.relativePath, url)
                                                                     }}
-                                                                    className="absolute bottom-1 left-8 z-30 p-1 rounded bg-black/60 text-sky-300/90 opacity-0 group-hover:opacity-100 hover:text-sky-100"
+                                                                    className="absolute bottom-1 left-1 z-30 p-1 rounded bg-black/60 text-sky-300/90 opacity-0 group-hover:opacity-100 hover:text-sky-100"
                                                                     title="マジックワンドで手動編集"
                                                                 >
                                                                     <Scissors size={14} />
@@ -525,7 +471,7 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                             e.stopPropagation()
                                                                             handleInsertToPanel(im.relativePath)
                                                                         }}
-                                                                        className="absolute bottom-1 left-[3.75rem] z-30 p-1 rounded bg-black/60 text-emerald-300/90 opacity-0 group-hover:opacity-100 hover:text-emerald-100"
+                                                                        className="absolute bottom-1 left-8 z-30 p-1 rounded bg-black/60 text-emerald-300/90 opacity-0 group-hover:opacity-100 hover:text-emerald-100"
                                                                         title="選択中のコマに入れる"
                                                                     >
                                                                         <ImageIcon size={14} />
@@ -533,7 +479,6 @@ export const ReferenceCharactersModal: React.FC<ReferenceCharactersModalProps> =
                                                                 )}
                                                                 <button
                                                                     type="button"
-                                                                    disabled={!!rembgBusyImageId}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
                                                                         removeReferenceCharacterImage(
