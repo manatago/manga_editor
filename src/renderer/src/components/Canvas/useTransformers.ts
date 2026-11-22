@@ -6,26 +6,34 @@ type Args = {
     selectedPanelId: string | null
     selectedBubbleId: string | null
     selectedMaterialId: string | null
+    selectedMosaicId: string | null
+    isMosaicMode: boolean
     panels: Panel[]
     bubbles: Bubble[]
     materials: Material[]
+    mosaics: { id: string }[]
 }
 
 export function useTransformers({
     selectedPanelId,
     selectedBubbleId,
     selectedMaterialId,
+    selectedMosaicId,
+    isMosaicMode,
     panels,
     bubbles,
-    materials
+    materials,
+    mosaics
 }: Args): {
     transformerRef: React.RefObject<Konva.Transformer | null>
     bubbleTransformerRef: React.RefObject<Konva.Transformer | null>
     materialTransformerRef: React.RefObject<Konva.Transformer | null>
+    mosaicTransformerRef: React.RefObject<Konva.Transformer | null>
 } {
     const transformerRef = useRef<Konva.Transformer>(null)
     const bubbleTransformerRef = useRef<Konva.Transformer>(null)
     const materialTransformerRef = useRef<Konva.Transformer>(null)
+    const mosaicTransformerRef = useRef<Konva.Transformer>(null)
 
     useEffect(() => {
         if (selectedPanelId && transformerRef.current) {
@@ -69,5 +77,21 @@ export function useTransformers({
         }
     }, [selectedMaterialId, materials])
 
-    return { transformerRef, bubbleTransformerRef, materialTransformerRef }
+    useEffect(() => {
+        if (isMosaicMode && selectedMosaicId && mosaicTransformerRef.current) {
+            const stage = mosaicTransformerRef.current.getStage()
+            const node = stage?.findOne('#mosaic-' + selectedMosaicId)
+            if (node) {
+                mosaicTransformerRef.current.nodes([node])
+                mosaicTransformerRef.current.forceUpdate()
+                mosaicTransformerRef.current.getLayer()?.batchDraw()
+            } else {
+                mosaicTransformerRef.current.nodes([])
+            }
+        } else {
+            mosaicTransformerRef.current?.nodes([])
+        }
+    }, [selectedMosaicId, isMosaicMode, mosaics])
+
+    return { transformerRef, bubbleTransformerRef, materialTransformerRef, mosaicTransformerRef }
 }

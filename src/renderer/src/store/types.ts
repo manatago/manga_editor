@@ -9,6 +9,8 @@ export interface MosaicRegion {
     width: number
     height: number
     type: MosaicType
+    /** 矩形自体の回転角（度）。つまみで回転・リサイズできる。既定 0 */
+    rotation?: number
     /** 棒線モザイク(type='bars')の色。既定 'white' */
     barColor?: 'white' | 'black'
     /** 棒線モザイク(type='bars')の回転角（度）。既定 0 */

@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useRef } from 'react'
+import Konva from 'konva'
 import { Group, Shape, Rect } from 'react-konva'
 import type { MosaicRegion } from '../../store/types'
 
@@ -110,6 +111,7 @@ interface MosaicItemProps {
     isMosaicMode: boolean
     onSelect: (id: string) => void
     isExporting: boolean
+    onUpdate?: (id: string, updates: Partial<Omit<MosaicRegion, 'id'>>) => void
 }
 
 export const MosaicItem: React.FC<MosaicItemProps> = ({
@@ -117,27 +119,62 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
     isSelected,
     isMosaicMode,
     onSelect,
-    isExporting
+    isExporting,
+    onUpdate
 }) => {
     const { x, y, width: w, height: h, type: mosaicType } = region
+    const groupRef = useRef<Konva.Group>(null)
 
-    if (mosaicType === 'none') {
-        if (isExporting) return null
-        return (
-            <Rect
-                x={x} y={y} width={w} height={h}
-                stroke={isSelected ? '#3b82f6' : '#64748b'}
-                strokeWidth={1} dash={[5, 4]}
-                fill="rgba(100,120,255,0.05)"
-                listening={isMosaicMode}
-                onClick={() => onSelect(region.id)}
-                onTap={() => onSelect(region.id)}
-            />
-        )
+    if (mosaicType === 'none' && isExporting) return null
+
+    // つまみ（Transformer）でのリサイズ・回転を確定する。
+    // Transformer は Group を scale/rotate するので、scale を width/height に焼き直して戻す。
+    const commitTransform = () => {
+        const node = groupRef.current
+        if (!node || !onUpdate) return
+        const scaleX = node.scaleX()
+        const scaleY = node.scaleY()
+        node.scaleX(1)
+        node.scaleY(1)
+        onUpdate(region.id, {
+            x: node.x(),
+            y: node.y(),
+            width: Math.max(4, Math.round(node.width() * scaleX)),
+            height: Math.max(4, Math.round(node.height() * scaleY)),
+            rotation: node.rotation()
+        })
+    }
+
+    const commitDrag = () => {
+        const node = groupRef.current
+        if (!node || !onUpdate) return
+        onUpdate(region.id, { x: node.x(), y: node.y() })
     }
 
     return (
-        <Group x={x} y={y}>
+        <Group
+            id={`mosaic-${region.id}`}
+            ref={groupRef}
+            x={x} y={y}
+            width={w} height={h}
+            rotation={region.rotation ?? 0}
+            draggable={isMosaicMode}
+            onClick={() => isMosaicMode && onSelect(region.id)}
+            onTap={() => isMosaicMode && onSelect(region.id)}
+            onDragStart={() => isMosaicMode && onSelect(region.id)}
+            onDragEnd={commitDrag}
+            onTransformEnd={commitTransform}
+        >
+            {mosaicType === 'none' ? (
+                <Rect
+                    width={w} height={h}
+                    stroke={isSelected ? '#3b82f6' : '#64748b'}
+                    strokeWidth={1} dash={[5, 4]}
+                    fill="rgba(100,120,255,0.05)"
+                    listening={isMosaicMode}
+                />
+            ) : (
+            <>
             {/* 視覚エフェクト */}
             <Shape
                 width={w}
@@ -147,12 +184,12 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                 sceneFunc={(ctx) => {
                     const rawCtx = (ctx as any)._context as CanvasRenderingContext2D
 
-                    // 現在の変換行列から物理ピクセル座標を取得
-                    // Konva は layer に scale(dpr, dpr) + group に translate(x, y) を適用している
+                    // 現在の変換行列から物理ピクセル座標を取得。
+                    // 矩形回転やつまみ操作中の scale が入るため、スケール倍率は √(a²+b²)。
                     const t = rawCtx.getTransform()
-                    const dpr = t.a                    // scaleX = devicePixelRatio
-                    const physX = Math.round(t.e)      // = x * dpr
-                    const physY = Math.round(t.f)      // = y * dpr
+                    const dpr = Math.hypot(t.a, t.b) || 1
+                    const physX = Math.round(t.e)      // 回転時は近似（pixel/frosted のサンプリング用）
+                    const physY = Math.round(t.f)
                     const physW = Math.round(w * dpr)
                     const physH = Math.round(h * dpr)
 
@@ -246,18 +283,15 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                     rawCtx.drawImage(off, 0, 0, w, h)
                 }}
             />
-            {/* インタラクション用透明レイヤー（エクスポート時は非表示）*/}
+            {/* インタラクション用透明レイヤー（ドラッグ・選択の当たり判定。エクスポート時は非表示）*/}
             {!isExporting && (
                 <Rect
                     width={w} height={h}
                     fill="transparent"
-                    stroke={isSelected ? '#3b82f6' : 'transparent'}
-                    strokeWidth={isSelected ? 2 : 0}
-                    dash={isSelected ? [6, 3] : undefined}
                     listening={isMosaicMode}
-                    onClick={() => onSelect(region.id)}
-                    onTap={() => onSelect(region.id)}
                 />
+            )}
+            </>
             )}
         </Group>
     )

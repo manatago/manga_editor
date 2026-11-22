@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react'
-import { Stage, Layer, Group, Rect, Line } from 'react-konva'
+import { Stage, Layer, Group, Rect, Line, Transformer } from 'react-konva'
 import Konva from 'konva'
 import { useMangaStore } from '../store/useMangaStore'
 import { useShallow } from 'zustand/react/shallow'
@@ -43,6 +43,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
         isMosaicMode,
         selectedMosaicId,
         addMosaic,
+        updateMosaic,
         setSelectedMosaicId
     } = useMangaStore(
         useShallow((s) => ({
@@ -65,6 +66,7 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
             isMosaicMode: s.isMosaicMode,
             selectedMosaicId: s.selectedMosaicId,
             addMosaic: s.addMosaic,
+            updateMosaic: s.updateMosaic,
             setSelectedMosaicId: s.setSelectedMosaicId
         }))
     )
@@ -162,13 +164,16 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
         }
     })
 
-    const { transformerRef, bubbleTransformerRef, materialTransformerRef } = useTransformers({
+    const { transformerRef, bubbleTransformerRef, materialTransformerRef, mosaicTransformerRef } = useTransformers({
         selectedPanelId,
         selectedBubbleId,
         selectedMaterialId,
+        selectedMosaicId,
+        isMosaicMode,
         panels,
         bubbles,
-        materials
+        materials,
+        mosaics: currentPage?.mosaics ?? []
     })
 
     const showGrid = !!currentPage?.gridEnabled
@@ -466,9 +471,24 @@ const Canvas: React.FC<{ stageRef: React.RefObject<Konva.Stage | null> }> = ({ s
                                         onSelect={(id) => {
                                             if (isMosaicMode) setSelectedMosaicId(id)
                                         }}
+                                        onUpdate={updateMosaic}
                                         isExporting={isExporting}
                                     />
                                 ))}
+                                {/* つまみ（リサイズ＋矩形回転）。モザイクモードで領域選択時のみ */}
+                                {isMosaicMode && !isExporting && selectedMosaicId && (
+                                    <Transformer
+                                        ref={mosaicTransformerRef}
+                                        rotateEnabled
+                                        keepRatio={false}
+                                        flipEnabled={false}
+                                        rotateAnchorOffset={24}
+                                        enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right']}
+                                        boundBoxFunc={(oldBox, newBox) =>
+                                            newBox.width < 8 || newBox.height < 8 ? oldBox : newBox
+                                        }
+                                    />
+                                )}
                             </Group>
                         )}
 

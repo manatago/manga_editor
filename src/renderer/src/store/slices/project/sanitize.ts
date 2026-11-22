@@ -280,6 +280,7 @@ function sanitizeMosaic(m: MosaicRegion): MosaicRegion {
         width: Math.max(1, m.width ?? 0),
         height: Math.max(1, m.height ?? 0),
         type: m.type ?? 'pixel-12',
+        ...(typeof m.rotation === 'number' && !Number.isNaN(m.rotation) ? { rotation: m.rotation } : {}),
         ...(m.barColor === 'black' || m.barColor === 'white' ? { barColor: m.barColor } : {}),
         ...(typeof m.barAngle === 'number' && !Number.isNaN(m.barAngle) ? { barAngle: m.barAngle } : {}),
         ...(typeof m.barWidth === 'number' && !Number.isNaN(m.barWidth) ? { barWidth: Math.max(1, m.barWidth) } : {})
