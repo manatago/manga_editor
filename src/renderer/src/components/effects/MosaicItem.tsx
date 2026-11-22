@@ -260,6 +260,7 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                         const unit = Math.max(1, Math.round((region.barWidth ?? 4) * dpr))
                         octx.fillStyle = region.barColor === 'black' ? '#000000' : '#ffffff'
                         octx.save()
+                        octx.globalAlpha = Math.max(0, Math.min(1, region.barOpacity ?? 1))
                         octx.translate(physW / 2, physH / 2)
                         octx.rotate(((region.barAngle ?? 0) * Math.PI) / 180)
                         // 回転しても矩形全体を覆えるよう、対角線分の範囲に敷く

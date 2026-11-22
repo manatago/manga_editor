@@ -334,6 +334,18 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                             />
                                             <span className="text-[10px] text-blue-500 font-mono w-9 text-right shrink-0">{Math.round(selectedMosaic.barWidth ?? 4)}px</span>
                                         </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-zinc-500 w-8 shrink-0">透明度</span>
+                                            <input
+                                                type="range"
+                                                min={0}
+                                                max={100}
+                                                value={Math.round((selectedMosaic.barOpacity ?? 1) * 100)}
+                                                onChange={(e) => updateMosaic(selectedMosaic.id, { barOpacity: Number(e.target.value) / 100 })}
+                                                className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                            <span className="text-[10px] text-blue-500 font-mono w-9 text-right shrink-0">{Math.round((selectedMosaic.barOpacity ?? 1) * 100)}%</span>
+                                        </div>
                                     </div>
                                 )}
                         </div>

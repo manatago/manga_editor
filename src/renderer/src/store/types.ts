@@ -17,6 +17,8 @@ export interface MosaicRegion {
     barAngle?: number
     /** 棒線モザイク(type='bars')の棒の太さ（論理px）。既定 4 */
     barWidth?: number
+    /** 棒線モザイク(type='bars')の棒の不透明度（0..1）。既定 1 */
+    barOpacity?: number
 }
 
 export type FadeDirection =
