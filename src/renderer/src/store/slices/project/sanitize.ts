@@ -279,7 +279,10 @@ function sanitizeMosaic(m: MosaicRegion): MosaicRegion {
         y: m.y ?? 0,
         width: Math.max(1, m.width ?? 0),
         height: Math.max(1, m.height ?? 0),
-        type: m.type ?? 'pixel-12'
+        type: m.type ?? 'pixel-12',
+        ...(m.barColor === 'black' || m.barColor === 'white' ? { barColor: m.barColor } : {}),
+        ...(typeof m.barAngle === 'number' && !Number.isNaN(m.barAngle) ? { barAngle: m.barAngle } : {}),
+        ...(typeof m.barWidth === 'number' && !Number.isNaN(m.barWidth) ? { barWidth: Math.max(1, m.barWidth) } : {})
     }
 }
 
@@ -292,8 +295,13 @@ function sanitizeMaterial(mat: Material): Material {
         isGrayscale: mat.isGrayscale ?? false,
         grayscaleBrightness:
             typeof mat.grayscaleBrightness === 'number' && !Number.isNaN(mat.grayscaleBrightness)
-                ? Math.max(-0.5, Math.min(0.5, mat.grayscaleBrightness))
-                : 0
+                ? Math.max(-1, Math.min(1, mat.grayscaleBrightness))
+                : 0,
+        ...(mat.outlineEnabled ? { outlineEnabled: true } : {}),
+        ...(typeof mat.outlineColor === 'string' ? { outlineColor: mat.outlineColor } : {}),
+        ...(typeof mat.outlineWidth === 'number' && !Number.isNaN(mat.outlineWidth)
+            ? { outlineWidth: Math.max(0, mat.outlineWidth) }
+            : {})
     }
 }
 

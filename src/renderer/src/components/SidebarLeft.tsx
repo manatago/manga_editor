@@ -54,7 +54,8 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
         setMosaicType,
         setMosaicVisible,
         setIsMosaicMode,
-        updateMosaicType
+        updateMosaicType,
+        updateMosaic
     } = useMangaStore(
         useShallow((s) => ({
             pages: s.pages,
@@ -75,7 +76,8 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
             setMosaicType: s.setMosaicType,
             setMosaicVisible: s.setMosaicVisible,
             setIsMosaicMode: s.setIsMosaicMode,
-            updateMosaicType: s.updateMosaicType
+            updateMosaicType: s.updateMosaicType,
+            updateMosaic: s.updateMosaic
         }))
     )
 
@@ -256,12 +258,13 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                 {selectedMosaic && (
                                     <div className="text-[10px] text-zinc-500 px-1">選択中の領域のタイプ</div>
                                 )}
-                                <div className="grid grid-cols-4 gap-1">
-                                    {(['pixel-12', 'frosted', 'white-blur', 'none'] as MosaicType[]).map((t) => {
+                                <div className="grid grid-cols-5 gap-1">
+                                    {(['pixel-12', 'frosted', 'white-blur', 'bars', 'none'] as MosaicType[]).map((t) => {
                                         const labels: Record<MosaicType, string> = {
                                             'pixel-12': 'px12',
                                             'frosted': '曇',
                                             'white-blur': '白',
+                                            'bars': '縞',
                                             'none': '無'
                                         }
                                         return (
@@ -287,6 +290,52 @@ const SidebarLeft: React.FC<SidebarLeftProps> = ({
                                         )
                                     })}
                                 </div>
+                                {/* 棒線モザイク専用: 色（白縞/黒縞）と回転 */}
+                                {selectedMosaic && selectedMosaic.type === 'bars' && (
+                                    <div className="mt-2 space-y-2 px-1">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-[10px] text-zinc-500 w-8 shrink-0">色</span>
+                                            {(['white', 'black'] as const).map((c) => (
+                                                <button
+                                                    key={c}
+                                                    type="button"
+                                                    onClick={() => updateMosaic(selectedMosaic.id, { barColor: c })}
+                                                    className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors ${
+                                                        (selectedMosaic.barColor ?? 'white') === c
+                                                            ? 'bg-blue-600 border-blue-500 text-white'
+                                                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                                                    }`}
+                                                >
+                                                    {c === 'white' ? '白縞' : '黒縞'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-zinc-500 w-8 shrink-0">回転</span>
+                                            <input
+                                                type="range"
+                                                min={-90}
+                                                max={90}
+                                                value={Math.round(selectedMosaic.barAngle ?? 0)}
+                                                onChange={(e) => updateMosaic(selectedMosaic.id, { barAngle: Number(e.target.value) })}
+                                                className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                            <span className="text-[10px] text-blue-500 font-mono w-9 text-right shrink-0">{Math.round(selectedMosaic.barAngle ?? 0)}°</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-zinc-500 w-8 shrink-0">太さ</span>
+                                            <input
+                                                type="range"
+                                                min={1}
+                                                max={40}
+                                                value={Math.round(selectedMosaic.barWidth ?? 4)}
+                                                onChange={(e) => updateMosaic(selectedMosaic.id, { barWidth: Number(e.target.value) })}
+                                                className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                            <span className="text-[10px] text-blue-500 font-mono w-9 text-right shrink-0">{Math.round(selectedMosaic.barWidth ?? 4)}px</span>
+                                        </div>
+                                    </div>
+                                )}
                         </div>
 
                         <div className="space-y-1">

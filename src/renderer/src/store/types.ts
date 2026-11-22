@@ -1,6 +1,6 @@
 export type PanelType = 'rect' | 'slanted' | 'trapezoid-h' | 'trapezoid-v' | 'pentagon' | 'hexagon' | 'circle'
 
-export type MosaicType = 'pixel-12' | 'frosted' | 'white-blur' | 'none'
+export type MosaicType = 'pixel-12' | 'frosted' | 'white-blur' | 'bars' | 'none'
 
 export interface MosaicRegion {
     id: string
@@ -9,6 +9,12 @@ export interface MosaicRegion {
     width: number
     height: number
     type: MosaicType
+    /** 棒線モザイク(type='bars')の色。既定 'white' */
+    barColor?: 'white' | 'black'
+    /** 棒線モザイク(type='bars')の回転角（度）。既定 0 */
+    barAngle?: number
+    /** 棒線モザイク(type='bars')の棒の太さ（論理px）。既定 4 */
+    barWidth?: number
 }
 
 export type FadeDirection =
@@ -286,9 +292,15 @@ export interface Material {
     isClipped: boolean
     panelId?: string
     isGrayscale?: boolean
-    /** グレースケール時の明るさ調整（Konva Brighten。-0.5 ほど暗く、+0.5 ほど明るく） */
+    /** グレースケール時の明るさ調整（Konva Brighten。-1 で真っ黒、+1 で真っ白、既定0） */
     grayscaleBrightness?: number
     whiteAlphaThreshold?: number
+    /** 縁取り（アウトライン）を描くか。透過PNG（文字画像など）の輪郭に沿って色を付ける。 */
+    outlineEnabled?: boolean
+    /** 縁取りの色（CSS色、既定 '#ffffff'） */
+    outlineColor?: string
+    /** 縁取りの太さ（論理px、既定 4） */
+    outlineWidth?: number
     /** モザイクより前面（上）に描画する。D&D で追加した素材は既定で true。 */
     aboveMosaic?: boolean
 }

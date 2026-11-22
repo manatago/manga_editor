@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useMemo } from 'react'
 import Konva from 'konva'
-import { Group, Image } from 'react-konva'
+import { Group, Image, Shape } from 'react-konva'
 import useImage from 'use-image'
 import { Material, Panel, useMangaStore } from '../store/useMangaStore'
 import { findTargetPanel } from './utils/geometry'
@@ -45,12 +45,15 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
     useEffect(() => {
         if (imageRef.current && image) {
             if (material.isGrayscale) {
+                // キャッシュは現在の width/height で焼かれるため、リサイズ時は焼き直す。
+                // （焼き直さないとキャッシュ済みビットマップが旧サイズのまま描画され、
+                //   リサイズが効かない／元に戻るように見える）
                 imageRef.current.cache()
             } else {
                 imageRef.current.clearCache()
             }
         }
-    }, [material.isGrayscale, material.grayscaleBrightness, image])
+    }, [material.isGrayscale, material.grayscaleBrightness, material.width, material.height, image])
 
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         if (e.target !== e.currentTarget) return
@@ -131,6 +134,49 @@ export const MaterialItem: React.FC<MaterialItemProps> = ({
                 ctx.closePath()
             } : undefined}
         >
+            {/* 縁取り（アウトライン）: 画像のアルファ形状をリング状にスタンプして輪郭を作り、
+                source-in で縁取り色に塗り替えてから本体の下に敷く。SVG 不要で透過PNGに効く。 */}
+            {material.outlineEnabled && (material.outlineWidth ?? 4) > 0 && (
+                <Shape
+                    listening={false}
+                    perfectDrawEnabled={false}
+                    width={material.width}
+                    height={material.height}
+                    sceneFunc={(ctx) => {
+                        const w2 = material.width ?? image.width
+                        const h2 = material.height ?? image.height
+                        const rawCtx = (ctx as unknown as { _context: CanvasRenderingContext2D })._context
+                        const tf = rawCtx.getTransform()
+                        // Group の回転を含むため、純粋なスケール倍率 = √(a²+b²) を dpr とみなす
+                        const dpr = Math.hypot(tf.a, tf.b) || 1
+                        const physW = Math.max(1, Math.round(w2 * dpr))
+                        const physH = Math.max(1, Math.round(h2 * dpr))
+                        const r = Math.max(1, Math.round((material.outlineWidth ?? 4) * dpr))
+                        const pad = r + 2
+
+                        const off = document.createElement('canvas')
+                        off.width = physW + pad * 2
+                        off.height = physH + pad * 2
+                        const octx = off.getContext('2d')
+                        if (!octx) return
+
+                        // リング状に本体を複数回スタンプ → アルファの膨張（＝輪郭）を作る
+                        const samples = 16
+                        for (let i = 0; i < samples; i++) {
+                            const a = (i / samples) * Math.PI * 2
+                            octx.drawImage(image, pad + Math.cos(a) * r, pad + Math.sin(a) * r, physW, physH)
+                        }
+                        // 膨張したシルエットを縁取り色で塗り替える
+                        octx.globalCompositeOperation = 'source-in'
+                        octx.fillStyle = material.outlineColor ?? '#ffffff'
+                        octx.fillRect(0, 0, off.width, off.height)
+                        octx.globalCompositeOperation = 'source-over'
+
+                        // シーンへ描画（dpr 変換が効いているので論理サイズへ換算して戻す）
+                        rawCtx.drawImage(off, -pad / dpr, -pad / dpr, off.width / dpr, off.height / dpr)
+                    }}
+                />
+            )}
             <Image
                 ref={imageRef}
                 image={image}

@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand'
 import type { MangaState } from '../useMangaStore'
 import type { MosaicType, MosaicRegion } from '../types'
-import { saveHistory } from '../helpers'
+import { historyKey, saveHistory } from '../helpers'
 
 export interface MosaicSlice {
     mosaicType: MosaicType
@@ -11,6 +11,7 @@ export interface MosaicSlice {
     addMosaic: (region: Omit<MosaicRegion, 'id'>) => void
     removeMosaic: (mosaicId: string) => void
     updateMosaicType: (mosaicId: string, type: MosaicType) => void
+    updateMosaic: (mosaicId: string, updates: Partial<Omit<MosaicRegion, 'id'>>, undoable?: boolean) => void
     setMosaicType: (type: MosaicType) => void
     setMosaicVisible: (visible: boolean) => void
     setIsMosaicMode: (mode: boolean) => void
@@ -61,6 +62,21 @@ export const createMosaicSlice: StateCreator<MangaState, [], [], MosaicSlice> = 
             pages: state.pages.map((p) =>
                 p.id === state.currentPageId
                     ? { ...p, mosaics: (p.mosaics || []).map((m) => m.id === mosaicId ? { ...m, type } : m) }
+                    : p
+            )
+        })
+    },
+
+    updateMosaic: (mosaicId, updates, undoable = true) => {
+        const state = get()
+        if (!state.currentPageId) return
+        // 同じ領域・同じ項目の連続更新（スライダー等）は1エントリにまとめる
+        const history = undoable ? saveHistory(state, historyKey('mosaic', mosaicId, updates)) : {}
+        set({
+            ...history,
+            pages: state.pages.map((p) =>
+                p.id === state.currentPageId
+                    ? { ...p, mosaics: (p.mosaics || []).map((m) => m.id === mosaicId ? { ...m, ...updates } : m) }
                     : p
             )
         })

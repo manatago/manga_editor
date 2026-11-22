@@ -86,18 +86,66 @@ const MaterialSettings: React.FC<MaterialSettingsProps> = ({ material, updateMat
                             <SliderField
                                 label="グレーの明るさ"
                                 display={Math.round((material.grayscaleBrightness ?? 0) * 100)}
-                                value={Math.round( Math.max(-50, Math.min(50, (material.grayscaleBrightness ?? 0) * 100)) )}
-                                min={-50}
-                                max={50}
+                                value={Math.round( Math.max(-100, Math.min(100, (material.grayscaleBrightness ?? 0) * 100)) )}
+                                min={-100}
+                                max={100}
                                 onChange={(v) => updateMaterial(material.id, { grayscaleBrightness: v / 100 })}
                                 variant="normal"
                                 headerClassName="mb-2"
                             />
-                            <p className="text-[10px] text-zinc-500 mt-1">左で濃く、右で薄く。</p>
+                            <p className="text-[10px] text-zinc-500 mt-1">左で濃く、右で薄く。右端で真っ白、左端で真っ黒。</p>
                         </div>
                     )}
                 </div>
                 
+                <div className="pt-2 border-t border-zinc-800 space-y-3">
+                    <button
+                        onClick={() => updateMaterial(material.id, { outlineEnabled: !material.outlineEnabled })}
+                        className={`w-full py-2 px-3 rounded-lg border text-[10px] font-bold transition-all flex items-center justify-between ${material.outlineEnabled ? 'bg-zinc-100 border-zinc-200 text-zinc-900' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'} `}
+                    >
+                        <span>縁取り（アウトライン）</span>
+                        <div className={`w-2 h-2 rounded-full ${material.outlineEnabled ? 'bg-zinc-900' : 'bg-zinc-700'} `} />
+                    </button>
+                    {material.outlineEnabled && (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-400 w-10 shrink-0">色</span>
+                                {(['#ffffff', '#000000'] as const).map((c) => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => updateMaterial(material.id, { outlineColor: c })}
+                                        className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors ${
+                                            (material.outlineColor ?? '#ffffff').toLowerCase() === c
+                                                ? 'bg-blue-600 border-blue-500 text-white'
+                                                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        {c === '#ffffff' ? '白' : '黒'}
+                                    </button>
+                                ))}
+                                <input
+                                    type="color"
+                                    value={material.outlineColor ?? '#ffffff'}
+                                    onChange={(e) => updateMaterial(material.id, { outlineColor: e.target.value })}
+                                    title="好きな色"
+                                    className="w-8 h-7 shrink-0 rounded border border-zinc-700 bg-zinc-800 cursor-pointer"
+                                />
+                            </div>
+                            <SliderField
+                                label="太さ"
+                                display={<>{Math.round(material.outlineWidth ?? 4)}px</>}
+                                value={Math.round(material.outlineWidth ?? 4)}
+                                min={1}
+                                max={20}
+                                onChange={(v) => updateMaterial(material.id, { outlineWidth: v })}
+                                variant="normal"
+                                headerClassName="mb-2"
+                            />
+                        </div>
+                    )}
+                </div>
+
                 <div className="pt-2 border-t border-zinc-800">
                     <SliderField
                         label="白飛び除去 (Alpha Threshold)"

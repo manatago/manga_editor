@@ -163,6 +163,9 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                     off.height = physH
                     const octx = off.getContext('2d')!
 
+                    // 楕円アルファマスクでソフトに縁取る（棒線モザイクだけは矩形のまま使う）
+                    let useEllipseMask = true
+
                     if (mosaicType === 'pixel-12') {
                         const blockSize = 12
                         const physBlock = Math.max(1, Math.round(blockSize * dpr))
@@ -213,13 +216,31 @@ export const MosaicItem: React.FC<MosaicItemProps> = ({
                     } else if (mosaicType === 'white-blur') {
                         octx.fillStyle = '#ffffff'
                         octx.fillRect(0, 0, physW, physH)
+                    } else if (mosaicType === 'bars') {
+                        // 棒線モザイク。棒幅は固定（物理px換算）なので領域の大きさに関係なく確実に出る。
+                        // 棒:透明 = 1:1、色は白か黒（region.barColor）。barAngle で縞を回転。
+                        // 矩形いっぱいに敷くので楕円マスクはかけない（はみ出しは canvas 境界でクリップ）。
+                        const unit = Math.max(1, Math.round((region.barWidth ?? 4) * dpr))
+                        octx.fillStyle = region.barColor === 'black' ? '#000000' : '#ffffff'
+                        octx.save()
+                        octx.translate(physW / 2, physH / 2)
+                        octx.rotate(((region.barAngle ?? 0) * Math.PI) / 180)
+                        // 回転しても矩形全体を覆えるよう、対角線分の範囲に敷く
+                        const ext = Math.ceil(Math.hypot(physW, physH) / 2) + unit * 2
+                        for (let bx = -ext; bx < ext; bx += unit * 2) {
+                            octx.fillRect(bx, -ext, unit, ext * 2)
+                        }
+                        octx.restore()
+                        useEllipseMask = false
                     }
 
                     // 楕円形アルファマスクを適用（小σ → コーナーがほぼ消える）
-                    const mask = createEllipseMask(physW, physH)
-                    octx.globalCompositeOperation = 'destination-in'
-                    octx.drawImage(mask, 0, 0)
-                    octx.globalCompositeOperation = 'source-over'
+                    if (useEllipseMask) {
+                        const mask = createEllipseMask(physW, physH)
+                        octx.globalCompositeOperation = 'destination-in'
+                        octx.drawImage(mask, 0, 0)
+                        octx.globalCompositeOperation = 'source-over'
+                    }
 
                     // メインキャンバスに描画（ローカル座標 (0,0) → 変換後の正しい位置へ）
                     rawCtx.drawImage(off, 0, 0, w, h)
