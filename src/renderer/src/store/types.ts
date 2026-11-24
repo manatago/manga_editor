@@ -17,7 +17,7 @@ export interface MosaicRegion {
     barAngle?: number
     /** 棒線モザイク(type='bars')の棒の太さ（論理px）。既定 4 */
     barWidth?: number
-    /** 棒線モザイク(type='bars')の棒の不透明度（0..1）。既定 1 */
+    /** @deprecated 廃止。モザイクの秘匿性担保のため常に不透明で描画する。旧データの読み込み互換のためだけに型を残す。 */
     barOpacity?: number
 }
 

@@ -283,8 +283,8 @@ function sanitizeMosaic(m: MosaicRegion): MosaicRegion {
         ...(typeof m.rotation === 'number' && !Number.isNaN(m.rotation) ? { rotation: m.rotation } : {}),
         ...(m.barColor === 'black' || m.barColor === 'white' ? { barColor: m.barColor } : {}),
         ...(typeof m.barAngle === 'number' && !Number.isNaN(m.barAngle) ? { barAngle: m.barAngle } : {}),
-        ...(typeof m.barWidth === 'number' && !Number.isNaN(m.barWidth) ? { barWidth: Math.max(1, m.barWidth) } : {}),
-        ...(typeof m.barOpacity === 'number' && !Number.isNaN(m.barOpacity) ? { barOpacity: Math.max(0, Math.min(1, m.barOpacity)) } : {})
+        ...(typeof m.barWidth === 'number' && !Number.isNaN(m.barWidth) ? { barWidth: Math.max(1, m.barWidth) } : {})
+        // barOpacity は廃止（モザイクの秘匿性担保のため常に不透明）。保存値があっても読み捨てる。
     }
 }
 
